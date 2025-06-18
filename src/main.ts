@@ -2,51 +2,121 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { Request, Response, NextFunction } from "express";
+import { ConfigService } from "@nestjs/config";
+import { IoAdapter } from "@nestjs/platform-socket.io";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  app.useGlobalPipes(new ValidationPipe());
+  // 🔧 CORS Configuration
+  const frontendUrl = configService.get("FRONTEND_URL");
+  const allowedOrigins = [
+    "http://localhost:4200", // Développement Angular
+    "http://localhost:3000", // Développement React/Next
+    "http://localhost:5173", // Développement Vite
+    "https://localhost:4200", // HTTPS local
+    "https://localhost:3000", // HTTPS local
+  ];
 
-  // AJOUT DU PRÉFIXE GLOBAL 'api'
+  // Ajouter l'URL de production si elle existe
+  if (frontendUrl && frontendUrl.trim() !== "") {
+    allowedOrigins.push(frontendUrl);
+  }
+
+  // Ajouter des patterns Vercel courants
+  allowedOrigins.push("https://*.vercel.app");
+
+  console.log("🌐 CORS - Origines autorisées:", allowedOrigins);
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Autoriser les requêtes sans origin (Postman, apps mobiles, etc.)
+      if (!origin) return callback(null, true);
+
+      // Vérifier si l'origin est dans la liste autorisée
+      const isAllowed = allowedOrigins.some((allowedOrigin) => {
+        if (allowedOrigin.includes("*")) {
+          // Gestion des wildcards pour Vercel
+          const pattern = allowedOrigin.replace("*", ".*");
+          const regex = new RegExp(`^${pattern}$`);
+          return regex.test(origin);
+        }
+        return allowedOrigin === origin;
+      });
+
+      if (isAllowed) {
+        console.log(`✅ CORS: Origin autorisée - ${origin}`);
+        callback(null, true);
+      } else {
+        console.log(`❌ CORS: Origin rejetée - ${origin}`);
+        console.log(`📝 CORS: Origins autorisées:`, allowedOrigins);
+        callback(new Error(`Origin ${origin} non autorisée par CORS`));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+      "Origin",
+      "X-Requested-With",
+      "Access-Control-Request-Method",
+      "Access-Control-Request-Headers",
+    ],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  });
+
+  // Préfixe global pour l'API
   app.setGlobalPrefix("api");
 
+  // Validation globale
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    })
+  );
+
+  // Configuration Swagger
   const config = new DocumentBuilder()
     .setTitle("O'Ypunu API")
     .setDescription(
-      "API pour le dictionnaire multilingue de la communauté O'Ypunu"
+      "API pour la plateforme O'Ypunu - Dictionnaire communautaire"
     )
     .setVersion("1.0")
+    .addBearerAuth()
+    .addServer(
+      configService.get("APP_URL") || "http://localhost:3000",
+      "Production"
+    )
+    .addServer("http://localhost:3000", "Development")
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  // Documentation disponible sur /api-docs car /api est déjà pris par les routes API
   SwaggerModule.setup("api-docs", app, document);
 
-  // Redirection de la racine vers la documentation
-  app.use("/", (req: Request, res: Response, next: NextFunction) => {
-    if (req.originalUrl === "/") {
-      return res.redirect("/api-docs");
-    }
-    next();
-  });
+  // Configuration WebSocket avec CORS
+  app.useWebSocketAdapter(new IoAdapter(app));
 
-  // Configuration CORS
-  app.enableCors({
-    origin: ["http://localhost:4200", "https://oypunu.com"],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true,
-  });
-
-  const port = process.env.PORT || 3000;
+  const port = configService.get("PORT") || 3000;
   await app.listen(port, "0.0.0.0");
-  console.log(`L'application fonctionne sur: ${await app.getUrl()}`);
-  console.log(
-    `Documentation API disponible sur: http://localhost:${port}/api-docs`
-  );
-  console.log(`Routes API disponibles sur: http://localhost:${port}/api/`);
+
+  const appUrl = configService.get("APP_URL") || `http://localhost:${port}`;
+
+  console.log(`\n🚀 =================================`);
+  console.log(`🌟 OYpunu Backend - Démarrage réussi !`);
+  console.log(`📍 Application: ${appUrl}`);
+  console.log(`📚 Documentation: ${appUrl}/api-docs`);
+  console.log(`🔌 API Routes: ${appUrl}/api/`);
+  console.log(`🌐 Frontend URL: ${frontendUrl || "Non configurée"}`);
+  console.log(`🔐 JWT configuré: ${!!configService.get("JWT_SECRET")}`);
+  console.log(`📧 Email configuré: ${!!configService.get("MAIL_USER")}`);
+  console.log(`🗄️ Database: ${!!configService.get("MONGODB_URI")}`);
+  console.log(`🚀 =================================\n`);
 }
-bootstrap().catch((error) => {
-  console.error("Erreur lors du démarrage de l'application:", error);
-});
+
+bootstrap().catch(console.error);
