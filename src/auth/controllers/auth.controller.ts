@@ -8,7 +8,9 @@ import {
   Request,
   Res,
   Query,
-} from '@nestjs/common';
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
@@ -17,14 +19,14 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
-} from '@nestjs/swagger';
-import { AuthService } from '../services/auth.service';
-import { RegisterDto } from '../../users/dto/register.dto';
-import { LoginDto } from '../../users/dto/login.dto';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { AuthGuard } from '@nestjs/passport';
-import { Request as ExpressRequest, Response } from 'express';
-import { ConfigService } from '@nestjs/config';
+} from "@nestjs/swagger";
+import { AuthService } from "../services/auth.service";
+import { RegisterDto } from "../../users/dto/register.dto";
+import { LoginDto } from "../../users/dto/login.dto";
+import { JwtAuthGuard } from "../guards/jwt-auth.guard";
+import { AuthGuard } from "@nestjs/passport";
+import { Request as ExpressRequest, Response } from "express";
+import { ConfigService } from "@nestjs/config";
 
 interface SocialAuthRequest extends ExpressRequest {
   user: {
@@ -54,30 +56,19 @@ class AuthResponseDto {
   };
 }
 
-class SocialAuthResponseDto {
-  access_token: string;
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    role: string;
-    provider: string;
-  };
-}
-
-@ApiTags('authentication')
-@Controller('auth')
+@ApiTags("authentication")
+@Controller("auth")
 export class AuthController {
   constructor(
-    private _authService: AuthService,
-    private _configService: ConfigService,
+    private authService: AuthService,
+    private configService: ConfigService
   ) {}
 
-  @Post('register')
+  @Post("register")
   @ApiOperation({ summary: "Inscription d'un nouvel utilisateur" })
   @ApiResponse({
     status: 201,
-    description: 'Utilisateur inscrit avec succès',
+    description: "Utilisateur inscrit avec succès",
     type: AuthResponseDto,
   })
   @ApiResponse({ status: 400, description: "Données d'inscription invalides" })
@@ -87,207 +78,344 @@ export class AuthController {
   })
   @ApiBody({ type: RegisterDto })
   async register(@Body() registerDto: RegisterDto) {
-    return this._authService.register(registerDto);
+    return this.authService.register(registerDto);
   }
 
-  @Post('login')
-  @ApiOperation({ summary: 'Connexion utilisateur' })
+  @Post("login")
+  @ApiOperation({ summary: "Connexion utilisateur" })
   @ApiResponse({
     status: 200,
-    description: 'Connexion réussie',
+    description: "Connexion réussie",
     type: AuthResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Données de connexion invalides' })
-  @ApiResponse({ status: 401, description: 'Identifiants incorrects' })
+  @ApiResponse({ status: 400, description: "Données de connexion invalides" })
+  @ApiResponse({ status: 401, description: "Identifiants incorrects" })
   @ApiBody({ type: LoginDto })
   async login(@Body() loginDto: LoginDto) {
-    return this._authService.login(loginDto);
+    return this.authService.login(loginDto);
   }
 
-  @Get('verify-email/:token')
+  @Get("verify-email/:token")
   @ApiOperation({ summary: "Vérifier l'adresse email via un token" })
   @ApiResponse({
     status: 200,
-    description: 'Email vérifié avec succès',
+    description: "Email vérifié avec succès",
   })
-  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+  @ApiResponse({ status: 400, description: "Token invalide ou expiré" })
   @ApiParam({
-    name: 'token',
+    name: "token",
     description: "Token de vérification d'email",
   })
-  async verifyEmail(@Param('token') token: string) {
-    return this._authService.verifyEmail(token);
+  async verifyEmail(@Param("token") token: string) {
+    return this.authService.verifyEmail(token);
   }
 
-  @Post('resend-verification')
+  @Post("resend-verification")
   @ApiOperation({ summary: "Renvoyer l'email de vérification" })
   @ApiResponse({
     status: 200,
-    description: 'Email de vérification renvoyé avec succès',
+    description: "Email de vérification renvoyé avec succès",
   })
-  @ApiResponse({ status: 400, description: 'Email invalide' })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  @ApiResponse({ status: 400, description: "Email invalide" })
+  @ApiResponse({ status: 404, description: "Utilisateur non trouvé" })
   @ApiBody({ type: EmailDto })
   async resendVerificationEmail(@Body() body: { email: string }) {
-    return this._authService.resendVerificationEmail(body.email);
+    return this.authService.resendVerificationEmail(body.email);
   }
 
-  @Post('forgot-password')
+  @Post("forgot-password")
   @ApiOperation({
-    summary: 'Demander un lien de réinitialisation de mot de passe',
+    summary: "Demander un lien de réinitialisation de mot de passe",
   })
   @ApiResponse({
     status: 200,
-    description: 'Email de réinitialisation envoyé avec succès',
+    description: "Email de réinitialisation envoyé avec succès",
   })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  @ApiResponse({ status: 404, description: "Utilisateur non trouvé" })
   @ApiBody({ type: EmailDto })
   async forgotPassword(@Body() body: { email: string }) {
-    return this._authService.forgotPassword(body.email);
+    return this.authService.forgotPassword(body.email);
   }
 
-  @Post('reset-password')
-  @ApiOperation({ summary: 'Réinitialiser le mot de passe avec un token' })
+  @Post("reset-password")
+  @ApiOperation({ summary: "Réinitialiser le mot de passe avec un token" })
   @ApiResponse({
     status: 200,
-    description: 'Mot de passe réinitialisé avec succès',
+    description: "Mot de passe réinitialisé avec succès",
   })
-  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+  @ApiResponse({ status: 400, description: "Token invalide ou expiré" })
   @ApiBody({ type: ResetPasswordDto })
   async resetPassword(@Body() body: { token: string; password: string }) {
-    return this._authService.resetPassword(body.token, body.password);
+    return this.authService.resetPassword(body.token, body.password);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('profile')
+  @Get("profile")
   @ApiOperation({
     summary: "Récupérer les informations de profil de l'utilisateur connecté",
   })
   @ApiResponse({
     status: 200,
-    description: 'Profil récupéré avec succès',
+    description: "Profil récupéré avec succès",
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
   @ApiBearerAuth()
   getProfile(@Request() req: ExpressRequest) {
     return req.user;
   }
 
-  /* Routes d'authentification sociale */
+  /* Routes d'authentification sociale - CONDITIONNELLES */
 
   // Google Authentication
-  @Get('google')
-  @ApiOperation({ summary: 'Authentification via Google' })
+  @Get("google")
+  @ApiOperation({ summary: "Authentification via Google" })
   @ApiResponse({
     status: 302,
     description: "Redirection vers l'authentification Google",
   })
-  @UseGuards(AuthGuard('google'))
-  async googleAuth() {
-    // Cette route sert de point d'entrée pour l'auth Google
-    // Le middleware AuthGuard redirige vers Google
+  async googleAuth(@Res() res: Response) {
+    if (!this.isGoogleConfigured()) {
+      return res.status(503).json({
+        error: "Google OAuth non configuré",
+        message: "Cette méthode d'authentification n'est pas disponible",
+      });
+    }
+    return res.redirect("/api/auth/google/redirect");
   }
 
-  @Get('google/callback')
+  @Get("google/redirect")
+  @UseGuards(AuthGuard("google"))
+  async googleAuthRedirect(@Res() res: Response) {
+    if (!this.isGoogleConfigured()) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=google_not_configured`
+      );
+    }
+  }
+
+  @Get("google/callback")
   @ApiOperation({ summary: "Callback pour l'authentification Google" })
   @ApiResponse({
     status: 302,
-    description: 'Redirection vers le frontend avec token',
+    description: "Redirection vers le frontend avec token",
   })
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(AuthGuard("google"))
   googleAuthCallback(@Request() req: SocialAuthRequest, @Res() res: Response) {
-    const { user } = req;
-    // Génère un token temporaire pour stocker dans le localStorage
-    const socialAuthToken = this._authService.generateSocialAuthToken(user);
+    if (!this.isGoogleConfigured()) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=google_not_configured`
+      );
+    }
 
-    // Redirige vers le frontend avec le token
-    return res.redirect(
-      `${this._configService.get('CLIENT_URL')}/social-auth-success?token=${socialAuthToken}`,
-    );
+    try {
+      const { user } = req;
+      const socialAuthToken = this.authService.generateSocialAuthToken(user);
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/social-auth-success?token=${socialAuthToken}`
+      );
+    } catch (error) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=social_auth_failed`
+      );
+    }
   }
 
   // Facebook Authentication
-  @Get('facebook')
-  @ApiOperation({ summary: 'Authentification via Facebook' })
+  @Get("facebook")
+  @ApiOperation({ summary: "Authentification via Facebook" })
   @ApiResponse({
     status: 302,
     description: "Redirection vers l'authentification Facebook",
   })
-  @UseGuards(AuthGuard('facebook'))
-  async facebookAuth() {
-    // Cette route sert de point d'entrée pour l'auth Facebook
-    // Le middleware AuthGuard redirige vers Facebook
+  async facebookAuth(@Res() res: Response) {
+    if (!this.isFacebookConfigured()) {
+      return res.status(503).json({
+        error: "Facebook OAuth non configuré",
+        message: "Cette méthode d'authentification n'est pas disponible",
+      });
+    }
+    return res.redirect("/api/auth/facebook/redirect");
   }
 
-  @Get('facebook/callback')
+  @Get("facebook/redirect")
+  @UseGuards(AuthGuard("facebook"))
+  async facebookAuthRedirect(@Res() res: Response) {
+    if (!this.isFacebookConfigured()) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=facebook_not_configured`
+      );
+    }
+  }
+
+  @Get("facebook/callback")
   @ApiOperation({ summary: "Callback pour l'authentification Facebook" })
   @ApiResponse({
     status: 302,
-    description: 'Redirection vers le frontend avec token',
+    description: "Redirection vers le frontend avec token",
   })
-  @UseGuards(AuthGuard('facebook'))
+  @UseGuards(AuthGuard("facebook"))
   facebookAuthCallback(
     @Request() req: SocialAuthRequest,
-    @Res() res: Response,
+    @Res() res: Response
   ) {
-    const { user } = req;
-    // Génère un token temporaire pour stocker dans le localStorage
-    const socialAuthToken = this._authService.generateSocialAuthToken(user);
+    if (!this.isFacebookConfigured()) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=facebook_not_configured`
+      );
+    }
 
-    // Redirige vers le frontend avec le token
-    return res.redirect(
-      `${this._configService.get('CLIENT_URL')}/social-auth-success?token=${socialAuthToken}`,
-    );
+    try {
+      const { user } = req;
+      const socialAuthToken = this.authService.generateSocialAuthToken(user);
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/social-auth-success?token=${socialAuthToken}`
+      );
+    } catch (error) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=social_auth_failed`
+      );
+    }
   }
 
   // Twitter Authentication
-  @Get('twitter')
-  @ApiOperation({ summary: 'Authentification via Twitter' })
+  @Get("twitter")
+  @ApiOperation({ summary: "Authentification via Twitter" })
   @ApiResponse({
     status: 302,
     description: "Redirection vers l'authentification Twitter",
   })
-  @UseGuards(AuthGuard('twitter'))
-  async twitterAuth() {
-    // Cette route sert de point d'entrée pour l'auth Twitter
-    // Le middleware AuthGuard redirige vers Twitter
+  async twitterAuth(@Res() res: Response) {
+    if (!this.isTwitterConfigured()) {
+      return res.status(503).json({
+        error: "Twitter OAuth non configuré",
+        message: "Cette méthode d'authentification n'est pas disponible",
+      });
+    }
+    return res.redirect("/api/auth/twitter/redirect");
   }
 
-  @Get('twitter/callback')
+  @Get("twitter/redirect")
+  @UseGuards(AuthGuard("twitter"))
+  async twitterAuthRedirect(@Res() res: Response) {
+    if (!this.isTwitterConfigured()) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=twitter_not_configured`
+      );
+    }
+  }
+
+  @Get("twitter/callback")
   @ApiOperation({ summary: "Callback pour l'authentification Twitter" })
   @ApiResponse({
     status: 302,
-    description: 'Redirection vers le frontend avec token',
+    description: "Redirection vers le frontend avec token",
   })
-  @UseGuards(AuthGuard('twitter'))
+  @UseGuards(AuthGuard("twitter"))
   twitterAuthCallback(@Request() req: SocialAuthRequest, @Res() res: Response) {
-    const { user } = req;
-    // Génère un token temporaire pour stocker dans le localStorage
-    const socialAuthToken = this._authService.generateSocialAuthToken(user);
+    if (!this.isTwitterConfigured()) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=twitter_not_configured`
+      );
+    }
 
-    // Redirige vers le frontend avec le token
-    return res.redirect(
-      `${this._configService.get('CLIENT_URL')}/social-auth-success?token=${socialAuthToken}`,
-    );
+    try {
+      const { user } = req;
+      const socialAuthToken = this.authService.generateSocialAuthToken(user);
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/social-auth-success?token=${socialAuthToken}`
+      );
+    } catch (error) {
+      return res.redirect(
+        `${this.configService.get("FRONTEND_URL") || "http://localhost:4200"}/auth/login?error=social_auth_failed`
+      );
+    }
   }
 
   // Endpoint pour récupérer les données utilisateur après authentification sociale
-  @Get('social-auth-callback')
+  @Get("social-auth-callback")
   @ApiOperation({
-    summary: 'Récupérer les données utilisateur après authentification sociale',
+    summary: "Récupérer les données utilisateur après authentification sociale",
   })
   @ApiResponse({
     status: 200,
-    description: 'Données utilisateur récupérées avec succès',
-    type: SocialAuthResponseDto,
+    description: "Données utilisateur récupérées avec succès",
   })
-  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+  @ApiResponse({ status: 400, description: "Token invalide ou expiré" })
   @ApiQuery({
-    name: 'token',
+    name: "token",
     description: "Token d'authentification sociale temporaire",
     required: true,
   })
-  async getSocialAuthData(@Query('token') token: string) {
-    return this._authService.validateSocialAuthToken(token);
+  async getSocialAuthData(@Query("token") token: string) {
+    return this.authService.validateSocialAuthToken(token);
+  }
+
+  // Endpoint pour connaître les strategies disponibles
+  @Get("available-strategies")
+  @ApiOperation({
+    summary: "Obtenir la liste des strategies d'authentification disponibles",
+  })
+  getAvailableStrategies() {
+    return {
+      strategies: {
+        local: true,
+        google: this.isGoogleConfigured(),
+        facebook: this.isFacebookConfigured(),
+        twitter: this.isTwitterConfigured(),
+      },
+      configured: {
+        jwt: !!this.configService.get("JWT_SECRET"),
+        email: !!this.configService.get("MAIL_USER"),
+        database: !!this.configService.get("MONGODB_URI"),
+      },
+    };
+  }
+
+  // Méthodes utilitaires privées
+  private isGoogleConfigured(): boolean {
+    const clientId = this.configService.get<string>("GOOGLE_CLIENT_ID");
+    const clientSecret = this.configService.get<string>("GOOGLE_CLIENT_SECRET");
+    const appUrl = this.configService.get<string>("APP_URL");
+    return !!(
+      clientId &&
+      clientSecret &&
+      appUrl &&
+      clientId !== "my_client_id" &&
+      clientSecret !== "my_client_secret" &&
+      clientId.trim() !== "" &&
+      clientSecret.trim() !== ""
+    );
+  }
+
+  private isFacebookConfigured(): boolean {
+    const appId = this.configService.get<string>("FACEBOOK_APP_ID");
+    const appSecret = this.configService.get<string>("FACEBOOK_APP_SECRET");
+    const appUrl = this.configService.get<string>("APP_URL");
+    return !!(
+      appId &&
+      appSecret &&
+      appUrl &&
+      appId !== "my_app_id" &&
+      appSecret !== "my_app_secret" &&
+      appId.trim() !== "" &&
+      appSecret.trim() !== ""
+    );
+  }
+
+  private isTwitterConfigured(): boolean {
+    const consumerKey = this.configService.get<string>("TWITTER_CONSUMER_KEY");
+    const consumerSecret = this.configService.get<string>(
+      "TWITTER_CONSUMER_SECRET"
+    );
+    const appUrl = this.configService.get<string>("APP_URL");
+    return !!(
+      consumerKey &&
+      consumerSecret &&
+      appUrl &&
+      consumerKey !== "my_consumer_key" &&
+      consumerSecret !== "my_consumer_secret" &&
+      consumerKey.trim() !== "" &&
+      consumerSecret.trim() !== ""
+    );
   }
 }
