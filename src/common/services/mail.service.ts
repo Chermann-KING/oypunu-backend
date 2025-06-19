@@ -52,11 +52,9 @@ export class MailService {
       return;
     }
 
-    // 🎯 Utiliser FRONTEND_URL pour la vérification, pas APP_URL
     const frontendUrl = this._configService.get<string>("FRONTEND_URL");
     const verificationLink = `${frontendUrl}/verify-email?token=${token}`;
 
-    // 🎨 Template HTML stylé et moderne
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -153,7 +151,7 @@ export class MailService {
             <div class="content">
                 <p>Bonjour <span class="highlight">${username}</span>,</p>
                 
-                <p>Merci de vous être inscrit sur <strong>O'Ypunu</strong>, votre dictionnaire social multilingue !</p>
+                <p>Merci de vous être inscrit sur <strong>O'Ypunu</strong>, votre dictionnaire communautaire multilingue !</p>
                 
                 <p>Pour compléter votre inscription et activer votre compte, veuillez cliquer sur le bouton ci-dessous :</p>
                 
@@ -176,7 +174,7 @@ export class MailService {
             
             <div class="footer">
                 <p>
-                    <strong>O'Ypunu</strong> - Dictionnaire collaboratif multilingue<br>
+                    <strong>O'Ypunu</strong> - Dictionnaire communautaire multilingue<br>
                     <a href="${frontendUrl}" style="color: #7c3aed;">Visitez notre site</a>
                 </p>
                 <p style="font-size: 12px; color: #9ca3af;">
@@ -215,11 +213,9 @@ export class MailService {
       return;
     }
 
-    // 🎯 Utiliser FRONTEND_URL pour le reset, pas APP_URL
     const frontendUrl = this._configService.get<string>("FRONTEND_URL");
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
-    // 🎨 Template HTML stylé pour le reset de mot de passe
     const resetTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
