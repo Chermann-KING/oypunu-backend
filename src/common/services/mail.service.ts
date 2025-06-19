@@ -53,7 +53,7 @@ export class MailService {
     }
 
     const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    const verificationLink = `${frontendUrl}/verify-email?token=${token}`;
+    const verificationLink = `${frontendUrl}/auth/verify-email/${token}`;
 
     const emailTemplate = `
     <!DOCTYPE html>
@@ -214,7 +214,7 @@ export class MailService {
     }
 
     const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+    const resetLink = `${frontendUrl}/auth/reset-password/${token}`;
 
     const resetTemplate = `
     <!DOCTYPE html>
