@@ -11,9 +11,13 @@ import {
   Request,
   HttpStatus,
   HttpCode,
-  SetMetadata,
+  // SetMetadata,
   CanActivate,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import 'multer';
 import {
   ApiTags,
   ApiOperation,
@@ -21,15 +25,23 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { WordsService } from '../services/words.service';
-import { CreateWordDto } from '../dto/create-word.dto';
+import { CreateWordDto, MeaningDto } from '../dto/create-word.dto';
 import { UpdateWordDto } from '../dto/update-word.dto';
 import { SearchWordsDto } from '../dto/search-words.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/schemas/user.schema';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Word } from '../schemas/word.schema';
+import { Roles } from '../../common/decorators/roles.decorator';
+// import { UserRole } from '../../users/schemas/user.schema';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express, Request as ExpressRequest } from 'express';
+import { plainToInstance } from 'class-transformer';
+import { CreateWordFormDataDto } from '../dto/create-word-formdata.dto';
 
 class SearchResults {
   words: Word[];
@@ -38,10 +50,6 @@ class SearchResults {
   limit: number;
   totalPages: number;
 }
-
-// Définir la constante ROLES_KEY directement dans ce fichier si le décorateur n'est pas importable
-export const ROLES_KEY = 'roles';
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 interface RequestWithUser {
   user: User;
@@ -70,8 +78,272 @@ export class WordsController {
     @Body() createWordDto: CreateWordDto,
     @Request() req: RequestWithUser,
   ) {
-    console.log('Request user:', req.user);
-    return this.wordsService.create(createWordDto, req.user);
+    // Debug logs pour identifier le problème
+    console.log('=== DEBUG CREATE WORD ===');
+    console.log('Raw body:', (req as unknown as ExpressRequest).body);
+    console.log('DTO received:', createWordDto);
+    console.log('DTO type:', typeof createWordDto);
+    console.log(
+      'Word field:',
+      createWordDto.word,
+      'type:',
+      typeof createWordDto.word,
+    );
+    console.log(
+      'Language field:',
+      createWordDto.language,
+      'type:',
+      typeof createWordDto.language,
+    );
+    console.log(
+      'Meanings field:',
+      createWordDto.meanings,
+      'type:',
+      typeof createWordDto.meanings,
+    );
+    console.log('=========================');
+
+    try {
+      // Transformation pour FormData
+      if (typeof createWordDto.meanings === 'string') {
+        console.log('Parsing meanings from string...');
+        try {
+          const parsed: unknown = JSON.parse(createWordDto.meanings);
+          if (!Array.isArray(parsed)) {
+            throw new BadRequestException('meanings doit être un tableau');
+          }
+          createWordDto.meanings = plainToInstance(
+            MeaningDto,
+            parsed as object[],
+          );
+          console.log('Parsed meanings:', createWordDto.meanings);
+        } catch (parseError: unknown) {
+          console.error(
+            'Error parsing meanings:',
+            parseError instanceof Error ? parseError.message : parseError,
+          );
+          throw new BadRequestException(
+            'Le champ meanings est mal formé: ' +
+              (parseError instanceof Error ? parseError.message : ''),
+          );
+        }
+      }
+
+      // Validation des champs requis après transformation
+      if (!createWordDto.word || createWordDto.word.trim() === '') {
+        throw new BadRequestException('Le champ "word" est requis');
+      }
+
+      if (!createWordDto.language || createWordDto.language.trim() === '') {
+        throw new BadRequestException('Le champ "language" est requis');
+      }
+
+      // Forcer les types string pour FormData
+      createWordDto.word = String(createWordDto.word).trim();
+      createWordDto.language = String(createWordDto.language).trim();
+
+      if (createWordDto.pronunciation) {
+        createWordDto.pronunciation = String(createWordDto.pronunciation);
+      }
+
+      if (createWordDto.etymology) {
+        createWordDto.etymology = String(createWordDto.etymology);
+      }
+
+      if (createWordDto.categoryId) {
+        createWordDto.categoryId = String(createWordDto.categoryId);
+      }
+
+      console.log('Final DTO before service call:', createWordDto);
+
+      return this.wordsService.create(createWordDto, req.user);
+    } catch (error: unknown) {
+      console.error(
+        'Error in create method:',
+        error instanceof Error ? error.message : error,
+      );
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        'Erreur lors de la création du mot: ' +
+          (error instanceof Error ? error.message : ''),
+      );
+    }
+  }
+
+  @Post('with-audio')
+  @ApiOperation({ summary: 'Créer un nouveau mot avec fichier audio' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('audioFile'))
+  @UseGuards(JwtAuthGuard)
+  async createWithAudio(
+    @Body() createWordDto: CreateWordFormDataDto,
+    @UploadedFile() audioFile: Express.Multer.File,
+    @Request() req: RequestWithUser,
+  ) {
+    try {
+      console.log('=== 🎵 DEBUT createWithAudio ===');
+      console.log('📥 FormData DTO reçu:', {
+        word: createWordDto.word,
+        language: createWordDto.language,
+        pronunciation: createWordDto.pronunciation,
+        etymology: createWordDto.etymology,
+        categoryId: createWordDto.categoryId,
+        meanings:
+          typeof createWordDto.meanings === 'string' ? 'JSON_STRING' : 'OBJECT',
+        audioFile: createWordDto.audioFile ? 'PRESENT_IN_DTO' : 'ABSENT_IN_DTO',
+      });
+
+      console.log('🎙️ Audio file parameter:', {
+        isPresent: !!audioFile,
+        originalname: audioFile?.originalname || 'N/A',
+        mimetype: audioFile?.mimetype || 'N/A',
+        size: audioFile?.size || 0,
+        bufferLength: audioFile?.buffer?.length || 0,
+      });
+
+      if (audioFile) {
+        console.log(
+          '🔍 Audio file signature:',
+          audioFile.buffer.slice(0, 12).toString('hex'),
+        );
+      }
+
+      // Validation et transformation des meanings
+      let parsedMeanings: MeaningDto[];
+
+      if (typeof createWordDto.meanings === 'string') {
+        try {
+          parsedMeanings = JSON.parse(createWordDto.meanings) as MeaningDto[];
+          console.log(
+            '✅ Meanings parsed successfully, count:',
+            parsedMeanings.length,
+          );
+        } catch (error: unknown) {
+          console.error('❌ Error parsing meanings:', error);
+          throw new BadRequestException(
+            'Données meanings invalides: ' +
+              (error instanceof Error ? error.message : ''),
+          );
+        }
+      } else {
+        parsedMeanings = createWordDto.meanings;
+        console.log(
+          '✅ Meanings already object, count:',
+          parsedMeanings?.length || 0,
+        );
+      }
+
+      if (!Array.isArray(parsedMeanings)) {
+        throw new BadRequestException('meanings doit être un tableau');
+      }
+
+      // Construction du DTO standard
+      const standardDto: CreateWordDto = {
+        word: createWordDto.word?.trim(),
+        language: createWordDto.language?.trim(),
+        pronunciation: createWordDto.pronunciation?.trim() || undefined,
+        etymology: createWordDto.etymology?.trim() || undefined,
+        categoryId: createWordDto.categoryId?.trim() || undefined,
+        meanings: parsedMeanings,
+      };
+
+      // Validation manuelle supplémentaire
+      if (!standardDto.word) {
+        throw new BadRequestException('Le champ word est requis');
+      }
+
+      if (!standardDto.language) {
+        throw new BadRequestException('Le champ language est requis');
+      }
+
+      if (!standardDto.meanings || standardDto.meanings.length === 0) {
+        throw new BadRequestException('Au moins une signification est requise');
+      }
+
+      console.log('📝 Création du mot avec DTO:', {
+        word: standardDto.word,
+        language: standardDto.language,
+        meaningsCount: standardDto.meanings.length,
+      });
+
+      // Créer le mot
+      const createdWord = await this.wordsService.create(standardDto, req.user);
+      const wordRaw = createdWord as unknown as { id?: any; _id?: any };
+      console.log('✅ Mot créé avec ID:', wordRaw._id || wordRaw.id);
+
+      // Si fichier audio présent, l'ajouter
+      if (audioFile && createdWord) {
+        try {
+          const accent = this.getDefaultAccent(standardDto.language);
+          console.log('🎯 Accent déterminé:', accent);
+
+          const raw = createdWord as unknown as { id?: any; _id?: any };
+          const wordId = raw._id
+            ? String(raw._id)
+            : raw.id
+              ? String(raw.id)
+              : '';
+
+          console.log('🔑 ID du mot pour audio:', wordId);
+          console.log('🎵 Début upload audio...');
+
+          const wordWithAudio = await this.wordsService.addAudioFile(
+            wordId,
+            accent,
+            audioFile.buffer,
+            req.user,
+          );
+
+          // 🎯 AUTO-APPROBATION : Les mots avec audio sont automatiquement approuvés
+          // car cela indique un effort supplémentaire de qualité de l'utilisateur
+          console.log('🔄 Mise à jour du statut pour auto-approbation...');
+          const wordToUpdate = await this.wordsService.findOne(wordId);
+          if (wordToUpdate.status === 'pending') {
+            await this.wordsService.updateWordStatus(wordId, 'approved');
+            console.log(
+              '✅ Mot auto-approuvé car il contient un fichier audio',
+            );
+          }
+
+          console.log('✅ Audio uploadé avec succès!');
+          console.log('=== 🎵 FIN createWithAudio (AVEC AUDIO) ===');
+          return {
+            success: true,
+            word: wordWithAudio,
+            message:
+              'Mot créé avec succès et automatiquement approuvé grâce au fichier audio !',
+          };
+        } catch (audioError: unknown) {
+          console.error('❌ Erreur upload audio:', {
+            error:
+              audioError instanceof Error ? audioError.message : audioError,
+            stack: audioError instanceof Error ? audioError.stack : undefined,
+          });
+          // Retourner le mot même si l'audio a échoué
+          console.log("⚠️ Retour du mot sans audio à cause de l'erreur");
+          console.log('=== 🎵 FIN createWithAudio (SANS AUDIO) ===');
+          return createdWord;
+        }
+      }
+
+      console.log('ℹ️ Aucun fichier audio fourni');
+      console.log("=== 🎵 FIN createWithAudio (PAS D'AUDIO) ===");
+      return createdWord;
+    } catch (error: unknown) {
+      console.error('💥 Erreur générale dans createWithAudio:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        'Erreur lors de la création: ' +
+          (error instanceof Error ? error.message : ''),
+      );
+    }
   }
 
   @Get()
@@ -211,24 +483,88 @@ export class WordsController {
     return this.wordsService.findOne(id);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour un mot' })
+  @Get(':id/can-edit')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Vérifier si l'utilisateur peut modifier un mot" })
   @ApiResponse({
     status: 200,
-    description: 'Mot mis à jour avec succès',
-    type: Word,
+    description: 'Permission vérifiée',
+    schema: {
+      type: 'object',
+      properties: {
+        canEdit: { type: 'boolean' },
+        message: { type: 'string', nullable: true },
+      },
+    },
   })
-  @ApiResponse({ status: 400, description: 'Requête invalide' })
   @ApiResponse({ status: 401, description: 'Non autorisé' })
   @ApiResponse({ status: 404, description: 'Mot non trouvé' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID du mot',
-    example: '60a1b2c3d4e5f6a7b8c9d0e1',
-  })
-  @ApiBearerAuth()
+  async canEditWord(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ): Promise<{ canEdit: boolean; message?: string }> {
+    const canEdit = await this.wordsService.canUserEditWord(id, req.user);
+    if (!canEdit) {
+      return {
+        canEdit: false,
+        message:
+          "Vous n'avez pas le droit de modifier ce mot. Seul le créateur ou un administrateur peut le faire.",
+      };
+    }
+    return { canEdit: true };
+  }
+
+  @Post(':id/audio')
   @UseGuards(JwtAuthGuard)
-  update(
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('audioFile'))
+  @ApiOperation({ summary: 'Téléverser un fichier audio pour un mot' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        accent: { type: 'string', example: 'fr-FR' },
+        audioFile: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async uploadAudio(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('accent') accent: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Fichier audio manquant.');
+    }
+    if (!accent) {
+      throw new BadRequestException("L'accent est requis.");
+    }
+    return this.wordsService.addAudioFile(id, accent, file.buffer, req.user);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Modifier un mot existant' })
+  @ApiResponse({
+    status: 200,
+    description: 'Mot modifié avec succès',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Données invalides ou permissions insuffisantes',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Mot non trouvé',
+  })
+  async update(
     @Param('id') id: string,
     @Body() updateWordDto: UpdateWordDto,
     @Request() req: RequestWithUser,
@@ -272,30 +608,27 @@ export class WordsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   addToFavorites(@Param('id') id: string, @Request() req: RequestWithUser) {
-    return this.wordsService.addToFavorites(id, req.user._id);
+    const userId = req.user._id;
+    return this.wordsService.addToFavorites(id, userId);
   }
 
   @Delete(':id/favorite')
-  @ApiOperation({ summary: 'Retirer un mot des favoris' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Supprimer un mot des favoris de l'utilisateur" })
+  @HttpCode(HttpStatus.OK)
   @ApiResponse({
     status: 200,
     description: 'Mot retiré des favoris avec succès',
   })
   @ApiResponse({ status: 401, description: 'Non autorisé' })
   @ApiResponse({ status: 404, description: 'Mot non trouvé' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID du mot',
-    example: '60a1b2c3d4e5f6a7b8c9d0e1',
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
   removeFromFavorites(
     @Param('id') id: string,
     @Request() req: RequestWithUser,
   ) {
-    return this.wordsService.removeFromFavorites(id, req.user._id);
+    const userId = req.user._id;
+    return this.wordsService.removeFromFavorites(id, userId);
   }
 
   @Get('favorites/user')
@@ -330,25 +663,194 @@ export class WordsController {
     return this.wordsService.getFavoriteWords(req.user._id, +page, +limit);
   }
 
-  @Get(':id/favorite/check')
+  @Get(':id/isfavorite')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: "Vérifier si un mot est dans les favoris de l'utilisateur",
   })
   @ApiResponse({
     status: 200,
-    description: 'Statut vérifié avec succès',
+    description: 'Statut de favori vérifié avec succès',
     type: Boolean,
   })
   @ApiResponse({ status: 401, description: 'Non autorisé' })
-  @ApiResponse({ status: 404, description: 'Mot non trouvé' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID du mot',
-    example: '60a1b2c3d4e5f6a7b8c9d0e1',
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   checkIfFavorite(@Param('id') id: string, @Request() req: RequestWithUser) {
-    return this.wordsService.checkIfFavorite(id, req.user._id);
+    const userId = req.user._id;
+    return this.wordsService.checkIfFavorite(id, userId);
+  }
+
+  @Get(':id/revisions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Obtenir l'historique des révisions d'un mot" })
+  @ApiResponse({
+    status: 200,
+    description: 'Historique des révisions récupéré',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Mot non trouvé',
+  })
+  async getRevisionHistory(@Param('id') id: string) {
+    return this.wordsService.getRevisionHistory(id);
+  }
+
+  @Post(':id/revisions/:revisionId/approve')
+  @UseGuards(JwtAuthGuard, typedRolesGuard)
+  @Roles('admin', 'superadmin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approuver une révision de mot (admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Révision approuvée avec succès',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Permissions insuffisantes',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Révision non trouvée',
+  })
+  async approveRevision(
+    @Param('id') wordId: string,
+    @Param('revisionId') revisionId: string,
+    @Body() body: { notes?: string },
+    @Request() req: RequestWithUser,
+  ) {
+    return this.wordsService.approveRevision(
+      wordId,
+      revisionId,
+      req.user,
+      body.notes,
+    );
+  }
+
+  @Post(':id/revisions/:revisionId/reject')
+  @UseGuards(JwtAuthGuard, typedRolesGuard)
+  @Roles('admin', 'superadmin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Rejeter une révision de mot (admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Révision rejetée avec succès',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Permissions insuffisantes',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Révision non trouvée',
+  })
+  async rejectRevision(
+    @Param('id') wordId: string,
+    @Param('revisionId') revisionId: string,
+    @Body() body: { reason: string },
+    @Request() req: RequestWithUser,
+  ) {
+    return this.wordsService.rejectRevision(
+      wordId,
+      revisionId,
+      req.user,
+      body.reason,
+    );
+  }
+
+  @Get('revisions/pending')
+  @UseGuards(JwtAuthGuard, typedRolesGuard)
+  @Roles('admin', 'superadmin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtenir les révisions en attente (admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Révisions en attente récupérées',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Permissions insuffisantes',
+  })
+  async getPendingRevisions(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.wordsService.getPendingRevisions(
+      parseInt(page),
+      parseInt(limit),
+    );
+  }
+
+  @Post('test-upload')
+  @ApiOperation({ summary: "Test d'upload de fichier audio (DEBUG)" })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('audioFile'))
+  @UseGuards(JwtAuthGuard)
+  testUpload(
+    @Body() body: any,
+    @UploadedFile() audioFile: Express.Multer.File,
+  ) {
+    console.log('🧪 === TEST UPLOAD DEBUG ===');
+    console.log('📥 Body reçu:', body);
+    console.log('🎙️ Fichier audio reçu:', {
+      isPresent: !!audioFile,
+      originalname: audioFile?.originalname || 'N/A',
+      mimetype: audioFile?.mimetype || 'N/A',
+      size: audioFile?.size || 0,
+      bufferLength: audioFile?.buffer?.length || 0,
+      signature: audioFile?.buffer
+        ? audioFile.buffer.slice(0, 12).toString('hex')
+        : 'N/A',
+    });
+
+    return {
+      success: true,
+      message: 'Test upload réussi',
+      fileReceived: !!audioFile,
+      fileInfo: audioFile
+        ? {
+            originalname: audioFile.originalname,
+            mimetype: audioFile.mimetype,
+            size: audioFile.size,
+            signature: audioFile.buffer.slice(0, 12).toString('hex'),
+          }
+        : null,
+      bodyKeys: Object.keys(body),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Retourne l'accent par défaut pour une langue donnée
+   */
+  private getDefaultAccent(lang: string): string {
+    switch ((lang || '').toLowerCase()) {
+      case 'fr':
+        return 'fr-fr';
+      case 'en':
+        return 'en-us';
+      case 'es':
+        return 'es-es';
+      case 'de':
+        return 'de-de';
+      case 'it':
+        return 'it-it';
+      case 'pt':
+        return 'pt-br';
+      case 'ru':
+        return 'ru-ru';
+      case 'ja':
+        return 'ja-jp';
+      case 'zh':
+        return 'zh-cn';
+      case 'ar':
+        return 'ar-sa';
+      case 'ko':
+        return 'ko-kr';
+      case 'hi':
+        return 'hi-in';
+      default:
+        return 'standard';
+    }
   }
 }

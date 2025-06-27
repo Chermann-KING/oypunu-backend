@@ -1,167 +1,199 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateWordDto } from './create-word.dto';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { AudioFileDto } from './create-word.dto';
 
-class UpdateDefinitionDto {
-  @ApiProperty({
-    description: 'Définition du mot',
-    example: 'État de calme, de tranquillité, de confiance sur le plan moral',
-    required: true,
-  })
+export class UpdateDefinitionDto {
+  @IsOptional()
   @IsString()
-  definition: string;
+  definition?: string;
 
-  @ApiProperty({
-    description: "Exemples d'utilisation",
-    example: ['Elle affronte les difficultés avec sérénité'],
-    required: false,
-    isArray: true,
-  })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   examples?: string[];
 
-  @ApiProperty({
-    description: 'URL de la source de la définition',
-    example: 'https://www.larousse.fr/dictionnaires/francais/sérénité/72193',
-    required: false,
-  })
-  @IsString()
   @IsOptional()
+  @IsString()
   sourceUrl?: string;
 }
 
-class UpdateMeaningDto {
-  @ApiProperty({
-    description: 'Partie du discours',
-    example: 'noun',
-    enum: [
-      'noun',
-      'verb',
-      'adjective',
-      'adverb',
-      'pronoun',
-      'preposition',
-      'conjunction',
-      'interjection',
-    ],
-    required: true,
-  })
+export class UpdatePhoneticDto {
+  @IsOptional()
   @IsString()
-  partOfSpeech: string;
+  text?: string;
 
-  @ApiProperty({
-    description: 'Définitions du mot',
-    type: [UpdateDefinitionDto],
-    required: true,
-  })
+  @IsOptional()
+  audio?: {
+    url?: string;
+    cloudinaryId?: string;
+    format?: string;
+    duration?: number;
+  };
+
+  @IsOptional()
+  @IsString()
+  sourceUrl?: string;
+}
+
+export class UpdateMeaningDto {
+  @IsOptional()
+  @IsString()
+  partOfSpeech?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => UpdateDefinitionDto)
-  definitions: UpdateDefinitionDto[];
+  definitions?: UpdateDefinitionDto[];
 
-  @ApiProperty({
-    description: 'Synonymes',
-    example: ['calme', 'paix', 'quiétude'],
-    required: false,
-    isArray: true,
-  })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   synonyms?: string[];
 
-  @ApiProperty({
-    description: 'Antonymes',
-    example: ['agitation', 'anxiété', 'inquiétude'],
-    required: false,
-    isArray: true,
-  })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   antonyms?: string[];
 
-  @ApiProperty({
-    description: "Exemples d'utilisation additionnels",
-    example: ["La sérénité d'esprit est essentielle pour le bien-être"],
-    required: false,
-    isArray: true,
-  })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   examples?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdatePhoneticDto)
+  phonetics?: UpdatePhoneticDto[];
 }
 
-export class UpdateWordDto extends PartialType(CreateWordDto) {
-  @ApiProperty({
-    description: 'Le mot à mettre à jour',
-    example: 'sérénité',
-    required: false,
-  })
-  @IsString()
+export class UpdateTranslationDto {
   @IsOptional()
-  word?: string;
-
-  @ApiProperty({
-    description: 'Langue du mot (ISO 639-1)',
-    example: 'fr',
-    enum: ['fr', 'en', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'zh'],
-    required: false,
-  })
   @IsString()
-  @IsOptional()
   language?: string;
 
-  @ApiProperty({
-    description: 'Prononciation du mot',
-    example: 'se.ʁe.ni.te',
-    required: false,
-  })
-  @IsString()
   @IsOptional()
+  @IsString()
+  translatedWord?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  context?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  confidence?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  verifiedBy?: string[];
+}
+
+export class UpdateWordDto {
+  @ApiProperty({ description: 'Prononciation du mot', required: false })
+  @IsOptional()
+  @IsString()
   pronunciation?: string;
 
-  @ApiProperty({
-    description: 'Etymologie (origine du mot)',
-    example: 'Du latin serenitas, désignant un état calme et paisible',
-    required: false,
-  })
-  @IsString()
+  @ApiProperty({ description: 'Étymologie du mot', required: false })
   @IsOptional()
+  @IsString()
   etymology?: string;
 
-  @ApiProperty({
-    description: 'ID de la catégorie',
-    example: '60a1b2c3d4e5f6a7b8c9d0e1',
-    required: false,
-  })
-  @IsString()
+  @ApiProperty({ description: 'Significations du mot', required: false })
   @IsOptional()
-  categoryId?: string;
-
-  @ApiProperty({
-    description: 'Liste des significations',
-    type: [UpdateMeaningDto],
-    required: false,
-  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => UpdateMeaningDto)
-  @IsOptional()
   meanings?: UpdateMeaningDto[];
 
+  @ApiProperty({ description: 'Traductions du mot', required: false })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateTranslationDto)
+  translations?: UpdateTranslationDto[];
+
+  @ApiProperty({ description: 'Variantes linguistiques', required: false })
+  @IsOptional()
+  languageVariants?: Map<string, string>;
+
+  @ApiProperty({ description: 'Fichiers audio', required: false })
+  @IsOptional()
+  audioFiles?: Map<
+    string,
+    {
+      url: string;
+      cloudinaryId: string;
+      language: string;
+      accent: string;
+    }
+  >;
+
   @ApiProperty({
-    description: 'Statut de soumission du mot',
-    example: 'pending',
-    enum: ['approved', 'pending', 'rejected'],
+    description: 'Statut du mot (admin uniquement)',
     required: false,
   })
-  @IsString()
   @IsOptional()
-  status?: 'approved' | 'pending' | 'rejected';
+  @IsEnum([
+    'approved',
+    'pending',
+    'rejected',
+    'pending_revision',
+    'revision_approved',
+  ])
+  status?:
+    | 'approved'
+    | 'pending'
+    | 'rejected'
+    | 'pending_revision'
+    | 'revision_approved';
+
+  @ApiProperty({ description: 'Notes de révision', required: false })
+  @IsOptional()
+  @IsString()
+  revisionNotes?: string;
+
+  @ApiProperty({
+    description: "Forcer la création d'une révision",
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  forceRevision?: boolean;
+}
+
+// DTO spécifique pour la mise à jour des fichiers audio
+export class UpdateAudioFilesDto {
+  @ApiProperty({
+    description: 'Nouveau fichiers audio à ajouter ou mettre à jour',
+    type: [AudioFileDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AudioFileDto)
+  audioFiles: AudioFileDto[];
+
+  @ApiProperty({
+    description: 'Accents à supprimer',
+    example: ['fr-ca', 'en-us'],
+    required: false,
+    isArray: true,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  removeAccents?: string[];
 }

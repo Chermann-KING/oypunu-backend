@@ -112,7 +112,20 @@ export class Word {
   @Prop()
   updatedAt: Date;
 
-  @Prop({ type: Map, of: String })
+  // @Prop({ type: Map, of: String })
+  @Prop({
+    type: Map,
+    of: new MongooseSchema(
+      {
+        url: { type: String },
+        cloudinaryId: { type: String },
+        language: { type: String },
+        accent: { type: String },
+      },
+      { _id: false },
+    ),
+    default: {},
+  })
   audioFiles: Map<
     string,
     {

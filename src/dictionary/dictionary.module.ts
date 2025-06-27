@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+// import { RedisModule } from '@nestjs-modules/ioredis';
 
 // Schémas
 import { Word, WordSchema } from './schemas/word.schema';
@@ -8,10 +9,20 @@ import {
   FavoriteWord,
   FavoriteWordSchema,
 } from './schemas/favorite-word.schema';
+import {
+  RevisionHistory,
+  RevisionHistorySchema,
+} from './schemas/revision-history.schema';
+import {
+  WordNotification,
+  WordNotificationSchema,
+} from './schemas/word-notification.schema';
 
 // Services
 import { WordsService } from './services/words.service';
 import { CategoriesService } from './services/categories.service';
+import { AudioService } from './services/audio.service';
+// import { AudioCacheService } from './services/audio-cache.service';
 
 // Contrôleurs
 import { WordsController } from './controllers/words.controller';
@@ -25,11 +36,14 @@ import { UsersModule } from 'src/users/users.module';
       { name: Word.name, schema: WordSchema },
       { name: Category.name, schema: CategorySchema },
       { name: FavoriteWord.name, schema: FavoriteWordSchema },
+      { name: RevisionHistory.name, schema: RevisionHistorySchema },
+      { name: WordNotification.name, schema: WordNotificationSchema },
     ]),
+    // RedisModule,
     UsersModule,
   ],
   controllers: [WordsController, CategoriesController, FavoriteWordsController],
-  providers: [WordsService, CategoriesService],
+  providers: [WordsService, CategoriesService, AudioService],
   exports: [WordsService, CategoriesService],
 })
 export class DictionaryModule {}

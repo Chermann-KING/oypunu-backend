@@ -6,6 +6,11 @@ import {
   IsOptional,
   IsString,
   ValidateNested,
+  IsUrl,
+  IsNumber,
+  Min,
+  Max,
+  Matches,
 } from 'class-validator';
 
 class DefinitionDto {
@@ -37,11 +42,42 @@ class DefinitionDto {
     required: false,
   })
   @IsString()
+  @IsUrl()
   @IsOptional()
   sourceUrl?: string;
 }
 
-class MeaningDto {
+class PhoneticDto {
+  @ApiProperty({
+    description: 'Transcription phonétique',
+    example: '/se.ʁe.ni.te/',
+  })
+  @IsString()
+  @IsNotEmpty()
+  text: string;
+
+  @ApiProperty({
+    description: 'URL du fichier audio pour cette phonétique',
+    example:
+      'https://res.cloudinary.com/demo/video/upload/phonetics/fr/serenite.mp3',
+    required: false,
+  })
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  audioUrl?: string;
+
+  @ApiProperty({
+    description: 'URL de la source de la phonétique',
+    required: false,
+  })
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  sourceUrl?: string;
+}
+
+export class MeaningDto {
   @ApiProperty({
     description: 'Partie du discours',
     example: 'noun',
@@ -108,6 +144,114 @@ class MeaningDto {
   @IsString({ each: true })
   @IsOptional()
   examples?: string[];
+
+  @ApiProperty({
+    description: 'Phonétiques pour ce sens',
+    type: [PhoneticDto],
+    required: false,
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PhoneticDto)
+  @IsOptional()
+  phonetics?: PhoneticDto[];
+}
+
+class TranslationDto {
+  @ApiProperty({
+    description: 'Code de langue de la traduction (ISO 639-1)',
+    example: 'en',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-z]{2}$/, {
+    message: 'Le code de langue doit être au format ISO 639-1 (ex: en, fr, es)',
+  })
+  language: string;
+
+  @ApiProperty({
+    description: 'Mot traduit',
+    example: 'serenity',
+  })
+  @IsString()
+  @IsNotEmpty()
+  translatedWord: string;
+
+  @ApiProperty({
+    description: "Contextes d'utilisation de la traduction",
+    example: ['formal', 'literary'],
+    required: false,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  context?: string[];
+
+  @ApiProperty({
+    description: 'Niveau de confiance dans la traduction (0-100)',
+    example: 95,
+    minimum: 0,
+    maximum: 100,
+    required: false,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  confidence?: number;
+
+  @ApiProperty({
+    description: 'Utilisateurs ayant vérifié cette traduction',
+    required: false,
+    isArray: true,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  verifiedBy?: string[];
+}
+
+export class AudioFileDto {
+  @ApiProperty({
+    description: 'Accent ou dialecte pour ce fichier audio',
+    example: 'fr-fr',
+    pattern: '^[a-z]{2}(-[a-z]{2})?$',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-z]{2}(-[a-z]{2})?$/, {
+    message: "L'accent doit être au format langue-région (ex: fr-fr, en-us)",
+  })
+  accent: string;
+
+  @ApiProperty({
+    description: 'URL du fichier audio',
+    example:
+      'https://res.cloudinary.com/demo/video/upload/phonetics/fr/fr-fr/serenite.mp3',
+  })
+  @IsString()
+  @IsUrl()
+  audioUrl: string;
+
+  @ApiProperty({
+    description: 'ID Cloudinary du fichier',
+    example: 'phonetics/fr/fr-fr/serenite_fr-fr',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  cloudinaryId?: string;
+
+  @ApiProperty({
+    description: 'Durée du fichier audio en secondes',
+    example: 2.5,
+    required: false,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(30) // Maximum 30 secondes pour une prononciation
+  @IsOptional()
+  duration?: number;
 }
 
 export class CreateWordDto {
@@ -122,15 +266,31 @@ export class CreateWordDto {
   @ApiProperty({
     description: 'Langue du mot (ISO 639-1)',
     example: 'fr',
-    enum: ['fr', 'en', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'zh'],
+    enum: [
+      'fr',
+      'en',
+      'es',
+      'de',
+      'it',
+      'pt',
+      'ru',
+      'ja',
+      'zh',
+      'ar',
+      'ko',
+      'hi',
+    ],
   })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^[a-z]{2}$/, {
+    message: 'Le code de langue doit être au format ISO 639-1 (ex: fr, en, es)',
+  })
   language: string;
 
   @ApiProperty({
-    description: 'Prononciation phonétique',
-    example: 'se.ʁe.ni.te',
+    description: 'Prononciation phonétique principale',
+    example: '/se.ʁe.ni.te/',
     required: false,
   })
   @IsString()
@@ -180,6 +340,56 @@ export class CreateWordDto {
   meanings: MeaningDto[];
 
   @ApiProperty({
+    description: "Traductions du mot dans d'autres langues",
+    type: [TranslationDto],
+    required: false,
+    example: [
+      {
+        language: 'en',
+        translatedWord: 'serenity',
+        context: ['formal', 'literary'],
+        confidence: 95,
+      },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TranslationDto)
+  @IsOptional()
+  translations?: TranslationDto[];
+
+  @ApiProperty({
+    description: 'Fichiers audio de prononciation par accent',
+    type: [AudioFileDto],
+    required: false,
+    example: [
+      {
+        accent: 'fr-fr',
+        audioUrl:
+          'https://res.cloudinary.com/demo/video/upload/phonetics/fr/fr-fr/serenite.mp3',
+        cloudinaryId: 'phonetics/fr/fr-fr/serenite_fr-fr',
+        duration: 2.5,
+      },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AudioFileDto)
+  @IsOptional()
+  audioFiles?: AudioFileDto[];
+
+  @ApiProperty({
+    description: 'Variantes linguistiques du mot',
+    example: {
+      'fr-ca': 'sérénité',
+      'fr-be': 'sérénité',
+    },
+    required: false,
+  })
+  @IsOptional()
+  languageVariants?: Record<string, string>;
+
+  @ApiProperty({
     description: 'Statut de soumission du mot',
     example: 'pending',
     enum: ['approved', 'pending', 'rejected'],
@@ -189,4 +399,57 @@ export class CreateWordDto {
   @IsString()
   @IsOptional()
   status?: 'approved' | 'pending' | 'rejected';
+
+  @ApiProperty({
+    description: 'Notes pour les modérateurs',
+    example: 'Mot soumis avec prononciation native française',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  moderatorNotes?: string;
+
+  @ApiProperty({
+    description: 'Sources utilisées pour ce mot',
+    example: [
+      'https://www.larousse.fr/dictionnaires/francais/sérénité/72193',
+      'https://www.cnrtl.fr/definition/sérénité',
+    ],
+    required: false,
+    isArray: true,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsUrl({}, { each: true })
+  @IsOptional()
+  sources?: string[];
+}
+
+// DTO pour la validation des uploads audio en masse
+export class BulkAudioUploadDto {
+  @ApiProperty({
+    description: 'ID du mot',
+    example: '60a1b2c3d4e5f6a7b8c9d0e1',
+  })
+  @IsString()
+  @IsNotEmpty()
+  wordId: string;
+
+  @ApiProperty({
+    description: 'Fichiers audio avec leurs accents',
+    type: [AudioFileDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AudioFileDto)
+  audioFiles: AudioFileDto[];
+
+  @ApiProperty({
+    description: 'Remplacer les fichiers existants si ils existent',
+    example: false,
+    default: false,
+    required: false,
+  })
+  @IsOptional()
+  replaceExisting?: boolean;
 }
