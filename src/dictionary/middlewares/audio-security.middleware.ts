@@ -3,12 +3,14 @@ import {
   NestMiddleware,
   BadRequestException,
   HttpStatus,
-} from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+} from "@nestjs/common";
+import { Request, Response, NextFunction } from "express";
+import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
+import type { File as MulterFile } from "multer";
 
 interface AudioUploadRequest extends Request {
+  file?: MulterFile;
   audioValidation?: {
     isValid: boolean;
     errors: string[];
@@ -54,7 +56,7 @@ export class AudioSecurityMiddleware implements NestMiddleware {
 
       next();
     } catch (error) {
-      console.error('🚫 Audio Security Middleware Error:', error);
+      console.error("🚫 Audio Security Middleware Error:", error);
       next(error);
     }
   }
@@ -101,13 +103,13 @@ export class AudioSecurityMiddleware implements NestMiddleware {
    */
   private performSecurityChecks(req: AudioUploadRequest): void {
     // 1. Vérification des headers suspects
-    const suspiciousHeaders = ['x-forwarded-for', 'x-real-ip'];
+    const suspiciousHeaders = ["x-forwarded-for", "x-real-ip"];
     for (const header of suspiciousHeaders) {
       const value = req.headers[header];
-      if (value && typeof value === 'string') {
+      if (value && typeof value === "string") {
         // Vérifier les patterns d'injection
         if (this.containsSuspiciousPatterns(value)) {
-          throw new BadRequestException('Headers suspects détectés');
+          throw new BadRequestException("Headers suspects détectés");
         }
       }
     }
@@ -115,20 +117,20 @@ export class AudioSecurityMiddleware implements NestMiddleware {
     // 2. Validation de l'origine
     const origin = req.headers.origin || req.headers.referer;
     if (origin && !this.isValidOrigin(origin)) {
-      throw new BadRequestException('Origine non autorisée');
+      throw new BadRequestException("Origine non autorisée");
     }
 
     // 3. Vérification de la taille de la requête
-    const contentLength = parseInt(req.headers['content-length'] || '0');
+    const contentLength = parseInt(req.headers["content-length"] || "0");
     if (contentLength > this.uploadLimits.maxFileSize * 1.5) {
       // Marge pour les métadonnées
-      throw new BadRequestException('Requête trop volumineuse');
+      throw new BadRequestException("Requête trop volumineuse");
     }
 
     // 4. Validation du User-Agent
-    const userAgent = req.headers['user-agent'];
+    const userAgent = req.headers["user-agent"];
     if (!userAgent || this.isSuspiciousUserAgent(userAgent)) {
-      console.warn('🔍 User-Agent suspect:', userAgent);
+      console.warn("🔍 User-Agent suspect:", userAgent);
       // Ne pas bloquer, mais logger
     }
   }
@@ -151,7 +153,7 @@ export class AudioSecurityMiddleware implements NestMiddleware {
       if (file.size > this.uploadLimits.maxFileSize) {
         validation.isValid = false;
         validation.errors.push(
-          `Fichier trop volumineux: ${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+          `Fichier trop volumineux: ${(file.size / (1024 * 1024)).toFixed(2)}MB`
         );
       }
 
@@ -173,24 +175,24 @@ export class AudioSecurityMiddleware implements NestMiddleware {
       ) {
         validation.isValid = false;
         validation.errors.push(
-          `Audio trop long: ${audioMetadata.duration}s (max: ${this.uploadLimits.maxDuration}s)`,
+          `Audio trop long: ${audioMetadata.duration}s (max: ${this.uploadLimits.maxDuration}s)`
         );
       }
 
       // 5. Validation des paramètres audio
       if (audioMetadata.sampleRate && audioMetadata.sampleRate > 96000) {
-        validation.errors.push('Sample rate trop élevé (>96kHz)');
+        validation.errors.push("Sample rate trop élevé (>96kHz)");
       }
 
       if (audioMetadata.channels && audioMetadata.channels > 2) {
-        validation.errors.push('Trop de canaux audio (max: 2)');
+        validation.errors.push("Trop de canaux audio (max: 2)");
       }
 
       // 6. Détection de contenu malveillant
       const malwareCheck = await this.scanForMalware(file.buffer);
       if (!malwareCheck.safe) {
         validation.isValid = false;
-        validation.errors.push('Fichier potentiellement malveillant détecté');
+        validation.errors.push("Fichier potentiellement malveillant détecté");
       }
     } catch (error) {
       validation.isValid = false;
@@ -203,7 +205,7 @@ export class AudioSecurityMiddleware implements NestMiddleware {
     // Bloquer si invalide
     if (!validation.isValid) {
       throw new BadRequestException({
-        message: 'Fichier audio invalide',
+        message: "Fichier audio invalide",
         errors: validation.errors,
       });
     }
@@ -219,35 +221,35 @@ export class AudioSecurityMiddleware implements NestMiddleware {
     const errors: string[] = [];
 
     if (buffer.length < 12) {
-      return { isValid: false, errors: ['Fichier trop petit'] };
+      return { isValid: false, errors: ["Fichier trop petit"] };
     }
 
-    const signature = buffer.slice(0, 12).toString('hex').toLowerCase();
+    const signature = buffer.slice(0, 12).toString("hex").toLowerCase();
 
     // Signatures audio valides
     const validSignatures = [
-      'fffb', // MP3
-      '494433', // MP3 avec ID3
-      '52494646', // WAV (RIFF)
-      '4f676753', // OGG
-      '664c6143', // FLAC
-      '000000', // M4A/MP4
-      '1a45dfa3', // WebM
+      "fffb", // MP3
+      "494433", // MP3 avec ID3
+      "52494646", // WAV (RIFF)
+      "4f676753", // OGG
+      "664c6143", // FLAC
+      "000000", // M4A/MP4
+      "1a45dfa3", // WebM
     ];
 
     // Signatures malveillantes connues
     const maliciousSignatures = [
-      '4d5a', // Exécutable Windows
-      '7f454c46', // ELF (Linux executable)
-      'cafebabe', // Java class
-      '504b0304', // ZIP/JAR
-      'd0cf11e0', // Microsoft Office
+      "4d5a", // Exécutable Windows
+      "7f454c46", // ELF (Linux executable)
+      "cafebabe", // Java class
+      "504b0304", // ZIP/JAR
+      "d0cf11e0", // Microsoft Office
     ];
 
     // Vérifier les signatures malveillantes
     for (const malSig of maliciousSignatures) {
       if (signature.startsWith(malSig)) {
-        errors.push('Signature de fichier malveillant détectée');
+        errors.push("Signature de fichier malveillant détectée");
         return { isValid: false, errors };
       }
     }
@@ -262,7 +264,7 @@ export class AudioSecurityMiddleware implements NestMiddleware {
     }
 
     if (!isValidAudio) {
-      errors.push('Signature de fichier audio non reconnue');
+      errors.push("Signature de fichier audio non reconnue");
     }
 
     return { isValid: isValidAudio, errors };
@@ -283,14 +285,14 @@ export class AudioSecurityMiddleware implements NestMiddleware {
       const metadata: any = {};
 
       // Détection du format basée sur la signature
-      const signature = buffer.slice(0, 4).toString('hex').toLowerCase();
+      const signature = buffer.slice(0, 4).toString("hex").toLowerCase();
 
-      if (signature.startsWith('fffb') || signature.startsWith('4944')) {
-        metadata.format = 'mp3';
+      if (signature.startsWith("fffb") || signature.startsWith("4944")) {
+        metadata.format = "mp3";
         // Analyse simplifiée MP3
         metadata.duration = this.estimateMP3Duration(buffer);
-      } else if (signature.startsWith('5249')) {
-        metadata.format = 'wav';
+      } else if (signature.startsWith("5249")) {
+        metadata.format = "wav";
         // Analyse WAV
         const wavInfo = this.parseWAVHeader(buffer);
         metadata.duration = wavInfo.duration;
@@ -300,7 +302,7 @@ export class AudioSecurityMiddleware implements NestMiddleware {
 
       return metadata;
     } catch (error) {
-      console.warn('Erreur extraction métadonnées audio:', error);
+      console.warn("Erreur extraction métadonnées audio:", error);
       return {};
     }
   }
@@ -326,19 +328,19 @@ export class AudioSecurityMiddleware implements NestMiddleware {
     try {
       // Vérifier le header RIFF/WAVE
       if (
-        buffer.toString('ascii', 0, 4) !== 'RIFF' ||
-        buffer.toString('ascii', 8, 12) !== 'WAVE'
+        buffer.toString("ascii", 0, 4) !== "RIFF" ||
+        buffer.toString("ascii", 8, 12) !== "WAVE"
       ) {
-        throw new Error('Format WAV invalide');
+        throw new Error("Format WAV invalide");
       }
 
       // Chercher le chunk fmt
       let offset = 12;
       while (offset < buffer.length - 8) {
-        const chunkId = buffer.toString('ascii', offset, offset + 4);
+        const chunkId = buffer.toString("ascii", offset, offset + 4);
         const chunkSize = buffer.readUInt32LE(offset + 4);
 
-        if (chunkId === 'fmt ') {
+        if (chunkId === "fmt ") {
           const channels = buffer.readUInt16LE(offset + 10);
           const sampleRate = buffer.readUInt32LE(offset + 12);
           const byteRate = buffer.readUInt32LE(offset + 16);
@@ -347,11 +349,11 @@ export class AudioSecurityMiddleware implements NestMiddleware {
           let dataOffset = offset + 8 + chunkSize;
           while (dataOffset < buffer.length - 8) {
             const dataChunkId = buffer.toString(
-              'ascii',
+              "ascii",
               dataOffset,
-              dataOffset + 4,
+              dataOffset + 4
             );
-            if (dataChunkId === 'data') {
+            if (dataChunkId === "data") {
               const dataSize = buffer.readUInt32LE(dataOffset + 4);
               const duration = dataSize / byteRate;
 
@@ -366,9 +368,9 @@ export class AudioSecurityMiddleware implements NestMiddleware {
         offset += 8 + chunkSize;
       }
 
-      throw new Error('Impossible de parser les métadonnées WAV');
+      throw new Error("Impossible de parser les métadonnées WAV");
     } catch (error) {
-      console.warn('Erreur parsing WAV:', error);
+      console.warn("Erreur parsing WAV:", error);
       return { duration: 0, sampleRate: 44100, channels: 2 };
     }
   }
@@ -377,11 +379,11 @@ export class AudioSecurityMiddleware implements NestMiddleware {
    * Scan antimalware basique
    */
   private async scanForMalware(
-    buffer: Buffer,
+    buffer: Buffer
   ): Promise<{ safe: boolean; reason?: string }> {
     // 1. Vérifier la taille suspecte
     if (buffer.length < 100) {
-      return { safe: false, reason: 'Fichier suspicieusement petit' };
+      return { safe: false, reason: "Fichier suspicieusement petit" };
     }
 
     // 2. Chercher des patterns suspects
@@ -393,17 +395,17 @@ export class AudioSecurityMiddleware implements NestMiddleware {
       /javascript:/gi,
     ];
 
-    const content = buffer.toString('utf8', 0, Math.min(1024, buffer.length));
+    const content = buffer.toString("utf8", 0, Math.min(1024, buffer.length));
     for (const pattern of suspiciousPatterns) {
       if (pattern.test(content)) {
-        return { safe: false, reason: 'Pattern suspect détecté' };
+        return { safe: false, reason: "Pattern suspect détecté" };
       }
     }
 
     // 3. Vérifier l'entropie (fichiers chiffrés/compressés suspects)
     const entropy = this.calculateEntropy(buffer.slice(0, 1024));
     if (entropy > 7.5) {
-      console.warn('🔍 Entropie élevée détectée:', entropy);
+      console.warn("🔍 Entropie élevée détectée:", entropy);
       // Ne pas bloquer, mais logger
     }
 
@@ -435,12 +437,12 @@ export class AudioSecurityMiddleware implements NestMiddleware {
    * Utilitaires
    */
   private getClientIdentifier(req: Request): string {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'] || 'unknown';
+    const ip = req.ip || req.connection.remoteAddress || "unknown";
+    const userAgent = req.headers["user-agent"] || "unknown";
     return crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(`${ip}:${userAgent}`)
-      .digest('hex');
+      .digest("hex");
   }
 
   private cleanupRateLimit(now: number, maxAge: number): void {
@@ -464,7 +466,7 @@ export class AudioSecurityMiddleware implements NestMiddleware {
 
   private isValidOrigin(origin: string): boolean {
     const allowedOrigins =
-      this.configService.get<string[]>('ALLOWED_ORIGINS') || [];
+      this.configService.get<string[]>("ALLOWED_ORIGINS") || [];
     const allowedPatterns = [
       /^https?:\/\/localhost(:\d+)?$/,
       /^https?:\/\/.*\.vercel\.app$/,
@@ -499,12 +501,12 @@ export class AudioSecurityMiddleware implements NestMiddleware {
       method: req.method,
       url: req.url,
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      userAgent: req.headers["user-agent"],
       fileSize: req.file?.size,
       mimeType: req.file?.mimetype,
-      validation: req.audioValidation?.isValid ? 'passed' : 'failed',
+      validation: req.audioValidation?.isValid ? "passed" : "failed",
     };
 
-    console.log('🎵 Audio Request:', JSON.stringify(logData));
+    console.log("🎵 Audio Request:", JSON.stringify(logData));
   }
 }
