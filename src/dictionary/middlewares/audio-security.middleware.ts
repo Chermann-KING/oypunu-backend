@@ -7,10 +7,9 @@ import {
 import { Request, Response, NextFunction } from "express";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
-import type { File as MulterFile } from "multer";
 
 interface AudioUploadRequest extends Request {
-  file?: MulterFile;
+  file?: Express.Multer.File;
   audioValidation?: {
     isValid: boolean;
     errors: string[];
