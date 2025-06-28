@@ -30,7 +30,7 @@ import {
 } from '@nestjs/swagger';
 import { WordsService } from '../services/words.service';
 import { CreateWordDto, MeaningDto } from '../dto/create-word.dto';
-import { UpdateWordDto } from '../dto/update-word.dto';
+import { UpdateWordDto, UpdateTranslationDto } from '../dto/update-word.dto';
 import { SearchWordsDto } from '../dto/search-words.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/schemas/user.schema';
@@ -41,7 +41,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express, Request as ExpressRequest } from 'express';
 import { plainToInstance } from 'class-transformer';
-import { CreateWordFormDataDto } from '../dto/create-word-formdata.dto';
+import {
+  CreateWordFormDataDto,
+  UpdateWordFormDataDto,
+} from '../dto/create-word-formdata.dto';
 
 class SearchResults {
   words: Word[];
@@ -818,6 +821,133 @@ export class WordsController {
       bodyKeys: Object.keys(body),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Patch(':id/with-audio')
+  @ApiOperation({ summary: 'Modifier un mot existant avec fichier audio' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('audioFile'))
+  @UseGuards(JwtAuthGuard)
+  async updateWithAudio(
+    @Param('id') id: string,
+    @Body() updateWordDto: UpdateWordFormDataDto,
+    @UploadedFile() audioFile: Express.Multer.File,
+    @Request() req: RequestWithUser,
+  ) {
+    try {
+      console.log('=== 🎵 DEBUT updateWithAudio ===');
+      console.log('📥 Update FormData DTO reçu:', {
+        wordId: id,
+        pronunciation: updateWordDto.pronunciation,
+        etymology: updateWordDto.etymology,
+        categoryId: updateWordDto.categoryId,
+        meanings:
+          typeof updateWordDto.meanings === 'string' ? 'JSON_STRING' : 'OBJECT',
+        audioFile: updateWordDto.audioFile ? 'PRESENT_IN_DTO' : 'ABSENT_IN_DTO',
+      });
+
+      console.log('🎙️ Audio file parameter:', {
+        isPresent: !!audioFile,
+        originalname: audioFile?.originalname || 'N/A',
+        size: audioFile?.size || 0,
+        mimetype: audioFile?.mimetype || 'N/A',
+      });
+
+      // Validation du fichier audio si présent
+      if (audioFile) {
+        if (!audioFile.buffer || audioFile.size === 0) {
+          throw new BadRequestException('Fichier audio vide ou corrompu');
+        }
+
+        console.log('✅ Fichier audio validé pour la modification');
+      }
+
+      // Transformation des meanings si nécessaire
+      let parsedMeanings: MeaningDto[] | undefined;
+
+      if (updateWordDto.meanings) {
+        if (typeof updateWordDto.meanings === 'string') {
+          console.log('📝 Parsing meanings from string for update...');
+          try {
+            const parsed: unknown = JSON.parse(updateWordDto.meanings);
+            if (!Array.isArray(parsed)) {
+              throw new BadRequestException('meanings doit être un tableau');
+            }
+            parsedMeanings = plainToInstance(MeaningDto, parsed as object[]);
+          } catch (parseError: unknown) {
+            console.error('Error parsing meanings for update:', parseError);
+            throw new BadRequestException(
+              'Le champ meanings est mal formé: ' +
+                (parseError instanceof Error ? parseError.message : ''),
+            );
+          }
+        } else {
+          parsedMeanings = updateWordDto.meanings;
+        }
+      }
+
+      // Transformation des autres champs
+      let parsedTranslations: UpdateTranslationDto[] | undefined;
+      if (updateWordDto.translations) {
+        try {
+          const parsed = JSON.parse(updateWordDto.translations) as unknown;
+          if (Array.isArray(parsed)) {
+            parsedTranslations = parsed as UpdateTranslationDto[];
+          }
+        } catch {
+          // Ignorer les erreurs de parsing pour les traductions
+        }
+      }
+
+      let booleanForceRevision: boolean | undefined;
+      if (updateWordDto.forceRevision) {
+        booleanForceRevision = updateWordDto.forceRevision === 'true';
+      }
+
+      // Conversion en UpdateWordDto (ne pas inclure les champs undefined)
+      const updateData: UpdateWordDto = {};
+
+      if (updateWordDto.pronunciation !== undefined) {
+        updateData.pronunciation = updateWordDto.pronunciation;
+      }
+      if (updateWordDto.etymology !== undefined) {
+        updateData.etymology = updateWordDto.etymology;
+      }
+      if (parsedMeanings !== undefined) {
+        updateData.meanings = parsedMeanings;
+      }
+      if (updateWordDto.categoryId !== undefined) {
+        updateData.categoryId = updateWordDto.categoryId;
+      }
+      if (parsedTranslations !== undefined) {
+        updateData.translations = parsedTranslations;
+      }
+      if (updateWordDto.revisionNotes !== undefined) {
+        updateData.revisionNotes = updateWordDto.revisionNotes;
+      }
+      if (booleanForceRevision !== undefined) {
+        updateData.forceRevision = booleanForceRevision;
+      }
+
+      console.log('📤 Calling wordsService.updateWithAudio...');
+
+      // Appel du service pour mise à jour avec audio
+      return await this.wordsService.updateWithAudio(
+        id,
+        updateData,
+        audioFile,
+        req.user,
+      );
+    } catch (error: unknown) {
+      console.error('❌ Error in updateWithAudio:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        'Erreur lors de la modification du mot avec audio: ' +
+          (error instanceof Error ? error.message : ''),
+      );
+    }
   }
 
   /**

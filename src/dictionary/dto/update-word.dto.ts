@@ -112,6 +112,11 @@ export class UpdateWordDto {
   @IsString()
   etymology?: string;
 
+  @ApiProperty({ description: 'ID de la catégorie', required: false })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
   @ApiProperty({ description: 'Significations du mot', required: false })
   @IsOptional()
   @IsArray()

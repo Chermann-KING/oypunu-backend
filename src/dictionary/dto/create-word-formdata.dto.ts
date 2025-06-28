@@ -50,3 +50,54 @@ export class CreateWordFormDataDto {
   @IsOptional()
   audioFile?: Express.Multer.File;
 }
+
+// DTO spécialisé pour la modification avec audio (tous les champs optionnels)
+export class UpdateWordFormDataDto {
+  @ApiProperty({ description: 'Prononciation phonétique', required: false })
+  @IsOptional()
+  @IsString()
+  pronunciation?: string;
+
+  @ApiProperty({ description: 'Origine étymologique', required: false })
+  @IsOptional()
+  @IsString()
+  etymology?: string;
+
+  @ApiProperty({ description: 'ID de la catégorie', required: false })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @ApiProperty({
+    description: 'Significations du mot (JSON string)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  meanings?: string;
+
+  @ApiProperty({
+    description: 'Traductions du mot (JSON string)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  translations?: string;
+
+  @ApiProperty({ description: 'Notes de révision', required: false })
+  @IsOptional()
+  @IsString()
+  revisionNotes?: string;
+
+  @ApiProperty({
+    description: "Forcer la création d'une révision",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  forceRevision?: string; // String car vient de FormData
+
+  @ApiProperty({ description: 'Fichier audio', required: false })
+  @IsOptional()
+  audioFile?: Express.Multer.File;
+}

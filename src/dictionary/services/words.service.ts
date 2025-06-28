@@ -253,6 +253,91 @@ export class WordsService {
     return updatedWord;
   }
 
+  /**
+   * Met à jour un mot avec fichier audio en une seule opération
+   */
+  async updateWithAudio(
+    id: string,
+    updateWordDto: UpdateWordDto,
+    audioFile: Express.Multer.File,
+    user: User,
+  ): Promise<Word> {
+    console.log('🎵 WordsService.updateWithAudio - Début');
+
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID de mot invalide');
+    }
+
+    const word = await this.wordModel.findById(id);
+    if (!word) {
+      throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
+    }
+
+    console.log('📝 Étape 1: Mise à jour des données textuelles du mot');
+
+    // Étape 1: Mettre à jour les données textuelles du mot
+    const updatedWord = await this.update(id, updateWordDto, user);
+
+    // Étape 2: Ajouter le fichier audio si présent
+    if (audioFile && audioFile.buffer && audioFile.size > 0) {
+      console.log('🎙️ Étape 2: Ajout du fichier audio');
+
+      try {
+        // Déterminer l'accent par défaut basé sur la langue du mot
+        const defaultAccent = this.getDefaultAccentForLanguage(
+          updatedWord.language,
+        );
+
+        // Ajouter le fichier audio
+        const wordWithAudio = await this.addAudioFile(
+          id,
+          defaultAccent,
+          audioFile.buffer,
+          user,
+        );
+
+        console.log('✅ Mise à jour avec audio terminée avec succès');
+        return wordWithAudio;
+      } catch (audioError) {
+        console.error("❌ Erreur lors de l'ajout de l'audio:", audioError);
+
+        // L'audio a échoué mais le mot a été mis à jour
+        // On retourne le mot mis à jour avec un avertissement
+        console.warn(
+          "⚠️ Le mot a été mis à jour mais l'audio n'a pas pu être ajouté",
+        );
+        throw new BadRequestException(
+          `Le mot a été mis à jour avec succès, mais l'ajout de l'audio a échoué: ${
+            audioError instanceof Error
+              ? audioError.message
+              : String(audioError)
+          }`,
+        );
+      }
+    } else {
+      console.log(
+        '📝 Pas de fichier audio fourni, mise à jour textuelle uniquement',
+      );
+      return updatedWord;
+    }
+  }
+
+  /**
+   * Détermine l'accent par défaut basé sur la langue
+   */
+  private getDefaultAccentForLanguage(language: string): string {
+    const defaultAccents: Record<string, string> = {
+      fr: 'fr-fr',
+      en: 'en-us',
+      es: 'es-es',
+      de: 'de-de',
+      it: 'it-it',
+      pt: 'pt-br',
+    };
+
+    return defaultAccents[language] || 'standard';
+  }
+
   private async createRevision(
     wordId: string,
     updateWordDto: UpdateWordDto,
