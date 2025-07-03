@@ -11,6 +11,8 @@ import { HomeModule } from './home/home.module';
 import { CommunitiesModule } from './communities/communities.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AdminModule } from './admin/admin.module';
+import { TranslationModule } from './translation/translation.module';
+import { LanguagesModule } from './languages/languages.module';
 import { CommunityPostsController } from './communities/controllers/community-posts.controller';
 import { CommunitiesService } from './communities/services/communities.service';
 import {
@@ -77,6 +79,8 @@ import {
     CommunitiesModule,
     MessagingModule,
     AdminModule,
+    TranslationModule,
+    LanguagesModule,
     // LessonsModule,
   ],
   controllers: [AppController, CommunityPostsController],

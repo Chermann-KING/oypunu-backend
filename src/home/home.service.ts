@@ -111,8 +111,8 @@ export class HomeService {
         return {
           id: word._id.toString(),
           word: word.word,
-          language: this._getLanguageName(word.language),
-          languageCode: word.language,
+          language: this._getLanguageName(word.language || 'fr'),
+          languageCode: word.language || 'fr', // Fallback vers français si undefined
           partOfSpeech,
           definition,
           pronunciation:

@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsNumber,
   IsBoolean,
+  IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -78,6 +79,12 @@ export class UpdateMeaningDto {
 }
 
 export class UpdateTranslationDto {
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  languageId?: string;
+
+  // DURANT LA MIGRATION: Ancien champ pour compatibilité (à supprimer après migration)
   @IsOptional()
   @IsString()
   language?: string;

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsMongoId, ValidateIf } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 // import { Transform } from 'class-transformer';
 // import { MeaningDto } from './create-word.dto';
@@ -9,10 +9,24 @@ export class CreateWordFormDataDto {
   @IsNotEmpty()
   word: string;
 
-  @ApiProperty({ description: 'Langue du mot (ISO 639-1)' })
+  @ApiProperty({
+    description: 'ID de la langue du mot (référence à Language)',
+    required: false,
+  })
+  @ValidateIf((o) => !o.language)
   @IsString()
   @IsNotEmpty()
-  language: string;
+  @IsMongoId()
+  languageId?: string;
+
+  @ApiProperty({ 
+    description: 'Langue du mot (ISO 639-1) - Deprecated, utiliser languageId',
+    required: false,
+  })
+  @ValidateIf((o) => !o.languageId)
+  @IsString()
+  @IsNotEmpty()
+  language?: string;
 
   @ApiProperty({ description: 'Prononciation phonétique', required: false })
   @IsOptional()

@@ -1,5 +1,5 @@
 import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SearchWordsDto {
@@ -11,47 +11,66 @@ export class SearchWordsDto {
   query: string;
 
   @ApiProperty({
-    description: 'Filtrer par langues',
-    example: ['fr', 'en'],
+    description:
+      'Filtrer par langues (string séparée par des virgules ou tableau)',
+    example: 'fr,en',
     required: false,
-    isArray: true,
-    enum: ['fr', 'en', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'zh'],
+    type: String,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((lang) => lang.trim())
+        .filter((lang) => lang.length > 0);
+    }
+    return Array.isArray(value) ? value : [];
   })
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   languages?: string[];
 
   @ApiProperty({
-    description: 'Filtrer par catégories (IDs)',
-    example: ['60a1b2c3d4e5f6a7b8c9d0e1', '60a1b2c3d4e5f6a7b8c9d0e2'],
+    description:
+      'Filtrer par catégories (string séparée par des virgules ou tableau)',
+    example: '60a1b2c3d4e5f6a7b8c9d0e1,60a1b2c3d4e5f6a7b8c9d0e2',
     required: false,
-    isArray: true,
+    type: String,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((cat) => cat.trim())
+        .filter((cat) => cat.length > 0);
+    }
+    return Array.isArray(value) ? value : [];
   })
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   categories?: string[];
 
   @ApiProperty({
-    description: 'Filtrer par parties du discours',
-    example: ['noun', 'verb', 'adjective'],
+    description:
+      'Filtrer par parties du discours (string séparée par des virgules ou tableau)',
+    example: 'noun,verb,adjective',
     required: false,
-    isArray: true,
-    enum: [
-      'noun',
-      'verb',
-      'adjective',
-      'adverb',
-      'pronoun',
-      'preposition',
-      'conjunction',
-      'interjection',
-    ],
+    type: String,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((pos) => pos.trim())
+        .filter((pos) => pos.length > 0);
+    }
+    return Array.isArray(value) ? value : [];
   })
   @IsArray()
   @IsString({ each: true })
-  @IsOptional()
   partsOfSpeech?: string[];
 
   @ApiProperty({

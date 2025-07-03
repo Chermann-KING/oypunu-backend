@@ -74,10 +74,10 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   @ApiBearerAuth()
   async getProfile(
-    @Req() req: { user: { userId: string } },
+    @Req() req: { user: { _id: string } },
   ): Promise<UserResponse> {
     const user = (await this._usersService.findById(
-      req.user.userId,
+      req.user._id,
     )) as UserDocument;
     if (!user || !user._id) {
       throw new NotFoundException('Utilisateur non trouvé');
@@ -89,8 +89,8 @@ export class UsersController {
       username: user.username,
       isEmailVerified: user.isEmailVerified,
       role: user.role,
-      nativeLanguage: user.nativeLanguage,
-      learningLanguages: user.learningLanguages,
+      nativeLanguage: user.nativeLanguage || 'fr',
+      learningLanguages: user.learningLanguages || [],
       profilePicture: user.profilePicture,
       bio: user.bio,
       location: user.location,
@@ -119,11 +119,11 @@ export class UsersController {
   })
   @ApiBearerAuth()
   async updateProfile(
-    @Req() req: { user: { userId: string } },
+    @Req() req: { user: { _id: string } },
     @Body() updateData: UpdateProfileDto,
   ): Promise<UserResponse> {
     const updatedUser = (await this._usersService.updateUser(
-      req.user.userId,
+      req.user._id,
       updateData,
     )) as UserDocument;
 
@@ -137,8 +137,8 @@ export class UsersController {
       username: updatedUser.username,
       isEmailVerified: updatedUser.isEmailVerified,
       role: updatedUser.role,
-      nativeLanguage: updatedUser.nativeLanguage,
-      learningLanguages: updatedUser.learningLanguages,
+      nativeLanguage: updatedUser.nativeLanguage || 'fr',
+      learningLanguages: updatedUser.learningLanguages || [],
       profilePicture: updatedUser.profilePicture,
       bio: updatedUser.bio,
       location: updatedUser.location,
@@ -162,9 +162,11 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   @ApiBearerAuth()
   async getUserStats(
-    @Req() req: { user: { userId: string } },
+    @Req() req: { user: { _id: string } },
   ): Promise<UserStatsResponse> {
-    return this._usersService.getUserStats(req.user.userId);
+    console.log('getUserStats - req.user:', req.user);
+    console.log('getUserStats - userId:', req.user._id);
+    return this._usersService.getUserStats(req.user._id);
   }
 
   @Get('search')
@@ -179,7 +181,7 @@ export class UsersController {
   @ApiBearerAuth()
   async searchUsers(
     @Query('search') searchQuery: string,
-    @Req() req: { user: { userId: string } },
+    @Req() req: { user: { _id: string } },
   ): Promise<PublicUserResponse[]> {
     console.log('[UsersController] Requête de recherche reçue');
     console.log('[UsersController] Requête utilisateur:', req.user);
@@ -193,7 +195,7 @@ export class UsersController {
     console.log('[UsersController] Appel du service de recherche...');
     const users = await this._usersService.searchUsers(
       searchQuery,
-      req.user.userId,
+      req.user._id,
     );
 
     console.log(
@@ -204,8 +206,8 @@ export class UsersController {
     const result = users.map((user) => ({
       id: user._id.toString(),
       username: user.username,
-      nativeLanguage: user.nativeLanguage,
-      learningLanguages: user.learningLanguages,
+      nativeLanguage: user.nativeLanguage || 'fr',
+      learningLanguages: user.learningLanguages || [],
       profilePicture: user.profilePicture,
       bio: user.bio,
       location: user.location,
@@ -250,8 +252,8 @@ export class UsersController {
     return {
       id: user._id.toString(),
       username: user.username,
-      nativeLanguage: user.nativeLanguage,
-      learningLanguages: user.learningLanguages,
+      nativeLanguage: user.nativeLanguage || 'fr',
+      learningLanguages: user.learningLanguages || [],
       profilePicture: user.profilePicture,
       bio: user.bio,
       location: user.location,

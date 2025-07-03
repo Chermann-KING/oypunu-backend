@@ -39,11 +39,7 @@ export class JwtStrategy extends PassportStrategy(
       throw new UnauthorizedException('Utilisateur non trouvé');
     }
 
-    return {
-      userId: payload.sub,
-      email: payload.email,
-      username: payload.username,
-      role: payload.role,
-    };
+    // Retourner l'utilisateur complet depuis la base de données
+    return user;
   }
 }

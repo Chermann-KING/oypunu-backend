@@ -1,9 +1,9 @@
-import { Controller, Get, Res } from "@nestjs/common";
-import { Response } from "express";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { AppService } from "./app.service";
+import { Controller, Get, Res } from '@nestjs/common';
+import { Response } from 'express';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { AppService } from './app.service';
 
-@ApiTags("app")
+@ApiTags('app')
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
@@ -155,7 +155,7 @@ export class AppController {
             <div class="card">
               <h2>Documentation interactive</h2>
               <p>Explorez toutes les fonctionnalités de notre API avec la documentation interactive Swagger :</p>
-              <a href="/api/docs" class="btn">Ouvrir Swagger UI</a>
+              <a href="/api-docs" class="btn">Ouvrir Swagger UI</a>
             </div>
             
             <div class="card">
@@ -167,7 +167,7 @@ export class AppController {
                 <li>Incluez ce token dans l'en-tête Authorization de vos requêtes</li>
                 <li>Commencez à explorer le dictionnaire et ses fonctionnalités</li>
               </ol>
-              <a href="/api/docs" class="btn">Voir les exemples</a>
+              <a href="/api-docs" class="btn">Voir les exemples</a>
             </div>
             
             <div class="card">
@@ -257,10 +257,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code></pre>
     `);
   }
 
-  @Get("api/health")
+  @Get('api/health')
   healthCheck() {
     return {
-      status: "ok",
+      status: 'ok',
       timestamp: new Date().toISOString(),
     };
   }

@@ -245,7 +245,8 @@ export class WordsController {
       // Construction du DTO standard
       const standardDto: CreateWordDto = {
         word: createWordDto.word?.trim(),
-        language: createWordDto.language?.trim(),
+        languageId: createWordDto.languageId?.trim() || undefined,
+        language: createWordDto.language?.trim() || undefined,
         pronunciation: createWordDto.pronunciation?.trim() || undefined,
         etymology: createWordDto.etymology?.trim() || undefined,
         categoryId: createWordDto.categoryId?.trim() || undefined,
@@ -257,8 +258,8 @@ export class WordsController {
         throw new BadRequestException('Le champ word est requis');
       }
 
-      if (!standardDto.language) {
-        throw new BadRequestException('Le champ language est requis');
+      if (!standardDto.languageId && !standardDto.language) {
+        throw new BadRequestException('Le champ languageId ou language est requis');
       }
 
       if (!standardDto.meanings || standardDto.meanings.length === 0) {
@@ -267,6 +268,7 @@ export class WordsController {
 
       console.log('📝 Création du mot avec DTO:', {
         word: standardDto.word,
+        languageId: standardDto.languageId,
         language: standardDto.language,
         meaningsCount: standardDto.meanings.length,
       });
@@ -279,7 +281,7 @@ export class WordsController {
       // Si fichier audio présent, l'ajouter
       if (audioFile && createdWord) {
         try {
-          const accent = this.getDefaultAccent(standardDto.language);
+          const accent = this.getDefaultAccent(standardDto.language || 'standard');
           console.log('🎯 Accent déterminé:', accent);
 
           const raw = createdWord as unknown as { id?: any; _id?: any };
@@ -397,6 +399,31 @@ export class WordsController {
     return this.wordsService.search(searchDto);
   }
 
+  @Get('available-languages')
+  @ApiOperation({
+    summary: 'Récupérer les langues disponibles avec comptage des mots',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Liste des langues disponibles avec le nombre de mots par langue',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', example: 'fr' },
+          name: { type: 'string', example: 'Français' },
+          nativeName: { type: 'string', example: 'Français' },
+          wordCount: { type: 'number', example: 150 },
+        },
+      },
+    },
+  })
+  async getAvailableLanguages(): Promise<any[]> {
+    return this.wordsService.getAvailableLanguages();
+  }
+
   @Get('featured')
   @ApiOperation({ summary: 'Récupérer les mots mis en avant' })
   @ApiResponse({
@@ -413,17 +440,6 @@ export class WordsController {
   })
   getFeaturedWords(@Query('limit') limit = 6) {
     return this.wordsService.getFeaturedWords(+limit);
-  }
-
-  @Get('languages')
-  @ApiOperation({ summary: 'Récupérer la liste des langues disponibles' })
-  @ApiResponse({
-    status: 200,
-    description: 'Liste des langues disponibles récupérée avec succès',
-    type: [Object],
-  })
-  async getAvailableLanguages() {
-    return this.wordsService.getAvailableLanguages();
   }
 
   @Get('pending')
@@ -982,5 +998,38 @@ export class WordsController {
       default:
         return 'standard';
     }
+  }
+
+  @Get(':id/all-translations')
+  @ApiOperation({ summary: 'Récupérer toutes les traductions d\'un mot (directes + inverses)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Toutes les traductions récupérées avec succès',
+    schema: {
+      type: 'object',
+      properties: {
+        directTranslations: {
+          type: 'array',
+          description: 'Traductions stockées dans ce mot'
+        },
+        reverseTranslations: {
+          type: 'array', 
+          description: 'Traductions depuis d\'autres mots vers ce mot'
+        },
+        allTranslations: {
+          type: 'array',
+          description: 'Toutes les traductions combinées'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'Mot non trouvé' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID du mot',
+    example: '60a1b2c3d4e5f6a7b8c9d0e1',
+  })
+  async getAllTranslations(@Param('id') id: string) {
+    return this.wordsService.getAllTranslations(id);
   }
 }

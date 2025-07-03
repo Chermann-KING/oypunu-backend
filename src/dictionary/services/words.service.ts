@@ -18,6 +18,7 @@ import {
   WordNotification,
   WordNotificationDocument,
 } from '../schemas/word-notification.schema';
+import { Language, LanguageDocument } from '../../languages/schemas/language.schema';
 import { CreateWordDto } from '../dto/create-word.dto';
 import { UpdateWordDto } from '../dto/update-word.dto';
 import { SearchWordsDto } from '../dto/search-words.dto';
@@ -58,6 +59,7 @@ export class WordsService {
     @InjectModel(WordNotification.name)
     private wordNotificationModel: Model<WordNotificationDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Language.name) private languageModel: Model<LanguageDocument>,
     private categoriesService: CategoriesService,
     private usersService: UsersService,
     private audioService: AudioService,
@@ -76,14 +78,20 @@ export class WordsService {
     const userIdLocal: string = user._id || user.userId || '';
 
     // Vérifier si le mot existe déjà dans la même langue
+    // Utilise le nouveau languageId en priorité, sinon utilise l'ancien champ language pour compatibilité
+    const languageFilter = createWordDto.languageId 
+      ? { languageId: createWordDto.languageId }
+      : { language: createWordDto.language };
+      
     const existingWord = await this.wordModel.findOne({
       word: createWordDto.word,
-      language: createWordDto.language,
+      ...languageFilter,
     });
 
     if (existingWord) {
+      const languageRef = createWordDto.languageId || createWordDto.language;
       throw new BadRequestException(
-        `Le mot "${createWordDto.word}" existe déjà dans la langue ${createWordDto.language}`,
+        `Le mot "${createWordDto.word}" existe déjà dans cette langue`,
       );
     }
 
@@ -99,12 +107,17 @@ export class WordsService {
       delete wordData.categoryId;
     }
 
-    if (wordData.categoryId && wordData.language) {
+    if (wordData.categoryId && (wordData.languageId || wordData.language)) {
       try {
         const category = await this.categoriesService.findOne(
           wordData.categoryId,
         );
-        if (!category || category.language !== wordData.language) {
+        // Vérifie la compatibilité de langue (nouveau système ou ancien)
+        const languageMatches = wordData.languageId 
+          ? category.languageId?.toString() === wordData.languageId
+          : category.language === wordData.language;
+          
+        if (!category || !languageMatches) {
           delete wordData.categoryId;
         }
       } catch {
@@ -123,6 +136,19 @@ export class WordsService {
 
     const savedWord = await createdWord.save();
 
+    // Créer les traductions bidirectionnelles si des traductions sont fournies
+    if (wordData.translations && wordData.translations.length > 0) {
+      try {
+        await this.createBidirectionalTranslations(savedWord, userIdLocal);
+      } catch (error) {
+        console.error(
+          'Erreur lors de la création des traductions bidirectionnelles:',
+          error,
+        );
+        // Ne pas faire échouer la création du mot si les traductions bidirectionnelles échouent
+      }
+    }
+
     // Incrémenter le compteur de mots ajoutés pour l'utilisateur
     try {
       await this.usersService.incrementWordCount(userIdLocal);
@@ -135,6 +161,90 @@ export class WordsService {
     }
 
     return savedWord;
+  }
+
+  /**
+   * Crée des traductions bidirectionnelles pour un mot nouvellement créé
+   */
+  private async createBidirectionalTranslations(
+    sourceWord: WordDocument,
+    userId: string,
+  ): Promise<void> {
+    console.log('🔄 Création de traductions bidirectionnelles pour:', sourceWord.word);
+
+    for (const translation of sourceWord.translations) {
+      try {
+        // Chercher le mot cible par nom dans la langue de traduction
+        const targetWordFilter = translation.languageId 
+          ? { languageId: translation.languageId, word: translation.translatedWord }
+          : { language: translation.language, word: translation.translatedWord };
+
+        let targetWord = await this.wordModel.findOne(targetWordFilter);
+
+        if (targetWord) {
+          console.log(`✅ Mot cible trouvé: ${targetWord.word} (${translation.language || translation.languageId})`);
+          
+          // Vérifier si la traduction inverse existe déjà
+          const sourceLanguageId = sourceWord.languageId || null;
+          const sourceLanguage = sourceWord.language || null;
+          
+          const reverseTranslationExists = targetWord.translations.some(t => {
+            // Vérifier par languageId ou par language selon ce qui est disponible
+            const languageMatches = sourceLanguageId 
+              ? t.languageId?.toString() === sourceLanguageId.toString()
+              : t.language === sourceLanguage;
+            
+            return languageMatches && 
+                   t.translatedWord === sourceWord.word;
+          });
+
+          if (!reverseTranslationExists) {
+            console.log(`➕ Ajout de la traduction inverse: ${targetWord.word} -> ${sourceWord.word}`);
+            
+            // Créer la traduction inverse
+            const reverseTranslation = {
+              languageId: sourceLanguageId,
+              language: sourceLanguage,
+              translatedWord: sourceWord.word,
+              context: translation.context || [],
+              confidence: translation.confidence || 0.8,
+              verifiedBy: [],
+              targetWordId: sourceWord._id,
+              createdBy: new Types.ObjectId(userId),
+              validatedBy: null,
+            };
+
+            targetWord.translations.push(reverseTranslation as any);
+            targetWord.translationCount = targetWord.translations.length;
+            
+            await targetWord.save();
+            console.log(`✅ Traduction inverse sauvegardée`);
+          } else {
+            console.log(`ℹ️ Traduction inverse existe déjà`);
+          }
+
+          // Mettre à jour le targetWordId dans la traduction source
+          const sourceTranslation = sourceWord.translations.find(t => 
+            t.translatedWord === translation.translatedWord && 
+            (t.languageId?.toString() === translation.languageId?.toString() || t.language === translation.language)
+          );
+          
+          if (sourceTranslation && !sourceTranslation.targetWordId) {
+            sourceTranslation.targetWordId = targetWord._id as any;
+            await sourceWord.save();
+            console.log(`🔗 Lien targetWordId mis à jour`);
+          }
+        } else {
+          console.log(`⚠️ Mot cible non trouvé: ${translation.translatedWord} en ${translation.language || translation.languageId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Erreur lors du traitement de la traduction ${translation.translatedWord}:`, error);
+      }
+    }
+
+    // Mettre à jour le compteur de traductions du mot source
+    sourceWord.translationCount = sourceWord.translations.length;
+    await sourceWord.save();
   }
 
   async findAll(
@@ -284,9 +394,8 @@ export class WordsService {
 
       try {
         // Déterminer l'accent par défaut basé sur la langue du mot
-        const defaultAccent = this.getDefaultAccentForLanguage(
-          updatedWord.language,
-        );
+        const language = updatedWord.language || 'fr'; // Fallback vers français si undefined
+        const defaultAccent = this.getDefaultAccentForLanguage(language);
 
         // Ajouter le fichier audio
         const wordWithAudio = await this.addAudioFile(
@@ -667,7 +776,7 @@ export class WordsService {
 
       const uploadResult = await this.audioService.uploadPhoneticAudio(
         word.word,
-        word.language,
+        word.language || 'fr', // Fallback vers français si undefined
         fileBuffer,
         accent,
         detectedMimeType, // Passer le type MIME détecté
@@ -688,7 +797,7 @@ export class WordsService {
       word.audioFiles.set(accent, {
         url: uploadResult.url,
         cloudinaryId: uploadResult.cloudinaryId,
-        language: word.language,
+        language: word.language || 'fr', // Fallback vers français si undefined
         accent: accent,
       });
 
@@ -767,23 +876,62 @@ export class WordsService {
   }
 
   async canUserEditWord(wordId: string, user: User): Promise<boolean> {
+    console.log('=== DEBUG canUserEditWord ===');
+    console.log('WordId:', wordId);
+    console.log('User:', {
+      _id: user._id,
+      username: user.username,
+      role: user.role
+    });
+
     if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
+      console.log('✅ User is admin/superadmin, allowing edit');
       return true;
     }
 
     const word = await this.wordModel.findById(wordId);
     if (!word) {
+      console.log('❌ Word not found');
       return false;
     }
 
+    console.log('Word found:', {
+      word: word.word,
+      createdBy: word.createdBy,
+      createdByType: typeof word.createdBy,
+      status: word.status
+    });
+
     // L'utilisateur peut modifier s'il est le créateur et que le mot n'est pas rejeté
-    return !!(
-      word.createdBy &&
-      typeof word.createdBy === 'object' &&
-      '_id' in word.createdBy &&
-      String(word.createdBy._id) === String(user._id) &&
-      word.status !== 'rejected'
-    );
+    if (!word.createdBy || word.status === 'rejected') {
+      console.log('❌ No createdBy or word is rejected');
+      return false;
+    }
+
+    // Gérer le cas où createdBy est un ObjectId (string) ou un objet User peuplé
+    let createdByIdToCompare: string;
+    if (typeof word.createdBy === 'object' && '_id' in word.createdBy) {
+      // createdBy est un objet User peuplé
+      createdByIdToCompare = String(word.createdBy._id);
+      console.log('🔍 createdBy is User object, ID:', createdByIdToCompare);
+    } else {
+      // createdBy est juste un ObjectId (string)
+      createdByIdToCompare = String(word.createdBy);
+      console.log('🔍 createdBy is ObjectId string, ID:', createdByIdToCompare);
+    }
+
+    const userIdToCompare = String(user._id);
+    console.log('🔍 Comparing IDs:', {
+      createdByIdToCompare,
+      userIdToCompare,
+      areEqual: createdByIdToCompare === userIdToCompare
+    });
+
+    const canEdit = createdByIdToCompare === userIdToCompare;
+    console.log('✅ Can edit result:', canEdit);
+    console.log('=== END DEBUG canUserEditWord ===');
+
+    return canEdit;
   }
 
   async getPendingRevisions(
@@ -945,57 +1093,60 @@ export class WordsService {
   // Récupérer les langues disponibles dans la base de données
   async getAvailableLanguages(): Promise<
     {
+      id: string;
       code: string;
       name: string;
       nativeName: string;
       wordCount: number;
     }[]
   > {
-    // Mapping des codes de langue vers les noms
-    const languageMap: Record<string, { name: string; nativeName: string }> = {
-      fr: { name: 'Français', nativeName: 'Français' },
-      en: { name: 'Anglais', nativeName: 'English' },
-      es: { name: 'Espagnol', nativeName: 'Español' },
-      de: { name: 'Allemand', nativeName: 'Deutsch' },
-      it: { name: 'Italien', nativeName: 'Italiano' },
-      pt: { name: 'Portugais', nativeName: 'Português' },
-      ru: { name: 'Russe', nativeName: 'Русский' },
-      ja: { name: 'Japonais', nativeName: '日本語' },
-      zh: { name: 'Chinois', nativeName: '中文' },
-      da: { name: 'Danois', nativeName: 'Dansk' },
-      nl: { name: 'Néerlandais', nativeName: 'Nederlands' },
-      sv: { name: 'Suédois', nativeName: 'Svenska' },
-      no: { name: 'Norvégien', nativeName: 'Norsk' },
-      fi: { name: 'Finnois', nativeName: 'Suomi' },
-      pl: { name: 'Polonais', nativeName: 'Polski' },
-      ar: { name: 'Arabe', nativeName: 'العربية' },
-      ko: { name: 'Coréen', nativeName: '한국어' },
-      hi: { name: 'Hindi', nativeName: 'हिन्दी' },
-    };
+    console.log('🔄 Récupération des langues depuis la collection Languages...');
+    
+    // Récupérer les langues actives depuis la collection Languages
+    const activeLanguages = await this.languageModel.find({
+      systemStatus: 'active',
+      isVisible: true
+    }).exec();
 
-    // Récupérer les langues distinctes avec le nombre de mots approuvés
-    const languageStats = await this.wordModel.aggregate([
-      {
-        $match: { status: 'approved' },
-      },
-      {
-        $group: {
-          _id: '$language',
-          wordCount: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { wordCount: -1 },
-      },
-    ]);
+    console.log('📋 Langues actives trouvées:', activeLanguages.length);
 
-    // Formater les résultats
-    return languageStats.map((stat: { _id: string; wordCount: number }) => ({
-      code: stat._id,
-      name: languageMap[stat._id]?.name || stat._id,
-      nativeName: languageMap[stat._id]?.nativeName || stat._id,
-      wordCount: stat.wordCount,
-    }));
+    // Pour chaque langue active, compter les mots approuvés
+    const languagesWithWordCount = await Promise.all(
+      activeLanguages.map(async (language) => {
+        // Compter les mots par languageId (nouveau système)
+        const wordCountByLanguageId = await this.wordModel.countDocuments({
+          status: 'approved',
+          languageId: (language as any)._id
+        });
+
+        // Compter les mots par ancien code language (système de transition)
+        let wordCountByCode = 0;
+        if (language.iso639_1) {
+          wordCountByCode = await this.wordModel.countDocuments({
+            status: 'approved',
+            language: language.iso639_1
+          });
+        }
+
+        const totalWordCount = wordCountByLanguageId + wordCountByCode;
+
+        console.log(`📊 Langue ${language.name}: ${totalWordCount} mots (${wordCountByLanguageId} par ID + ${wordCountByCode} par code)`);
+
+        return {
+          id: (language as any)._id.toString(),
+          code: language.iso639_1 || language.name.toLowerCase().slice(0, 2),
+          name: language.name,
+          nativeName: language.nativeName,
+          wordCount: totalWordCount,
+        };
+      })
+    );
+
+    // Trier par nombre de mots décroissant
+    const sortedLanguages = languagesWithWordCount.sort((a, b) => b.wordCount - a.wordCount);
+
+    console.log('✅ Langues disponibles formatées:', sortedLanguages.length);
+    return sortedLanguages;
   }
 
   async addToFavorites(
@@ -1356,7 +1507,7 @@ export class WordsService {
     return {
       wordId: (word._id as Types.ObjectId).toString(),
       word: word.word,
-      language: word.language,
+      language: word.language || 'fr', // Fallback vers français si undefined
       audioFiles,
     };
   }
@@ -1422,7 +1573,7 @@ export class WordsService {
         // Uploader le nouveau fichier
         const audioData = await this.audioService.uploadPhoneticAudio(
           word.word,
-          word.language,
+          word.language || 'fr', // Fallback vers français si undefined
           update.audioBuffer,
           update.accent,
         );
@@ -1435,7 +1586,7 @@ export class WordsService {
         word.audioFiles.set(update.accent, {
           url: audioData.url,
           cloudinaryId: audioData.cloudinaryId,
-          language: word.language,
+          language: word.language || 'fr', // Fallback vers français si undefined
           accent: update.accent,
         });
 
@@ -1736,6 +1887,90 @@ export class WordsService {
       audioByAccent,
       averageAudioPerWord:
         wordsWithAudio > 0 ? stats.totalAudioFiles / wordsWithAudio : 0,
+    };
+  }
+
+  /**
+   * Récupère toutes les traductions d'un mot (directes + inverses)
+   */
+  async getAllTranslations(wordId: string): Promise<{
+    directTranslations: any[];
+    reverseTranslations: any[];
+    allTranslations: any[];
+  }> {
+    console.log('🔍 Récupération de toutes les traductions pour le mot:', wordId);
+
+    const word = await this.wordModel.findById(wordId);
+    if (!word) {
+      throw new NotFoundException('Mot non trouvé');
+    }
+
+    // 1. Traductions directes (stockées dans le mot)
+    const directTranslations = word.translations.map(translation => ({
+      id: (translation as any)._id || `${(word as any)._id}_${translation.translatedWord}`,
+      sourceWord: word.word,
+      sourceLanguageId: word.languageId,
+      sourceLanguage: word.language,
+      targetWord: translation.translatedWord,
+      targetLanguageId: translation.languageId,
+      targetLanguage: translation.language,
+      context: translation.context,
+      confidence: translation.confidence,
+      verifiedBy: translation.verifiedBy,
+      targetWordId: translation.targetWordId,
+      direction: 'direct' as const,
+    }));
+
+    // 2. Traductions inverses (chercher dans les autres mots qui nous référencent)
+    const reverseTranslationsQuery = word.languageId 
+      ? {
+          'translations.targetWordId': (word as any)._id,
+          $or: [
+            { 'translations.languageId': word.languageId },
+            { 'translations.language': word.language }
+          ]
+        }
+      : {
+          'translations.targetWordId': (word as any)._id,
+          'translations.language': word.language
+        };
+
+    const wordsWithReverseTranslations = await this.wordModel.find(reverseTranslationsQuery);
+
+    const reverseTranslations: any[] = [];
+    for (const sourceWord of wordsWithReverseTranslations) {
+      const relevantTranslations = sourceWord.translations.filter(t => 
+        t.targetWordId?.toString() === (word as any)._id.toString() &&
+        t.translatedWord === word.word
+      );
+
+      for (const translation of relevantTranslations) {
+        reverseTranslations.push({
+          id: (translation as any)._id || `${(sourceWord as any)._id}_${translation.translatedWord}`,
+          sourceWord: sourceWord.word,
+          sourceLanguageId: sourceWord.languageId,
+          sourceLanguage: sourceWord.language,
+          targetWord: word.word,
+          targetLanguageId: word.languageId,
+          targetLanguage: word.language,
+          context: translation.context,
+          confidence: translation.confidence,
+          verifiedBy: translation.verifiedBy,
+          targetWordId: word._id,
+          direction: 'reverse' as const,
+        });
+      }
+    }
+
+    // 3. Combiner toutes les traductions
+    const allTranslations = [...directTranslations, ...reverseTranslations];
+
+    console.log(`📊 Trouvé ${directTranslations.length} traductions directes et ${reverseTranslations.length} traductions inverses`);
+
+    return {
+      directTranslations,
+      reverseTranslations,
+      allTranslations,
     };
   }
 }

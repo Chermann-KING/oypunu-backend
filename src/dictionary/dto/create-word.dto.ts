@@ -11,6 +11,8 @@ import {
   Min,
   Max,
   Matches,
+  IsMongoId,
+  ValidateIf,
 } from 'class-validator';
 
 class DefinitionDto {
@@ -159,15 +161,27 @@ export class MeaningDto {
 
 class TranslationDto {
   @ApiProperty({
-    description: 'Code de langue de la traduction (ISO 639-1)',
-    example: 'en',
+    description: 'ID de la langue de la traduction (référence à Language)',
+    example: '60a1b2c3d4e5f6a7b8c9d0e1',
+    required: false,
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
+  @IsMongoId()
+  languageId?: string;
+
+  // DURANT LA MIGRATION: Ancien champ pour compatibilité (à supprimer après migration)
+  @ApiProperty({
+    description: 'Code de langue de la traduction (ISO 639-1) - Deprecated',
+    example: 'en',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
   @Matches(/^[a-z]{2}$/, {
     message: 'Le code de langue doit être au format ISO 639-1 (ex: en, fr, es)',
   })
-  language: string;
+  language?: string;
 
   @ApiProperty({
     description: 'Mot traduit',
@@ -264,29 +278,29 @@ export class CreateWordDto {
   word: string;
 
   @ApiProperty({
-    description: 'Langue du mot (ISO 639-1)',
-    example: 'fr',
-    enum: [
-      'fr',
-      'en',
-      'es',
-      'de',
-      'it',
-      'pt',
-      'ru',
-      'ja',
-      'zh',
-      'ar',
-      'ko',
-      'hi',
-    ],
+    description: 'ID de la langue du mot (référence à Language)',
+    example: '60a1b2c3d4e5f6a7b8c9d0e1',
+    required: false,
   })
+  @ValidateIf((o) => !o.language)
+  @IsString()
+  @IsNotEmpty()
+  @IsMongoId()
+  languageId?: string;
+
+  // DURANT LA MIGRATION: Ancien champ pour compatibilité (à supprimer après migration)
+  @ApiProperty({
+    description: 'Langue du mot (ISO 639-1) - Deprecated',
+    example: 'fr',
+    required: false,
+  })
+  @ValidateIf((o) => !o.languageId)
   @IsString()
   @IsNotEmpty()
   @Matches(/^[a-z]{2}$/, {
     message: 'Le code de langue doit être au format ISO 639-1 (ex: fr, en, es)',
   })
-  language: string;
+  language?: string;
 
   @ApiProperty({
     description: 'Prononciation phonétique principale',

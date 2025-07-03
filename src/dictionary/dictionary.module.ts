@@ -17,6 +17,7 @@ import {
   WordNotification,
   WordNotificationSchema,
 } from './schemas/word-notification.schema';
+import { Language, LanguageSchema } from '../languages/schemas/language.schema';
 
 // Services
 import { WordsService } from './services/words.service';
@@ -29,6 +30,8 @@ import { WordsController } from './controllers/words.controller';
 import { CategoriesController } from './controllers/categories.controller';
 import { FavoriteWordsController } from './controllers/favorite-words.controller';
 import { UsersModule } from 'src/users/users.module';
+// ✨ NOUVEL IMPORT pour l'intégration de la détection automatique
+import { TranslationModule } from '../translation/translation.module';
 
 @Module({
   imports: [
@@ -38,9 +41,12 @@ import { UsersModule } from 'src/users/users.module';
       { name: FavoriteWord.name, schema: FavoriteWordSchema },
       { name: RevisionHistory.name, schema: RevisionHistorySchema },
       { name: WordNotification.name, schema: WordNotificationSchema },
+      { name: Language.name, schema: LanguageSchema },
     ]),
     // RedisModule,
     UsersModule,
+    // ✨ NOUVEAU: Import du module de traduction pour la détection automatique
+    TranslationModule,
   ],
   controllers: [WordsController, CategoriesController, FavoriteWordsController],
   providers: [WordsService, CategoriesService, AudioService],

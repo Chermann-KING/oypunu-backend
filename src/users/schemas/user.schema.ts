@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Language } from '../../languages/schemas/language.schema';
 
 export type UserDocument = User & Document;
 
@@ -54,11 +55,19 @@ export class User {
   @Prop({ type: [String], default: [] })
   favoriteWords: string[];
 
+  // NOUVEAU: Références vers la collection Languages
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Language' })
+  nativeLanguageId?: Language;
+
+  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Language' }], default: [] })
+  learningLanguageIds: Language[];
+
+  // DURANT LA MIGRATION: Anciens champs pour compatibilité (à supprimer après migration)
   @Prop()
-  nativeLanguage: string;
+  nativeLanguage?: string;
 
   @Prop({ type: [String], default: [] })
-  learningLanguages: string[];
+  learningLanguages?: string[];
 
   @Prop({ type: Object, default: {} })
   socialProviders: Record<string, string>;
