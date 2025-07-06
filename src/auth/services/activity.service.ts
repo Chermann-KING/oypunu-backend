@@ -7,7 +7,7 @@ import {
   ActivityFeedDocument,
   ActivityType,
   EntityType,
-} from "../schemas/activity-feed.schema";
+} from "../../common/schemas/activity-feed.schema";
 import {
   Language,
   LanguageDocument,
