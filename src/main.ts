@@ -17,6 +17,7 @@ async function bootstrap() {
     "http://localhost:5173", // Développement Vite
     "https://localhost:4200", // HTTPS local
     "https://localhost:3000", // HTTPS local
+    /http:\/\/localhost:\d+/, // Tous les ports localhost pour le développement
   ];
 
   // Ajouter l'URL de production si elle existe
@@ -29,45 +30,72 @@ async function bootstrap() {
 
   console.log("🌐 CORS - Origines autorisées:", allowedOrigins);
 
-  app.enableCors({
-    origin: (origin, callback) => {
-      // Autoriser les requêtes sans origin (Postman, apps mobiles, etc.)
-      if (!origin) return callback(null, true);
+  // En développement, autoriser toutes les origines localhost
+  const isDevelopment = configService.get("NODE_ENV") !== "production";
+  
+  if (isDevelopment) {
+    app.enableCors({
+      origin: true, // Autoriser toutes les origines en développement
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+      ],
+      credentials: true,
+    });
+    console.log("🔧 CORS: Mode développement - Toutes les origines autorisées");
+  } else {
+    app.enableCors({
+      origin: (origin, callback) => {
+        // Autoriser les requêtes sans origin (Postman, apps mobiles, etc.)
+        if (!origin) return callback(null, true);
 
-      // Vérifier si l'origin est dans la liste autorisée
-      const isAllowed = allowedOrigins.some((allowedOrigin) => {
-        if (allowedOrigin.includes("*")) {
-          // Gestion des wildcards pour Vercel
-          const pattern = allowedOrigin.replace("*", ".*");
-          const regex = new RegExp(`^${pattern}$`);
-          return regex.test(origin);
+        // Vérifier si l'origin est dans la liste autorisée
+        const isAllowed = allowedOrigins.some((allowedOrigin) => {
+          if (typeof allowedOrigin === 'string') {
+            if (allowedOrigin.includes("*")) {
+              // Gestion des wildcards pour Vercel
+              const pattern = allowedOrigin.replace("*", ".*");
+              const regex = new RegExp(`^${pattern}$`);
+              return regex.test(origin);
+            }
+            return allowedOrigin === origin;
+          } else if (allowedOrigin instanceof RegExp) {
+            // Gestion des expressions régulières
+            return allowedOrigin.test(origin);
+          }
+          return false;
+        });
+
+        if (isAllowed) {
+          console.log(`✅ CORS: Origin autorisée - ${origin}`);
+          callback(null, true);
+        } else {
+          console.log(`❌ CORS: Origin rejetée - ${origin}`);
+          console.log(`📝 CORS: Origins autorisées:`, allowedOrigins);
+          callback(new Error(`Origin ${origin} non autorisée par CORS`));
         }
-        return allowedOrigin === origin;
-      });
-
-      if (isAllowed) {
-        console.log(`✅ CORS: Origin autorisée - ${origin}`);
-        callback(null, true);
-      } else {
-        console.log(`❌ CORS: Origin rejetée - ${origin}`);
-        console.log(`📝 CORS: Origins autorisées:`, allowedOrigins);
-        callback(new Error(`Origin ${origin} non autorisée par CORS`));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "Accept",
-      "Origin",
-      "X-Requested-With",
-      "Access-Control-Request-Method",
-      "Access-Control-Request-Headers",
-    ],
-    credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  });
+      },
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+      ],
+      credentials: true,
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    });
+  }
 
   // Préfixe global pour l'API
   app.setGlobalPrefix("api");

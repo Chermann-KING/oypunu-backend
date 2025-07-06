@@ -29,13 +29,19 @@ export class LanguageMigrationService {
           $or: [
             { name: languageData.name },
             { nativeName: languageData.nativeName },
-            ...(languageData.iso639_1 ? [{ iso639_1: languageData.iso639_1 }] : []),
-            ...(languageData.iso639_3 ? [{ iso639_3: languageData.iso639_3 }] : [])
-          ]
+            ...(languageData.iso639_1
+              ? [{ iso639_1: languageData.iso639_1 }]
+              : []),
+            ...(languageData.iso639_3
+              ? [{ iso639_3: languageData.iso639_3 }]
+              : []),
+          ],
         });
 
         if (existingLanguage) {
-          this.logger.warn(`⚠️ Langue ${languageData.name} existe déjà, ignorée`);
+          this.logger.warn(
+            `⚠️ Langue ${languageData.name} existe déjà, ignorée`,
+          );
           continue;
         }
 
@@ -64,16 +70,20 @@ export class LanguageMigrationService {
               name: 'Latin',
               code: 'Latn',
               direction: 'ltr',
-              isDefault: true
-            }
-          ]
+              isDefault: true,
+            },
+          ],
         });
 
         await language.save();
-        this.logger.log(`✅ Langue ${languageData.name} (${languageData.nativeName}) créée`);
-
+        this.logger.log(
+          `✅ Langue ${languageData.name} (${languageData.nativeName}) créée`,
+        );
       } catch (error) {
-        this.logger.error(`❌ Erreur lors de la création de ${languageData.name}:`, error);
+        this.logger.error(
+          `❌ Erreur lors de la création de ${languageData.name}:`,
+          error,
+        );
       }
     }
 
@@ -101,17 +111,19 @@ export class LanguageMigrationService {
           continue;
         }
         const languageId = languageMapping[word.language];
-        
+
         if (languageId) {
           // Mettre à jour le mot avec le nouvel ID de langue
           await this.wordModel.findByIdAndUpdate(word._id, {
             languageId: languageId,
             // Garder l'ancien champ pour compatibilité temporaire
-            oldLanguageCode: word.language
+            oldLanguageCode: word.language,
           });
           migratedCount++;
         } else {
-          this.logger.warn(`⚠️ Aucune langue trouvée pour le code: ${word.language} (mot: ${word.word})`);
+          this.logger.warn(
+            `⚠️ Aucune langue trouvée pour le code: ${word.language} (mot: ${word.word})`,
+          );
           failedCount++;
         }
       } catch (error) {
@@ -120,7 +132,9 @@ export class LanguageMigrationService {
       }
     }
 
-    this.logger.log(`📊 Migration mots terminée: ${migratedCount} réussis, ${failedCount} échoués`);
+    this.logger.log(
+      `📊 Migration mots terminée: ${migratedCount} réussis, ${failedCount} échoués`,
+    );
   }
 
   /**
@@ -146,9 +160,9 @@ export class LanguageMigrationService {
         // Migrer les langues d'apprentissage
         if (user.learningLanguages && user.learningLanguages.length > 0) {
           const learningLanguageIds = user.learningLanguages
-            .map(code => languageMapping[code])
-            .filter(id => id !== undefined);
-          
+            .map((code) => languageMapping[code])
+            .filter((id) => id !== undefined);
+
           if (learningLanguageIds.length > 0) {
             updates.learningLanguageIds = learningLanguageIds;
             updates.oldLearningLanguages = user.learningLanguages;
@@ -160,11 +174,16 @@ export class LanguageMigrationService {
           migratedCount++;
         }
       } catch (error) {
-        this.logger.error(`❌ Erreur migration utilisateur ${user.username}:`, error);
+        this.logger.error(
+          `❌ Erreur migration utilisateur ${user.username}:`,
+          error,
+        );
       }
     }
 
-    this.logger.log(`👥 Migration utilisateurs terminée: ${migratedCount} migrés`);
+    this.logger.log(
+      `👥 Migration utilisateurs terminée: ${migratedCount} migrés`,
+    );
   }
 
   /**
@@ -173,42 +192,47 @@ export class LanguageMigrationService {
   async updateLanguageStatistics(): Promise<void> {
     this.logger.log('📊 Mise à jour des statistiques des langues...');
 
-    const languages = await this.languageModel.find({ systemStatus: 'active' }).exec();
+    const languages = await this.languageModel
+      .find({ systemStatus: 'active' })
+      .exec();
 
     for (const language of languages) {
       try {
         // Compter les mots dans cette langue
-        const wordCount = await this.wordModel.countDocuments({ 
-          languageId: language._id 
+        const wordCount = await this.wordModel.countDocuments({
+          languageId: language._id,
         });
 
         // Compter les utilisateurs avec cette langue
-        const nativeUserCount = await this.userModel.countDocuments({ 
-          nativeLanguageId: language._id 
+        const nativeUserCount = await this.userModel.countDocuments({
+          nativeLanguageId: language._id,
         });
 
-        const learningUserCount = await this.userModel.countDocuments({ 
-          learningLanguageIds: language._id 
+        const learningUserCount = await this.userModel.countDocuments({
+          learningLanguageIds: language._id,
         });
 
         // Compter les contributeurs actifs (utilisateurs avec des mots dans cette langue)
         const contributorPipeline = [
           { $match: { languageId: language._id } },
           { $group: { _id: '$createdBy' } },
-          { $count: 'contributors' }
+          { $count: 'contributors' },
         ];
-        const contributorResult = await this.wordModel.aggregate(contributorPipeline);
-        const contributorCount = contributorResult.length > 0 ? contributorResult[0].contributors : 0;
+        const contributorResult =
+          await this.wordModel.aggregate(contributorPipeline);
+        const contributorCount =
+          contributorResult.length > 0 ? contributorResult[0].contributors : 0;
 
         // Mettre à jour les statistiques
         await this.languageModel.findByIdAndUpdate(language._id, {
           wordCount,
           userCount: nativeUserCount + learningUserCount,
-          contributorCount
+          contributorCount,
         });
 
-        this.logger.log(`📈 ${language.name}: ${wordCount} mots, ${nativeUserCount + learningUserCount} utilisateurs`);
-
+        this.logger.log(
+          `📈 ${language.name}: ${wordCount} mots, ${nativeUserCount + learningUserCount} utilisateurs`,
+        );
       } catch (error) {
         this.logger.error(`❌ Erreur stats pour ${language.name}:`, error);
       }
@@ -221,7 +245,9 @@ export class LanguageMigrationService {
    * 🗺️ Créer le mapping code ISO → ID MongoDB
    */
   private async createLanguageMapping(): Promise<Record<string, string>> {
-    const languages = await this.languageModel.find({ systemStatus: 'active' }).exec();
+    const languages = await this.languageModel
+      .find({ systemStatus: 'active' })
+      .exec();
     const mapping: Record<string, string> = {};
 
     for (const language of languages) {
@@ -236,7 +262,7 @@ export class LanguageMigrationService {
       if (language.iso639_3) {
         mapping[language.iso639_3] = languageId;
       }
-      
+
       // Fallback sur le nom de la langue (en lowercase)
       mapping[language.name.toLowerCase()] = languageId;
     }
@@ -251,22 +277,28 @@ export class LanguageMigrationService {
     this.logger.log('🧹 Nettoyage des anciens champs de langue...');
 
     // Supprimer les anciens champs des mots
-    await this.wordModel.updateMany({}, {
-      $unset: {
-        language: 1,
-        oldLanguageCode: 1
-      }
-    });
+    await this.wordModel.updateMany(
+      {},
+      {
+        $unset: {
+          language: 1,
+          oldLanguageCode: 1,
+        },
+      },
+    );
 
     // Supprimer les anciens champs des utilisateurs
-    await this.userModel.updateMany({}, {
-      $unset: {
-        nativeLanguage: 1,
-        learningLanguages: 1,
-        oldNativeLanguage: 1,
-        oldLearningLanguages: 1
-      }
-    });
+    await this.userModel.updateMany(
+      {},
+      {
+        $unset: {
+          nativeLanguage: 1,
+          learningLanguages: 1,
+          oldNativeLanguage: 1,
+          oldLearningLanguages: 1,
+        },
+      },
+    );
 
     this.logger.log('🧹 Nettoyage terminé !');
   }
@@ -282,10 +314,11 @@ export class LanguageMigrationService {
       await this.migrateWordsToLanguageIds();
       await this.migrateUsersToLanguageIds();
       await this.updateLanguageStatistics();
-      
+
       this.logger.log('✅ MIGRATION COMPLÈTE RÉUSSIE !');
-      this.logger.warn('⚠️ N\'oubliez pas de mettre à jour les schémas et supprimer les anciens champs après validation');
-      
+      this.logger.warn(
+        "⚠️ N'oubliez pas de mettre à jour les schémas et supprimer les anciens champs après validation",
+      );
     } catch (error) {
       this.logger.error('❌ ERREUR DURANT LA MIGRATION:', error);
       throw error;
@@ -297,36 +330,44 @@ export class LanguageMigrationService {
    */
   async getMigrationReport(): Promise<any> {
     const totalLanguages = await this.languageModel.countDocuments({});
-    const activeLanguages = await this.languageModel.countDocuments({ systemStatus: 'active' });
-    const pendingLanguages = await this.languageModel.countDocuments({ systemStatus: 'proposed' });
-    
+    const activeLanguages = await this.languageModel.countDocuments({
+      systemStatus: 'active',
+    });
+    const pendingLanguages = await this.languageModel.countDocuments({
+      systemStatus: 'proposed',
+    });
+
     const totalWords = await this.wordModel.countDocuments({});
-    const migratedWords = await this.wordModel.countDocuments({ languageId: { $exists: true } });
-    
+    const migratedWords = await this.wordModel.countDocuments({
+      languageId: { $exists: true },
+    });
+
     const totalUsers = await this.userModel.countDocuments({});
-    const migratedUsers = await this.userModel.countDocuments({ 
+    const migratedUsers = await this.userModel.countDocuments({
       $or: [
         { nativeLanguageId: { $exists: true } },
-        { learningLanguageIds: { $exists: true } }
-      ]
+        { learningLanguageIds: { $exists: true } },
+      ],
     });
 
     return {
       languages: {
         total: totalLanguages,
         active: activeLanguages,
-        pending: pendingLanguages
+        pending: pendingLanguages,
       },
       words: {
         total: totalWords,
         migrated: migratedWords,
-        percentage: totalWords > 0 ? Math.round((migratedWords / totalWords) * 100) : 0
+        percentage:
+          totalWords > 0 ? Math.round((migratedWords / totalWords) * 100) : 0,
       },
       users: {
         total: totalUsers,
         migrated: migratedUsers,
-        percentage: totalUsers > 0 ? Math.round((migratedUsers / totalUsers) * 100) : 0
-      }
+        percentage:
+          totalUsers > 0 ? Math.round((migratedUsers / totalUsers) * 100) : 0,
+      },
     };
   }
 }

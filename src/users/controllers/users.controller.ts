@@ -62,6 +62,43 @@ interface UserStatsResponse {
 export class UsersController {
   constructor(private _usersService: UsersService) {}
 
+  @Get('allusers')
+  @ApiOperation({
+    summary: 'Debug - Voir tous les utilisateurs',
+  })
+  async getAllUsers(): Promise<any[]> {
+    const users = await this._usersService.findAll();
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    return users.map(user => ({
+      username: user.username,
+      role: user.role,
+      totalWordsAdded: user.totalWordsAdded || 0,
+      lastActive: user.lastActive,
+      isActive: user.isActive,
+      isRecentlyActive: user.lastActive && user.lastActive >= fiveMinutesAgo,
+      isContributor: (user.totalWordsAdded && user.totalWordsAdded > 0) || 
+                     ['contributor', 'admin', 'superadmin'].includes(user.role),
+      qualifiesAsOnlineContributor: user.isActive && 
+                                    user.lastActive && 
+                                    user.lastActive >= fiveMinutesAgo && 
+                                    (((user.totalWordsAdded && user.totalWordsAdded > 0) || 
+                                     ['contributor', 'admin', 'superadmin'].includes(user.role)))
+    }));
+  }
+
+  @Get('activate-user')
+  @ApiOperation({
+    summary: 'Debug - Activer tous les utilisateurs superadmin',
+  })
+  async activateUsers(): Promise<{ message: string; count: number }> {
+    const result = await this._usersService.activateSuperAdmins();
+    return {
+      message: 'Utilisateurs superadmin activés',
+      count: result
+    };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   @ApiOperation({ summary: "Récupérer le profil de l'utilisateur connecté" })
@@ -169,6 +206,68 @@ export class UsersController {
     return this._usersService.getUserStats(req.user._id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('profile/recent-contributions')
+  @ApiOperation({
+    summary: "Récupérer les contributions récentes de l'utilisateur connecté",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contributions récentes récupérées avec succès',
+    type: [Object],
+  })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiBearerAuth()
+  async getUserRecentContributions(
+    @Req() req: { user: { _id: string } },
+    @Query('limit') limit: string = '5'
+  ) {
+    const contributions = await this._usersService.getUserRecentContributions(
+      req.user._id,
+      parseInt(limit)
+    );
+    
+    return {
+      contributions,
+      count: contributions.length,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile/recent-consultations')
+  @ApiOperation({
+    summary: "Récupérer les consultations récentes de l'utilisateur connecté",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Consultations récentes récupérées avec succès',
+    type: [Object],
+  })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiBearerAuth()
+  async getUserRecentConsultations(
+    @Req() req: { user: { _id: string } },
+    @Query('limit') limit: string = '5'
+  ) {
+    console.log('🎯 API call getUserRecentConsultations pour:', req.user._id, 'limit:', limit);
+    
+    const consultations = await this._usersService.getUserRecentConsultations(
+      req.user._id,
+      parseInt(limit)
+    );
+    
+    const response = {
+      consultations,
+      count: consultations.length,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📤 Réponse API consultations:', response);
+    
+    return response;
+  }
+
   @Get('search')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Rechercher des utilisateurs' })
@@ -221,6 +320,64 @@ export class UsersController {
       'utilisateurs',
     );
     return result;
+  }
+
+  @Get('analytics/online-contributors')
+  @ApiOperation({
+    summary: 'Obtenir le nombre de contributeurs en ligne',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nombre de contributeurs en ligne récupéré avec succès',
+    schema: {
+      type: 'object',
+      properties: {
+        onlineContributors: { type: 'number' },
+        activeUsers: { type: 'number' },
+        timestamp: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async getOnlineContributorsCount(): Promise<{
+    onlineContributors: number;
+    activeUsers: number;
+    timestamp: string;
+  }> {
+    const [onlineContributors, activeUsers] = await Promise.all([
+      this._usersService.getOnlineContributorsCount(),
+      this._usersService.getActiveUsersCount(),
+    ]);
+
+    return {
+      onlineContributors,
+      activeUsers,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('debug/all-users-status')
+  @ApiOperation({
+    summary: 'Debug - Voir le statut de tous les utilisateurs',
+  })
+  async debugAllUsersStatus(): Promise<any[]> {
+    const users = await this._usersService.findAll();
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    return users.map(user => ({
+      username: user.username,
+      role: user.role,
+      totalWordsAdded: user.totalWordsAdded || 0,
+      lastActive: user.lastActive,
+      isActive: user.isActive,
+      isRecentlyActive: user.lastActive && user.lastActive >= fiveMinutesAgo,
+      isContributor: (user.totalWordsAdded && user.totalWordsAdded > 0) || 
+                     ['contributor', 'admin', 'superadmin'].includes(user.role),
+      qualifiesAsOnlineContributor: user.isActive && 
+                                    user.lastActive && 
+                                    user.lastActive >= fiveMinutesAgo && 
+                                    (((user.totalWordsAdded && user.totalWordsAdded > 0) || 
+                                     ['contributor', 'admin', 'superadmin'].includes(user.role)))
+    }));
   }
 
   @Get(':username')

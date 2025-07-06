@@ -11,6 +11,7 @@ import { FacebookStrategy } from "./strategies/facebook.strategy";
 import { TwitterStrategy } from "./strategies/twitter.strategy";
 import { User, UserSchema } from "../users/schemas/user.schema";
 import { MailService } from "../common/services/mail.service";
+import { ActivityModule } from "../common/activity.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { MailService } from "../common/services/mail.service";
       }),
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    ActivityModule,
   ],
   controllers: [AuthController],
   providers: [

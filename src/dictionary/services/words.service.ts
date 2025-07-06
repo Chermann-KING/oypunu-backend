@@ -26,6 +26,8 @@ import { User, UserDocument, UserRole } from '../../users/schemas/user.schema';
 import { CategoriesService } from '../services/categories.service';
 import { UsersService } from '../../users/services/users.service';
 import { AudioService } from './audio.service';
+import { ActivityService } from '../../common/services/activity.service';
+import { WordView, WordViewDocument } from '../../users/schemas/word-view.schema';
 
 interface WordFilter {
   status: string;
@@ -60,10 +62,21 @@ export class WordsService {
     private wordNotificationModel: Model<WordNotificationDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Language.name) private languageModel: Model<LanguageDocument>,
+    @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>,
     private categoriesService: CategoriesService,
     private usersService: UsersService,
     private audioService: AudioService,
+    private activityService: ActivityService,
   ) {}
+
+  // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
+  private get _activityService(): ActivityService | null {
+    try {
+      return this.activityService;
+    } catch {
+      return null;
+    }
+  }
 
   async create(
     createWordDto: CreateWordDto,
@@ -131,10 +144,35 @@ export class WordsService {
       createdBy: Types.ObjectId.isValid(String(userIdLocal))
         ? new Types.ObjectId(String(userIdLocal))
         : new Types.ObjectId(),
-      status: user.role === 'admin' ? 'approved' : 'pending',
+      status: ['admin', 'superadmin'].includes(user.role) ? 'approved' : 'pending',
     });
 
     const savedWord = await createdWord.save();
+
+    // 📊 Logger l'activité de création de mot
+    try {
+      console.log('🔄 Début du logging d\'activité pour:', savedWord.word, 'Status:', savedWord.status);
+      const userDoc = await this.userModel.findById(userIdLocal).select('username').exec();
+      console.log('👤 User trouvé:', userDoc?.username, 'UserID:', userIdLocal);
+      
+      if (userDoc && savedWord.status === 'approved') {
+        console.log('🎯 Conditions remplies, création d\'activité...');
+        // Only log approved words to avoid spam from pending words
+        await this.activityService.logWordCreated(
+          userIdLocal,
+          userDoc.username,
+          String(savedWord._id),
+          savedWord.word,
+          savedWord.language || savedWord.languageId?.toString() || 'unknown'
+        );
+        console.log('✅ Activité "word_created" enregistrée');
+      } else {
+        console.log('❌ Conditions non remplies - User:', !!userDoc, 'Status:', savedWord.status);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du logging d\'activité:', error);
+      // Ne pas faire échouer la création du mot si le logging échoue
+    }
 
     // Créer les traductions bidirectionnelles si des traductions sont fournies
     if (wordData.translations && wordData.translations.length > 0) {
@@ -294,6 +332,61 @@ export class WordsService {
     }
 
     return word;
+  }
+
+  /**
+   * Track qu'un utilisateur a consulté un mot
+   */
+  async trackWordView(
+    wordId: string,
+    userId: string,
+    viewType: 'search' | 'direct' | 'favorite' | 'recommendation' = 'direct'
+  ): Promise<void> {
+    try {
+      if (!Types.ObjectId.isValid(wordId) || !Types.ObjectId.isValid(userId)) {
+        console.warn('IDs invalides pour le tracking:', { wordId, userId });
+        return;
+      }
+
+      // Récupérer les informations du mot pour le cache
+      const word = await this.wordModel.findById(wordId).select('word language').exec();
+      if (!word) {
+        console.warn('Mot non trouvé pour le tracking:', wordId);
+        return;
+      }
+
+      // Chercher si une entrée existe déjà pour cet utilisateur et ce mot
+      const existingView = await this.wordViewModel.findOne({
+        userId,
+        wordId
+      }).exec();
+
+      if (existingView) {
+        // Mettre à jour l'entrée existante
+        await this.wordViewModel.findByIdAndUpdate(existingView._id, {
+          $inc: { viewCount: 1 },
+          lastViewedAt: new Date(),
+          viewType // Mettre à jour le type de vue
+        }).exec();
+      } else {
+        // Créer une nouvelle entrée
+        await this.wordViewModel.create({
+          userId,
+          wordId,
+          word: word.word,
+          language: word.language,
+          viewedAt: new Date(),
+          lastViewedAt: new Date(),
+          viewType,
+          viewCount: 1
+        });
+      }
+
+      console.log(`📊 Vue trackée: ${word.word} par utilisateur ${userId}`);
+    } catch (error) {
+      console.error('❌ Erreur lors du tracking de vue:', error);
+      // Ne pas faire échouer la requête principale si le tracking échoue
+    }
   }
 
   async update(
@@ -1076,18 +1169,36 @@ export class WordsService {
     };
   }
 
-  async getFeaturedWords(limit = 6): Promise<Word[]> {
-    // Récupérer des mots avec des exemples riches et bien structurés
-    return this.wordModel
-      .find({
-        status: 'approved',
-        'meanings.definitions.examples': { $exists: true, $not: { $size: 0 } },
-      })
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .exec();
+  async getFeaturedWords(limit = 3): Promise<Word[]> {
+    // Récupérer des mots aléatoires parmi ceux approuvés
+    return this.wordModel.aggregate([
+      { $match: { status: 'approved' } },
+      { $sample: { size: limit } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+          pipeline: [{ $project: { username: 1 } }]
+        }
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'categoryId',
+          foreignField: '_id',
+          as: 'categoryId',
+          pipeline: [{ $project: { name: 1 } }]
+        }
+      },
+      {
+        $addFields: {
+          createdBy: { $arrayElemAt: ['$createdBy', 0] },
+          categoryId: { $arrayElemAt: ['$categoryId', 0] }
+        }
+      }
+    ]).exec();
   }
 
   // Récupérer les langues disponibles dans la base de données
@@ -1153,8 +1264,9 @@ export class WordsService {
     wordId: string,
     userId: string,
   ): Promise<{ success: boolean }> {
-    console.log('addToFavorites - wordId:', wordId);
-    console.log('addToFavorites - userId:', userId);
+    console.log('🔥 addToFavorites - wordId:', wordId);
+    console.log('🔥 addToFavorites - userId:', userId);
+    console.log('🔥 addToFavorites - userId type:', typeof userId);
 
     if (!Types.ObjectId.isValid(wordId)) {
       throw new BadRequestException('ID de mot invalide');
@@ -1167,20 +1279,26 @@ export class WordsService {
     }
 
     // Vérifier si le mot existe
+    console.log('🔥 Vérification existence du mot...');
     const word = await this.wordModel.findById(wordId);
     if (!word) {
+      console.log('❌ Mot non trouvé:', wordId);
       throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
     }
+    console.log('✅ Mot trouvé:', word.word);
 
     // Vérifier si le mot est déjà dans les favoris
+    console.log('🔥 Vérification favoris existants...');
     const existingFavorite = await this.favoriteWordModel.findOne({
       wordId,
       userId,
     });
 
     if (existingFavorite) {
+      console.log('✅ Mot déjà dans les favoris');
       return { success: true }; // Déjà dans les favoris
     }
+    console.log('🔥 Mot pas encore dans les favoris, ajout en cours...');
 
     // Ajouter aux favoris
     const newFavorite = new this.favoriteWordModel({
@@ -1189,8 +1307,15 @@ export class WordsService {
       addedAt: new Date(),
     });
 
-    await newFavorite.save();
-    return { success: true };
+    console.log('🔥 Sauvegarde du favori...');
+    try {
+      await newFavorite.save();
+      console.log('✅ Favori sauvegardé avec succès!');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur lors de la sauvegarde:', error);
+      throw error;
+    }
   }
 
   async removeFromFavorites(
@@ -1221,6 +1346,7 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
+    console.log('🔥 getFavoriteWords - userId:', userId, 'page:', page, 'limit:', limit);
     const skip = (page - 1) * limit;
 
     // Trouver tous les IDs des mots favoris de l'utilisateur
@@ -1231,8 +1357,14 @@ export class WordsService {
       .sort({ addedAt: -1 })
       .exec();
 
+    console.log('🔥 Favoris trouvés en base:', favorites.length);
+    console.log('🔥 Détails favoris:', favorites);
+
     const wordIds = favorites.map((fav) => fav.wordId);
     const total = await this.favoriteWordModel.countDocuments({ userId });
+    
+    console.log('🔥 Total favoris:', total);
+    console.log('🔥 WordIds:', wordIds);
 
     // Si aucun favori, retourner un tableau vide
     if (wordIds.length === 0) {
@@ -1280,7 +1412,10 @@ export class WordsService {
   }
 
   async checkIfFavorite(wordId: string, userId: string): Promise<boolean> {
+    console.log('🔥 Backend: checkIfFavorite - wordId:', wordId, 'userId:', userId);
+    
     if (!Types.ObjectId.isValid(wordId)) {
+      console.log('🔥 Backend: wordId invalide');
       return false;
     }
 
@@ -1289,7 +1424,9 @@ export class WordsService {
       userId,
     });
 
-    return !!favorite;
+    const result = !!favorite;
+    console.log('🔥 Backend: checkIfFavorite résultat:', result);
+    return result;
   }
 
   async shareWordWithUser(
@@ -1971,6 +2108,83 @@ export class WordsService {
       directTranslations,
       reverseTranslations,
       allTranslations,
+    };
+  }
+
+  // Méthodes pour les statistiques en temps réel
+  async getApprovedWordsCount(): Promise<number> {
+    return this.wordModel.countDocuments({
+      status: 'approved'
+    }).exec();
+  }
+
+  async getWordsAddedToday(): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setDate(today.getDate() + 1);
+
+    return this.wordModel.countDocuments({
+      status: 'approved',
+      createdAt: {
+        $gte: today,
+        $lt: todayEnd
+      }
+    }).exec();
+  }
+
+  async getWordsStatistics(): Promise<{
+    totalApprovedWords: number;
+    wordsAddedToday: number;
+    wordsAddedThisWeek: number;
+    wordsAddedThisMonth: number;
+  }> {
+    const now = new Date();
+    
+    // Aujourd'hui
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayStart.getDate() + 1);
+
+    // Cette semaine (lundi à aujourd'hui)
+    const weekStart = new Date(now);
+    const dayOfWeek = weekStart.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // dimanche = 0, lundi = 1
+    weekStart.setDate(weekStart.getDate() - daysFromMonday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    // Ce mois
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalApprovedWords, wordsAddedToday, wordsAddedThisWeek, wordsAddedThisMonth] = await Promise.all([
+      this.wordModel.countDocuments({ status: 'approved' }).exec(),
+      this.wordModel.countDocuments({
+        status: 'approved',
+        createdAt: { $gte: todayStart, $lt: todayEnd }
+      }).exec(),
+      this.wordModel.countDocuments({
+        status: 'approved',
+        createdAt: { $gte: weekStart }
+      }).exec(),
+      this.wordModel.countDocuments({
+        status: 'approved',
+        createdAt: { $gte: monthStart }
+      }).exec()
+    ]);
+
+    console.log('📊 Statistiques des mots:', {
+      totalApprovedWords,
+      wordsAddedToday,
+      wordsAddedThisWeek,
+      wordsAddedThisMonth
+    });
+
+    return {
+      totalApprovedWords,
+      wordsAddedToday,
+      wordsAddedThisWeek,
+      wordsAddedThisMonth
     };
   }
 }

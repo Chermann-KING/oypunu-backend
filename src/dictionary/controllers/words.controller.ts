@@ -33,6 +33,7 @@ import { CreateWordDto, MeaningDto } from '../dto/create-word.dto';
 import { UpdateWordDto, UpdateTranslationDto } from '../dto/update-word.dto';
 import { SearchWordsDto } from '../dto/search-words.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { User } from '../../users/schemas/user.schema';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Word } from '../schemas/word.schema';
@@ -395,8 +396,19 @@ export class WordsController {
     description: 'Résultats de recherche',
     type: SearchResults,
   })
-  search(@Query() searchDto: SearchWordsDto) {
-    return this.wordsService.search(searchDto);
+  async search(@Query() searchDto: SearchWordsDto, @Request() req?: any) {
+    const results = await this.wordsService.search(searchDto);
+    
+    // Traquer les vues pour les mots dans les résultats de recherche si utilisateur authentifié
+    if (req?.user?._id && results?.words?.length > 0) {
+      // Traquer les vues pour les premiers mots des résultats (max 5)
+      const wordsToTrack = results.words.slice(0, 5);
+      for (const word of wordsToTrack) {
+        this.wordsService.trackWordView((word as any)._id.toString(), req.user._id, 'search').catch(console.error);
+      }
+    }
+    
+    return results;
   }
 
   @Get('available-languages')
@@ -485,7 +497,57 @@ export class WordsController {
     return this.wordsService.updateWordStatus(id, status);
   }
 
+  @Get('analytics/statistics')
+  @ApiOperation({
+    summary: 'Obtenir les statistiques des mots en temps réel',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistiques des mots récupérées avec succès',
+    schema: {
+      type: 'object',
+      properties: {
+        totalApprovedWords: {
+          type: 'number',
+          description: 'Nombre total de mots approuvés'
+        },
+        wordsAddedToday: {
+          type: 'number',
+          description: 'Mots approuvés ajoutés aujourd\'hui'
+        },
+        wordsAddedThisWeek: {
+          type: 'number',
+          description: 'Mots approuvés ajoutés cette semaine'
+        },
+        wordsAddedThisMonth: {
+          type: 'number',
+          description: 'Mots approuvés ajoutés ce mois'
+        },
+        timestamp: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Timestamp de la requête'
+        }
+      }
+    }
+  })
+  async getWordsStatistics(): Promise<{
+    totalApprovedWords: number;
+    wordsAddedToday: number;
+    wordsAddedThisWeek: number;
+    wordsAddedThisMonth: number;
+    timestamp: string;
+  }> {
+    const stats = await this.wordsService.getWordsStatistics();
+    
+    return {
+      ...stats,
+      timestamp: new Date().toISOString()
+    };
+  }
+
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Récupérer un mot par son ID' })
   @ApiResponse({
     status: 200,
@@ -498,8 +560,21 @@ export class WordsController {
     description: 'ID du mot',
     example: '60a1b2c3d4e5f6a7b8c9d0e1',
   })
-  findOne(@Param('id') id: string) {
-    return this.wordsService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req?: any) {
+    const word = await this.wordsService.findOne(id);
+    
+    // Traquer la vue si l'utilisateur est authentifié (optionnel)
+    if (req?.user?._id) {
+      // Appel asynchrone sans attendre pour ne pas ralentir la réponse
+      this.wordsService.trackWordView(id, req.user._id, 'direct').catch(error => {
+        console.error('❌ Erreur lors du tracking de vue:', error);
+      });
+      console.log('✅ Tracking vue pour mot:', id, 'utilisateur:', req.user._id);
+    } else {
+      console.log('⚠️ Pas de tracking - utilisateur non authentifié');
+    }
+    
+    return word;
   }
 
   @Get(':id/can-edit')
@@ -1032,4 +1107,5 @@ export class WordsController {
   async getAllTranslations(@Param('id') id: string) {
     return this.wordsService.getAllTranslations(id);
   }
+
 }

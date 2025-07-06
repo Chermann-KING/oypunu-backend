@@ -68,7 +68,14 @@ export class FavoriteWordsController {
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
-    return this._wordsService.getFavoriteWords(req.user.userId, +page, +limit);
+    const userId = req.user.userId || req.user.sub || req.user._id;
+    console.log('🔥 Controller getFavoriteWords - userId:', userId, 'type:', typeof userId);
+    
+    if (!userId) {
+      throw new UnauthorizedException('ID utilisateur non trouvé dans le token');
+    }
+    
+    return this._wordsService.getFavoriteWords(userId.toString(), +page, +limit);
   }
 
   @Post(':wordId')
@@ -103,7 +110,8 @@ export class FavoriteWordsController {
       );
     }
 
-    return this._wordsService.addToFavorites(wordId, userId);
+    console.log('🔥 Controller userId final:', userId, 'type:', typeof userId);
+    return this._wordsService.addToFavorites(wordId, userId.toString());
   }
 
   @Delete(':wordId')
@@ -168,7 +176,7 @@ export class FavoriteWordsController {
         'ID utilisateur non trouvé dans le token',
       );
     }
-    return this._wordsService.checkIfFavorite(wordId, req.user.userId);
+    return this._wordsService.checkIfFavorite(wordId, userId.toString());
   }
 
   @Post('share')

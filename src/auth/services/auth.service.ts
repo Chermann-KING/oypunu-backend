@@ -15,6 +15,7 @@ import { RegisterDto } from '../../users/dto/register.dto';
 import { LoginDto } from '../../users/dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from '../../common/services/mail.service';
+import { ActivityService } from '../../common/services/activity.service';
 
 // Type pour l'utilisateur social
 interface SocialUser {
@@ -46,10 +47,20 @@ export class AuthService {
     private _jwtService: JwtService,
     private configService: ConfigService,
     private _mailService: MailService,
+    private activityService: ActivityService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<{ message: string }> {
-    const { email, username, password } = registerDto;
+  async register(
+    registerDto: RegisterDto,
+    requestInfo?: { ip: string; userAgent: string },
+  ): Promise<{ message: string }> {
+    const {
+      email,
+      username,
+      password,
+      hasAcceptedTerms,
+      hasAcceptedPrivacyPolicy,
+    } = registerDto;
 
     // Vérifier si l'email existe déjà
     const existingUser = await this.userModel.findOne({
@@ -65,6 +76,13 @@ export class AuthService {
       }
     }
 
+    // Vérifier que l'utilisateur a accepté les conditions
+    if (!hasAcceptedTerms || !hasAcceptedPrivacyPolicy) {
+      throw new BadRequestException(
+        "Vous devez accepter les conditions d'utilisation et la politique de confidentialité",
+      );
+    }
+
     // Hashage du mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -73,16 +91,48 @@ export class AuthService {
     const tokenExpiration = new Date();
     tokenExpiration.setHours(tokenExpiration.getHours() + 24); // 24h de validité
 
-    // Création de l'utilisateur
+    // Préparer les informations de consentement
+    const consentTimestamp = new Date();
+    const termsVersion = 'v1.0'; // Version actuelle des CGU
+    const privacyPolicyVersion = 'v1.0'; // Version actuelle de la politique
+
+    // Création de l'utilisateur avec informations de consentement
     const newUser = new this.userModel({
       ...registerDto,
       password: hashedPassword,
       emailVerificationToken: verificationToken,
       emailVerificationTokenExpires: tokenExpiration,
       isEmailVerified: false,
+      // Informations de consentement légal
+      hasAcceptedTerms: true,
+      hasAcceptedPrivacyPolicy: true,
+      termsAcceptedAt: consentTimestamp,
+      privacyPolicyAcceptedAt: consentTimestamp,
+      termsAcceptedVersion: termsVersion,
+      privacyPolicyAcceptedVersion: privacyPolicyVersion,
+      consentIP: requestInfo?.ip || 'unknown',
+      consentUserAgent: requestInfo?.userAgent || 'unknown',
+      registrationIP: requestInfo?.ip || 'unknown',
     });
 
     await newUser.save();
+
+    // 📊 Logger l'activité d'inscription
+    try {
+      await this.activityService.logUserRegistered(
+        newUser._id.toString(),
+        newUser.username,
+      );
+      console.log(
+        '✅ Activité "user_registered" enregistrée pour:',
+        newUser.username,
+      );
+    } catch (error) {
+      console.error(
+        "❌ Erreur lors du logging d'activité d'inscription:",
+        error,
+      );
+    }
 
     try {
       // Envoi de l'email de vérification
@@ -193,6 +243,32 @@ export class AuthService {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
 
+    // ✅ AUTOMATIQUEMENT activer l'utilisateur et mettre à jour sa dernière activité lors du login
+    await this.userModel.findByIdAndUpdate(user._id, {
+      isActive: true,
+      lastActive: new Date(),
+      lastLogin: new Date(),
+    });
+
+    console.log('🔐 Connexion réussie - utilisateur activé:', user.username);
+
+    // 📊 Logger l'activité de connexion
+    try {
+      await this.activityService.logUserLoggedIn(
+        user._id.toString(),
+        user.username,
+      );
+      console.log(
+        '✅ Activité "user_logged_in" enregistrée pour:',
+        user.username,
+      );
+    } catch (error) {
+      console.error(
+        "❌ Erreur lors du logging d'activité de connexion:",
+        error,
+      );
+    }
+
     const payload = {
       sub: user._id,
       email: user.email,
@@ -283,6 +359,19 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Utilisateur non trouvé');
     }
+
+    // ✅ Mettre à jour lastActive à chaque validation JWT (requête authentifiée)
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        lastActive: new Date(),
+      })
+      .exec();
+
+    console.log(
+      '🔄 JWT validation - lastActive mis à jour pour:',
+      user.username,
+    );
+
     return user;
   }
 

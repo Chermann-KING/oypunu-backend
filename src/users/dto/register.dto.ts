@@ -6,13 +6,14 @@ import {
   Matches,
   IsOptional,
   IsArray,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty({
     description: "Nom d'utilisateur unique",
-    example: 'johndoe',
+    example: 'johndoe_123',
     pattern: '^[a-zA-Z0-9_-]+$',
     minLength: 3,
     maxLength: 30,
@@ -46,9 +47,8 @@ export class RegisterDto {
   password: string;
 
   @ApiProperty({
-    description: "Langue maternelle de l'utilisateur (ISO 639-1)",
+    description: "Langue maternelle de l'utilisateur (ID ou code ISO)",
     example: 'fr',
-    enum: ['fr', 'en', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'zh'],
     required: false,
   })
   @IsOptional()
@@ -56,14 +56,33 @@ export class RegisterDto {
   nativeLanguage?: string;
 
   @ApiProperty({
-    description: "Langues que l'utilisateur apprend (ISO 639-1)",
+    description: "Langues que l'utilisateur apprend (IDs ou codes ISO)",
     example: ['en', 'es'],
     isArray: true,
-    enum: ['fr', 'en', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'zh'],
     required: false,
   })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   learningLanguages?: string[];
+
+  @ApiProperty({
+    description: "Acceptation des conditions d'utilisation",
+    example: true,
+    type: 'boolean',
+  })
+  @IsNotEmpty({ message: "Vous devez accepter les conditions d'utilisation" })
+  @IsBoolean()
+  hasAcceptedTerms: boolean;
+
+  @ApiProperty({
+    description: 'Acceptation de la politique de confidentialité',
+    example: true,
+    type: 'boolean',
+  })
+  @IsNotEmpty({
+    message: 'Vous devez accepter la politique de confidentialité',
+  })
+  @IsBoolean()
+  hasAcceptedPrivacyPolicy: boolean;
 }

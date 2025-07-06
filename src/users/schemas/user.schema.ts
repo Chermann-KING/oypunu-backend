@@ -121,6 +121,31 @@ export class User {
   // Permissions spéciales (pour les contributeurs)
   @Prop({ type: [String], default: [] })
   permissions: string[]; // ex: ['moderate_words', 'moderate_communities']
+
+  // Gestion du consentement légal
+  @Prop({ type: Boolean, default: false })
+  hasAcceptedTerms: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  hasAcceptedPrivacyPolicy: boolean;
+
+  @Prop({ type: Date })
+  termsAcceptedAt?: Date;
+
+  @Prop({ type: Date })
+  privacyPolicyAcceptedAt?: Date;
+
+  @Prop({ type: String })
+  termsAcceptedVersion?: string; // Version des CGU acceptées (ex: "v1.0")
+
+  @Prop({ type: String })
+  privacyPolicyAcceptedVersion?: string; // Version de la politique acceptée
+
+  @Prop({ type: String })
+  consentIP?: string; // IP utilisée lors du consentement
+
+  @Prop({ type: String })
+  consentUserAgent?: string; // User-Agent lors du consentement
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
