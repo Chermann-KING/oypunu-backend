@@ -68,7 +68,7 @@ export class FavoriteWordsController {
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
-    const userId = req.user.userId || req.user.sub || req.user._id;
+    const userId = req.user._id || req.user.userId || req.user.sub;
     console.log('🔥 Controller getFavoriteWords - userId:', userId, 'type:', typeof userId);
     
     if (!userId) {
@@ -100,8 +100,8 @@ export class FavoriteWordsController {
   ) {
     console.log('User from request:', req.user);
 
-    // Utiliser userId au lieu de _id
-    const userId = req.user.userId || req.user.sub || req.user._id;
+    // Utiliser _id en priorité car c'est ce que retourne MongoDB  
+    const userId = req.user._id || req.user.userId || req.user.sub;
 
     if (!userId) {
       console.error("Pas d'ID utilisateur trouvé dans req.user:", req.user);
@@ -133,16 +133,29 @@ export class FavoriteWordsController {
     @Param('wordId') wordId: string,
     @Request() req: RequestWithUser,
   ) {
-    // Utiliser userId au lieu de _id
-    const userId = req.user.userId || req.user.sub || req.user._id;
+    console.log('🔥 Controller removeFromFavorites - req.user complet:', JSON.stringify(req.user, null, 2));
+    
+    // Utiliser _id en priorité car c'est ce que retourne MongoDB
+    const userId = req.user._id || req.user.userId || req.user.sub;
+    
+    console.log('🔥 Controller - Types des userId extraits:', {
+      'req.user._id': req.user._id + ' (type: ' + typeof req.user._id + ')',
+      'req.user.userId': req.user.userId + ' (type: ' + typeof req.user.userId + ')',
+      'req.user.sub': req.user.sub + ' (type: ' + typeof req.user.sub + ')',
+      'userId final': userId + ' (type: ' + typeof userId + ')'
+    });
 
     if (!userId) {
-      console.error("Pas d'ID utilisateur trouvé dans req.user:", req.user);
+      console.error("🔥 Controller - Pas d'ID utilisateur trouvé dans req.user:", req.user);
       throw new UnauthorizedException(
         'ID utilisateur non trouvé dans le token',
       );
     }
-    return this._wordsService.removeFromFavorites(wordId, req.user.userId);
+    
+    // S'assurer que userId est une chaîne
+    const userIdString = userId.toString();
+    console.log('🔥 Controller - Appel service avec wordId:', wordId, 'userId:', userIdString);
+    return this._wordsService.removeFromFavorites(wordId, userIdString);
   }
 
   @Get('check/:wordId')
@@ -167,8 +180,8 @@ export class FavoriteWordsController {
     @Param('wordId') wordId: string,
     @Request() req: RequestWithUser,
   ) {
-    // Utiliser userId au lieu de _id
-    const userId = req.user.userId || req.user.sub || req.user._id;
+    // Utiliser _id en priorité car c'est ce que retourne MongoDB
+    const userId = req.user._id || req.user.userId || req.user.sub;
 
     if (!userId) {
       console.error("Pas d'ID utilisateur trouvé dans req.user:", req.user);
@@ -194,8 +207,8 @@ export class FavoriteWordsController {
     @Body() shareData: { wordId: string; username: string },
     @Request() req: RequestWithUser,
   ) {
-    // Utiliser userId au lieu de _id
-    const userId = req.user.userId || req.user.sub || req.user._id;
+    // Utiliser _id en priorité car c'est ce que retourne MongoDB
+    const userId = req.user._id || req.user.userId || req.user.sub;
 
     if (!userId) {
       throw new UnauthorizedException(
@@ -205,7 +218,7 @@ export class FavoriteWordsController {
 
     return this._wordsService.shareWordWithUser(
       shareData.wordId,
-      userId,
+      userId.toString(),
       shareData.username,
     );
   }

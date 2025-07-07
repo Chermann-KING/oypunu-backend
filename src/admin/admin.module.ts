@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdminController } from './controllers/admin.controller';
 import { AdminService } from './services/admin.service';
+import { UsersModule } from '../users/users.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Word, WordSchema } from '../dictionary/schemas/word.schema';
 import {
@@ -28,6 +29,7 @@ import { Message, MessageSchema } from '../messaging/schemas/message.schema';
       { name: CommunityPost.name, schema: CommunityPostSchema },
       { name: Message.name, schema: MessageSchema },
     ]),
+    UsersModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

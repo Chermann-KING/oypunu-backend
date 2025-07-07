@@ -18,6 +18,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { AdminService } from '../services/admin.service';
+import { ContributorRequestService } from '../../users/services/contributor-request.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,7 +37,10 @@ interface JwtUser {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly contributorRequestService: ContributorRequestService,
+  ) {}
 
   // Dashboard principal
   @Get('dashboard')
@@ -47,7 +51,22 @@ export class AdminController {
     description: 'Statistiques récupérées avec succès',
   })
   async getDashboard(@Request() req: { user: JwtUser }) {
-    return this.adminService.getDashboardStats(req.user.role);
+    const [adminStats, contributorStats] = await Promise.all([
+      this.adminService.getDashboardStats(req.user.role),
+      this.contributorRequestService
+        .getStatistics(req.user.role)
+        .catch(() => null),
+    ]);
+
+    return {
+      ...adminStats,
+      contributorRequests: contributorStats || {
+        totalRequests: 0,
+        pendingRequests: 0,
+        approvedRequests: 0,
+        rejectedRequests: 0,
+      },
+    };
   }
 
   // === GESTION DES UTILISATEURS ===

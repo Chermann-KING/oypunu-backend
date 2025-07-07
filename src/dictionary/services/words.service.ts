@@ -1287,11 +1287,17 @@ export class WordsService {
     }
     console.log('✅ Mot trouvé:', word.word);
 
+    // Convertir les IDs en ObjectIds pour la requête MongoDB
+    const wordObjectId = new Types.ObjectId(wordId);
+    const userObjectId = new Types.ObjectId(userId);
+    
+    console.log('🔥 ObjectIds convertis - wordObjectId:', wordObjectId, 'userObjectId:', userObjectId);
+
     // Vérifier si le mot est déjà dans les favoris
     console.log('🔥 Vérification favoris existants...');
     const existingFavorite = await this.favoriteWordModel.findOne({
-      wordId,
-      userId,
+      wordId: wordObjectId,
+      userId: userObjectId,
     });
 
     if (existingFavorite) {
@@ -1302,8 +1308,8 @@ export class WordsService {
 
     // Ajouter aux favoris
     const newFavorite = new this.favoriteWordModel({
-      wordId,
-      userId,
+      wordId: wordObjectId,
+      userId: userObjectId,
       addedAt: new Date(),
     });
 
@@ -1322,17 +1328,59 @@ export class WordsService {
     wordId: string,
     userId: string,
   ): Promise<{ success: boolean }> {
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
+    console.log('🔥 removeFromFavorites - wordId:', wordId);
+    console.log('🔥 removeFromFavorites - userId:', userId);
+    console.log('🔥 removeFromFavorites - userId type:', typeof userId);
+
+    try {
+      if (!Types.ObjectId.isValid(wordId)) {
+        console.error('❌ ID de mot invalide:', wordId);
+        return { success: false };
+      }
+
+      // Vérifier si userId est valide
+      if (!userId || !Types.ObjectId.isValid(userId)) {
+        console.error('❌ UserId invalide ou non fourni:', userId);
+        return { success: false };
+      }
+
+      // Convertir les IDs en ObjectIds pour la requête MongoDB
+      const wordObjectId = new Types.ObjectId(wordId);
+      const userObjectId = new Types.ObjectId(userId);
+      
+      console.log('🔥 ObjectIds convertis - wordObjectId:', wordObjectId, 'userObjectId:', userObjectId);
+
+      // Vérifier si le favori existe avant suppression
+      console.log('🔥 Vérification existence du favori...');
+      const existingFavorite = await this.favoriteWordModel.findOne({
+        wordId: wordObjectId,
+        userId: userObjectId,
+      });
+
+      if (!existingFavorite) {
+        console.log('⚠️ Favori non trouvé, mais on retourne success:true');
+        return { success: true }; // Pas dans les favoris, mais on considère ça comme un succès
+      }
+
+      console.log('✅ Favori trouvé, suppression en cours...');
+
+      // Supprimer des favoris
+      const result = await this.favoriteWordModel.deleteOne({
+        wordId: wordObjectId,
+        userId: userObjectId,
+      });
+
+      console.log('🔥 Résultat suppression:', result);
+      console.log('🔥 Nombre supprimé:', result.deletedCount);
+
+      const success = result.deletedCount > 0;
+      console.log(success ? '✅ Suppression réussie!' : '❌ Échec de suppression');
+
+      return { success };
+    } catch (error) {
+      console.error('❌ Erreur dans removeFromFavorites:', error);
+      return { success: false };
     }
-
-    // Supprimer des favoris
-    const result = await this.favoriteWordModel.deleteOne({
-      wordId,
-      userId,
-    });
-
-    return { success: result.deletedCount > 0 };
   }
 
   async getFavoriteWords(
@@ -1419,9 +1467,21 @@ export class WordsService {
       return false;
     }
 
+    // Vérifier si userId est valide
+    if (!userId || !Types.ObjectId.isValid(userId)) {
+      console.log('🔥 Backend: userId invalide ou non fourni:', userId);
+      return false;
+    }
+
+    // Convertir les IDs en ObjectIds pour la requête MongoDB
+    const wordObjectId = new Types.ObjectId(wordId);
+    const userObjectId = new Types.ObjectId(userId);
+    
+    console.log('🔥 ObjectIds convertis - wordObjectId:', wordObjectId, 'userObjectId:', userObjectId);
+
     const favorite = await this.favoriteWordModel.findOne({
-      wordId,
-      userId,
+      wordId: wordObjectId,
+      userId: userObjectId,
     });
 
     const result = !!favorite;

@@ -5,6 +5,7 @@ import { User, UserDocument } from '../schemas/user.schema';
 import { ActivityFeed, ActivityFeedDocument } from '../../common/schemas/activity-feed.schema';
 import { Word, WordDocument } from '../../dictionary/schemas/word.schema';
 import { WordView, WordViewDocument } from '../schemas/word-view.schema';
+import { FavoriteWord, FavoriteWordDocument } from '../../dictionary/schemas/favorite-word.schema';
 
 @Injectable()
 export class UsersService {
@@ -12,7 +13,8 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(ActivityFeed.name) private activityFeedModel: Model<ActivityFeedDocument>,
     @InjectModel(Word.name) private wordModel: Model<WordDocument>,
-    @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>
+    @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>,
+    @InjectModel(FavoriteWord.name) private favoriteWordModel: Model<FavoriteWordDocument>
   ) {}
 
   async findById(id: string): Promise<User | null> {
@@ -109,10 +111,15 @@ export class UsersService {
     // Utiliser notre nouvelle méthode intelligente
     const personalStats = await this.getUserPersonalStats(userId);
 
+    // Compter les vrais favoris de l'utilisateur
+    const actualFavoritesCount = await this.favoriteWordModel
+      .countDocuments({ userId })
+      .exec();
+
     return {
       totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
       totalCommunityPosts: user.totalCommunityPosts || 0,
-      favoriteWordsCount: user.favoriteWords?.length || 0,
+      favoriteWordsCount: actualFavoritesCount,
       joinDate: (user as unknown as { createdAt?: Date }).createdAt || new Date(),
       // Nouvelles stats intelligentes
       streak: personalStats.streak,
@@ -362,9 +369,14 @@ export class UsersService {
         ...communityLanguages
       ]);
 
+      // Compter les vrais favoris de l'utilisateur
+      const actualFavoritesCount = await this.favoriteWordModel
+        .countDocuments({ userId })
+        .exec();
+
       const stats = {
         wordsAdded: actualWordsAdded,
-        favoritesCount: 0, // À implémenter avec le modèle FavoriteWord
+        favoritesCount: actualFavoritesCount,
         languagesContributed: contributionActivities.length, // NOUVELLE MÉTRIQUE
         languagesExplored: allExploredLanguages.size, // MÉTRIQUE ÉLARGIE
         contributionScore: actualWordsAdded * 10 + activitiesThisWeek * 5,
