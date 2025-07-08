@@ -1,9 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Language, LanguageDocument } from '../schemas/language.schema';
 import { User, UserRole } from '../../users/schemas/user.schema';
-import { CreateLanguageDto, ApproveLanguageDto, RejectLanguageDto } from '../dto/create-language.dto';
+import {
+  CreateLanguageDto,
+  ApproveLanguageDto,
+  RejectLanguageDto,
+} from '../dto/create-language.dto';
 
 @Injectable()
 export class LanguagesService {
@@ -14,31 +23,44 @@ export class LanguagesService {
   /**
    * 📝 PROPOSER une nouvelle langue (tous les utilisateurs authentifiés)
    */
-  async proposeLanguage(createLanguageDto: CreateLanguageDto, user: User): Promise<Language> {
+  async proposeLanguage(
+    createLanguageDto: CreateLanguageDto,
+    user: User,
+  ): Promise<Language> {
     // Vérifier que la langue n'existe pas déjà
     const existingLanguage = await this.languageModel.findOne({
       $or: [
         { name: new RegExp(`^${createLanguageDto.name}$`, 'i') },
         { nativeName: new RegExp(`^${createLanguageDto.nativeName}$`, 'i') },
-        ...(createLanguageDto.iso639_1 ? [{ iso639_1: createLanguageDto.iso639_1 }] : []),
-        ...(createLanguageDto.iso639_2 ? [{ iso639_2: createLanguageDto.iso639_2 }] : []),
-        ...(createLanguageDto.iso639_3 ? [{ iso639_3: createLanguageDto.iso639_3 }] : []),
-      ]
+        ...(createLanguageDto.iso639_1
+          ? [{ iso639_1: createLanguageDto.iso639_1 }]
+          : []),
+        ...(createLanguageDto.iso639_2
+          ? [{ iso639_2: createLanguageDto.iso639_2 }]
+          : []),
+        ...(createLanguageDto.iso639_3
+          ? [{ iso639_3: createLanguageDto.iso639_3 }]
+          : []),
+      ],
     });
 
     if (existingLanguage) {
-      throw new BadRequestException('Une langue avec ce nom ou code existe déjà');
+      throw new BadRequestException(
+        'Une langue avec ce nom ou code existe déjà',
+      );
     }
 
     // Les scripts par défaut si non spécifiés (Latin pour les langues africaines)
-    const defaultScripts = createLanguageDto.scripts?.length ? createLanguageDto.scripts : [
-      {
-        name: 'Latin',
-        code: 'Latn',
-        direction: 'ltr',
-        isDefault: true
-      }
-    ];
+    const defaultScripts = createLanguageDto.scripts?.length
+      ? createLanguageDto.scripts
+      : [
+          {
+            name: 'Latin',
+            code: 'Latn',
+            direction: 'ltr',
+            isDefault: true,
+          },
+        ];
 
     const language = new this.languageModel({
       ...createLanguageDto,
@@ -57,13 +79,13 @@ export class LanguagesService {
     });
 
     console.log('💾 Tentative de sauvegarde de la langue:', language.name);
-    
+
     try {
       const savedLanguage = await language.save();
       console.log('✅ Langue sauvegardée avec succès:', {
         id: savedLanguage._id,
         name: savedLanguage.name,
-        systemStatus: savedLanguage.systemStatus
+        systemStatus: savedLanguage.systemStatus,
       });
       return savedLanguage;
     } catch (error) {
@@ -76,12 +98,14 @@ export class LanguagesService {
    * ✅ APPROUVER une langue (admins/language-admins uniquement)
    */
   async approveLanguage(
-    languageId: string, 
-    approveDto: ApproveLanguageDto, 
-    admin: User
+    languageId: string,
+    approveDto: ApproveLanguageDto,
+    admin: User,
   ): Promise<Language> {
     if (!this.canManageLanguages(admin)) {
-      throw new ForbiddenException('Permissions insuffisantes pour approuver des langues');
+      throw new ForbiddenException(
+        'Permissions insuffisantes pour approuver des langues',
+      );
     }
 
     if (!Types.ObjectId.isValid(languageId)) {
@@ -94,18 +118,20 @@ export class LanguagesService {
     }
 
     if (language.systemStatus !== 'proposed') {
-      throw new BadRequestException('Seules les langues proposées peuvent être approuvées');
+      throw new BadRequestException(
+        'Seules les langues proposées peuvent être approuvées',
+      );
     }
 
     language.systemStatus = 'active';
     language.approvedBy = admin._id as any;
     language.approvedAt = new Date();
     language.isVisible = true;
-    
+
     if (approveDto.isFeatured !== undefined) {
       language.isFeatured = approveDto.isFeatured;
     }
-    
+
     if (approveDto.sortOrder !== undefined) {
       language.sortOrder = approveDto.sortOrder;
     }
@@ -117,12 +143,14 @@ export class LanguagesService {
    * ❌ REJETER une langue (admins/language-admins uniquement)
    */
   async rejectLanguage(
-    languageId: string, 
-    rejectDto: RejectLanguageDto, 
-    admin: User
+    languageId: string,
+    rejectDto: RejectLanguageDto,
+    admin: User,
   ): Promise<Language> {
     if (!this.canManageLanguages(admin)) {
-      throw new ForbiddenException('Permissions insuffisantes pour rejeter des langues');
+      throw new ForbiddenException(
+        'Permissions insuffisantes pour rejeter des langues',
+      );
     }
 
     if (!Types.ObjectId.isValid(languageId)) {
@@ -148,9 +176,9 @@ export class LanguagesService {
    */
   async getActiveLanguages(): Promise<Language[]> {
     return this.languageModel
-      .find({ 
+      .find({
         systemStatus: 'active',
-        isVisible: true 
+        isVisible: true,
       })
       .sort({ isFeatured: -1, sortOrder: 1, speakerCount: -1, name: 1 })
       .exec();
@@ -161,10 +189,10 @@ export class LanguagesService {
    */
   async getLanguagesByRegion(region: string): Promise<Language[]> {
     return this.languageModel
-      .find({ 
+      .find({
         region: new RegExp(region, 'i'),
         systemStatus: 'active',
-        isVisible: true 
+        isVisible: true,
       })
       .sort({ speakerCount: -1, wordCount: -1, name: 1 })
       .exec();
@@ -176,17 +204,17 @@ export class LanguagesService {
   async getAfricanLanguages(): Promise<Language[]> {
     const africanRegions = [
       'Afrique Centrale',
-      'Afrique de l\'Ouest', 
-      'Afrique de l\'Est',
+      "Afrique de l'Ouest",
+      "Afrique de l'Est",
       'Afrique du Nord',
-      'Afrique Australe'
+      'Afrique Australe',
     ];
 
     return this.languageModel
-      .find({ 
+      .find({
         region: { $in: africanRegions },
         systemStatus: 'active',
-        isVisible: true 
+        isVisible: true,
       })
       .sort({ isFeatured: -1, speakerCount: -1, wordCount: -1, name: 1 })
       .exec();
@@ -217,33 +245,37 @@ export class LanguagesService {
           _id: '$systemStatus',
           count: { $sum: 1 },
           totalSpeakers: { $sum: '$speakerCount' },
-          totalWords: { $sum: '$wordCount' }
-        }
-      }
+          totalWords: { $sum: '$wordCount' },
+        },
+      },
     ]);
 
     const regionStats = await this.languageModel.aggregate([
       {
-        $match: { systemStatus: 'active' }
+        $match: { systemStatus: 'active' },
       },
       {
         $group: {
           _id: '$region',
           count: { $sum: 1 },
           totalSpeakers: { $sum: '$speakerCount' },
-          totalWords: { $sum: '$wordCount' }
-        }
+          totalWords: { $sum: '$wordCount' },
+        },
       },
       {
-        $sort: { totalWords: -1 }
-      }
+        $sort: { totalWords: -1 },
+      },
     ]);
 
     return {
       byStatus: stats,
       byRegion: regionStats,
-      totalActive: await this.languageModel.countDocuments({ systemStatus: 'active' }),
-      totalPending: await this.languageModel.countDocuments({ systemStatus: 'proposed' }),
+      totalActive: await this.languageModel.countDocuments({
+        systemStatus: 'active',
+      }),
+      totalPending: await this.languageModel.countDocuments({
+        systemStatus: 'proposed',
+      }),
     };
   }
 
@@ -263,9 +295,9 @@ export class LanguagesService {
               { iso639_1: new RegExp(query, 'i') },
               { iso639_2: new RegExp(query, 'i') },
               { iso639_3: new RegExp(query, 'i') },
-            ]
-          }
-        ]
+            ],
+          },
+        ],
       })
       .sort({ speakerCount: -1, wordCount: -1 })
       .limit(20)
@@ -299,16 +331,16 @@ export class LanguagesService {
    * 📈 METTRE À JOUR les statistiques d'une langue
    */
   async updateLanguageStats(
-    languageId: string, 
+    languageId: string,
     stats: {
       wordCount?: number;
       userCount?: number;
       contributorCount?: number;
       translationCount?: number;
-    }
+    },
   ): Promise<void> {
     await this.languageModel.findByIdAndUpdate(languageId, {
-      $inc: stats
+      $inc: stats,
     });
   }
 
@@ -316,10 +348,12 @@ export class LanguagesService {
    * 🔐 VÉRIFIER les permissions de gestion des langues
    */
   private canManageLanguages(user: User): boolean {
-    return user.role === UserRole.ADMIN || 
-           user.role === UserRole.SUPERADMIN ||
-           // Futur: ajouter un rôle spécifique "language-admin"
-           false;
+    return (
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.SUPERADMIN ||
+      // Futur: ajouter un rôle spécifique "language-admin"
+      false
+    );
   }
 
   /**
@@ -327,10 +361,10 @@ export class LanguagesService {
    */
   async getPopularLanguages(limit: number = 10): Promise<Language[]> {
     return this.languageModel
-      .find({ 
+      .find({
         systemStatus: 'active',
         isVisible: true,
-        wordCount: { $gt: 0 }
+        wordCount: { $gt: 0 },
       })
       .sort({ wordCount: -1, translationCount: -1, userCount: -1 })
       .limit(limit)
@@ -342,10 +376,10 @@ export class LanguagesService {
    */
   async getFeaturedLanguages(): Promise<Language[]> {
     return this.languageModel
-      .find({ 
+      .find({
         systemStatus: 'active',
         isFeatured: true,
-        isVisible: true 
+        isVisible: true,
       })
       .sort({ sortOrder: 1, wordCount: -1 })
       .exec();

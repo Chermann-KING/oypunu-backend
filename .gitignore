@@ -40,3 +40,6 @@ lerna-debug.log*
 
 # Build files
 *.tsbuildinfo
+
+# Sentry Config File
+.sentryclirc

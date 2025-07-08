@@ -55,7 +55,8 @@ export class TranslationGroup {
   updatedAt: Date;
 }
 
-export const TranslationGroupSchema = SchemaFactory.createForClass(TranslationGroup);
+export const TranslationGroupSchema =
+  SchemaFactory.createForClass(TranslationGroup);
 
 // Index composites pour performance
 TranslationGroupSchema.index({ conceptId: 1, primaryLanguage: 1 });

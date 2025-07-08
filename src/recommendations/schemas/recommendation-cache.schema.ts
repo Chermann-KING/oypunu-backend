@@ -15,7 +15,11 @@ export class RecommendationResult {
   @Prop({ type: [String], default: [] })
   reasons: string[]; // Raisons de la recommandation
 
-  @Prop({ type: String, enum: ['behavioral', 'semantic', 'community', 'linguistic', 'mixed'], required: true })
+  @Prop({
+    type: String,
+    enum: ['behavioral', 'semantic', 'community', 'linguistic', 'mixed'],
+    required: true,
+  })
   category: string;
 
   @Prop({ type: Object, default: () => ({}) })
@@ -57,7 +61,11 @@ export class RecommendationCache {
   @Prop({ type: AlgorithmConfig, default: () => ({}) })
   config: AlgorithmConfig;
 
-  @Prop({ type: String, enum: ['personal', 'trending', 'linguistic', 'semantic'], default: 'personal' })
+  @Prop({
+    type: String,
+    enum: ['personal', 'trending', 'linguistic', 'semantic'],
+    default: 'personal',
+  })
   recommendationType: string;
 
   // Métadonnées de performance
@@ -71,7 +79,8 @@ export class RecommendationCache {
   avgScore: number; // Score moyen des recommandations
 }
 
-export const RecommendationCacheSchema = SchemaFactory.createForClass(RecommendationCache);
+export const RecommendationCacheSchema =
+  SchemaFactory.createForClass(RecommendationCache);
 
 // Index composites pour optimiser les requêtes
 RecommendationCacheSchema.index({ userId: 1, recommendationType: 1 });

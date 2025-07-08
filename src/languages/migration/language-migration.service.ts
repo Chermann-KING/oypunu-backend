@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Language, LanguageDocument } from '../schemas/language.schema';
-import { Word, WordDocument } from '../../dictionary/schemas/word.schema';
-import { User, UserDocument } from '../../users/schemas/user.schema';
-import { AFRICAN_LANGUAGES_SEED } from '../data/african-languages-seed';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Language, LanguageDocument } from "../schemas/language.schema";
+import { Word, WordDocument } from "../../dictionary/schemas/word.schema";
+import { User, UserDocument } from "../../users/schemas/user.schema";
+import { AFRICAN_LANGUAGES_SEED } from "../data/african-languages-seed";
 
 @Injectable()
 export class LanguageMigrationService {
@@ -13,14 +13,14 @@ export class LanguageMigrationService {
   constructor(
     @InjectModel(Language.name) private languageModel: Model<LanguageDocument>,
     @InjectModel(Word.name) private wordModel: Model<WordDocument>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>
   ) {}
 
   /**
    * 🚀 ÉTAPE 1: Seeder les langues africaines prioritaires
    */
   async seedAfricanLanguages(): Promise<void> {
-    this.logger.log('🌍 Début du seeding des langues africaines...');
+    this.logger.log("🌍 Début du seeding des langues africaines...");
 
     for (const languageData of AFRICAN_LANGUAGES_SEED) {
       try {
@@ -40,7 +40,7 @@ export class LanguageMigrationService {
 
         if (existingLanguage) {
           this.logger.warn(
-            `⚠️ Langue ${languageData.name} existe déjà, ignorée`,
+            `⚠️ Langue ${languageData.name} existe déjà, ignorée`
           );
           continue;
         }
@@ -60,16 +60,16 @@ export class LanguageMigrationService {
           isAfricanLanguage: true,
           isFeatured: languageData.isFeatured || false,
           sortOrder: languageData.sortOrder,
-          systemStatus: 'active',
+          systemStatus: "active",
           isVisible: true,
           proposedBy: null, // Languages seed sont pré-approuvées
           approvedBy: null,
           approvedAt: new Date(),
           scripts: languageData.scripts || [
             {
-              name: 'Latin',
-              code: 'Latn',
-              direction: 'ltr',
+              name: "Latin",
+              code: "Latn",
+              direction: "ltr",
               isDefault: true,
             },
           ],
@@ -77,24 +77,24 @@ export class LanguageMigrationService {
 
         await language.save();
         this.logger.log(
-          `✅ Langue ${languageData.name} (${languageData.nativeName}) créée`,
+          `✅ Langue ${languageData.name} (${languageData.nativeName}) créée`
         );
       } catch (error) {
         this.logger.error(
           `❌ Erreur lors de la création de ${languageData.name}:`,
-          error,
+          error
         );
       }
     }
 
-    this.logger.log('🎉 Seeding des langues terminé !');
+    this.logger.log("🎉 Seeding des langues terminé !");
   }
 
   /**
    * 🔄 ÉTAPE 2: Migrer les mots existants vers les nouveaux IDs de langue
    */
   async migrateWordsToLanguageIds(): Promise<void> {
-    this.logger.log('📚 Début de la migration des mots...');
+    this.logger.log("📚 Début de la migration des mots...");
 
     // Mapping des codes ISO vers les IDs MongoDB
     const languageMapping = await this.createLanguageMapping();
@@ -122,7 +122,7 @@ export class LanguageMigrationService {
           migratedCount++;
         } else {
           this.logger.warn(
-            `⚠️ Aucune langue trouvée pour le code: ${word.language} (mot: ${word.word})`,
+            `⚠️ Aucune langue trouvée pour le code: ${word.language} (mot: ${word.word})`
           );
           failedCount++;
         }
@@ -133,39 +133,72 @@ export class LanguageMigrationService {
     }
 
     this.logger.log(
-      `📊 Migration mots terminée: ${migratedCount} réussis, ${failedCount} échoués`,
+      `📊 Migration mots terminée: ${migratedCount} réussis, ${failedCount} échoués`
     );
   }
 
   /**
    * 👥 ÉTAPE 3: Migrer les utilisateurs vers les nouveaux IDs de langue
+   * Note: Cette étape migre les anciennes données string vers ObjectId
    */
   async migrateUsersToLanguageIds(): Promise<void> {
-    this.logger.log('👥 Début de la migration des utilisateurs...');
+    this.logger.log("👥 Début de la migration des utilisateurs...");
+
+    // Utiliser l'accès dynamique pour vérifier les anciens champs
+    const usersWithOldData = await this.userModel.countDocuments({
+      $or: [
+        { nativeLanguage: { $exists: true, $type: "string" } },
+        { learningLanguages: { $exists: true, $type: "array" } },
+      ],
+    });
+
+    if (usersWithOldData === 0) {
+      this.logger.log(
+        "✅ Aucune donnée utilisateur à migrer (déjà à jour ou pas d'anciennes données)"
+      );
+      return;
+    }
 
     const languageMapping = await this.createLanguageMapping();
-    const users = await this.userModel.find({}).exec();
+    const users = await this.userModel
+      .find({
+        $or: [
+          { nativeLanguage: { $exists: true, $type: "string" } },
+          { learningLanguages: { $exists: true, $type: "array" } },
+        ],
+      })
+      .exec();
+
     let migratedCount = 0;
 
     for (const user of users) {
       try {
         const updates: any = {};
+        const userDoc = user as any; // Accès dynamique aux propriétés
 
-        // Migrer la langue native
-        if (user.nativeLanguage && languageMapping[user.nativeLanguage]) {
-          updates.nativeLanguageId = languageMapping[user.nativeLanguage];
-          updates.oldNativeLanguage = user.nativeLanguage;
+        // Migrer la langue native (si elle existe comme string)
+        if (
+          userDoc.nativeLanguage &&
+          typeof userDoc.nativeLanguage === "string" &&
+          languageMapping[userDoc.nativeLanguage]
+        ) {
+          updates.nativeLanguageId = languageMapping[userDoc.nativeLanguage];
+          updates.oldNativeLanguage = userDoc.nativeLanguage;
         }
 
-        // Migrer les langues d'apprentissage
-        if (user.learningLanguages && user.learningLanguages.length > 0) {
-          const learningLanguageIds = user.learningLanguages
-            .map((code) => languageMapping[code])
-            .filter((id) => id !== undefined);
+        // Migrer les langues d'apprentissage (si elles existent comme array de strings)
+        if (
+          userDoc.learningLanguages &&
+          Array.isArray(userDoc.learningLanguages) &&
+          userDoc.learningLanguages.length > 0
+        ) {
+          const learningLanguageIds = userDoc.learningLanguages
+            .map((code: string) => languageMapping[code])
+            .filter((id: string) => id !== undefined);
 
           if (learningLanguageIds.length > 0) {
             updates.learningLanguageIds = learningLanguageIds;
-            updates.oldLearningLanguages = user.learningLanguages;
+            updates.oldLearningLanguages = userDoc.learningLanguages;
           }
         }
 
@@ -176,13 +209,13 @@ export class LanguageMigrationService {
       } catch (error) {
         this.logger.error(
           `❌ Erreur migration utilisateur ${user.username}:`,
-          error,
+          error
         );
       }
     }
 
     this.logger.log(
-      `👥 Migration utilisateurs terminée: ${migratedCount} migrés`,
+      `👥 Migration utilisateurs terminée: ${migratedCount} migrés`
     );
   }
 
@@ -190,10 +223,10 @@ export class LanguageMigrationService {
    * 🔧 ÉTAPE 4: Mettre à jour les statistiques des langues
    */
   async updateLanguageStatistics(): Promise<void> {
-    this.logger.log('📊 Mise à jour des statistiques des langues...');
+    this.logger.log("📊 Mise à jour des statistiques des langues...");
 
     const languages = await this.languageModel
-      .find({ systemStatus: 'active' })
+      .find({ systemStatus: "active" })
       .exec();
 
     for (const language of languages) {
@@ -215,8 +248,8 @@ export class LanguageMigrationService {
         // Compter les contributeurs actifs (utilisateurs avec des mots dans cette langue)
         const contributorPipeline = [
           { $match: { languageId: language._id } },
-          { $group: { _id: '$createdBy' } },
-          { $count: 'contributors' },
+          { $group: { _id: "$createdBy" } },
+          { $count: "contributors" },
         ];
         const contributorResult =
           await this.wordModel.aggregate(contributorPipeline);
@@ -231,14 +264,14 @@ export class LanguageMigrationService {
         });
 
         this.logger.log(
-          `📈 ${language.name}: ${wordCount} mots, ${nativeUserCount + learningUserCount} utilisateurs`,
+          `📈 ${language.name}: ${wordCount} mots, ${nativeUserCount + learningUserCount} utilisateurs`
         );
       } catch (error) {
         this.logger.error(`❌ Erreur stats pour ${language.name}:`, error);
       }
     }
 
-    this.logger.log('📊 Mise à jour des statistiques terminée !');
+    this.logger.log("📊 Mise à jour des statistiques terminée !");
   }
 
   /**
@@ -246,7 +279,7 @@ export class LanguageMigrationService {
    */
   private async createLanguageMapping(): Promise<Record<string, string>> {
     const languages = await this.languageModel
-      .find({ systemStatus: 'active' })
+      .find({ systemStatus: "active" })
       .exec();
     const mapping: Record<string, string> = {};
 
@@ -274,7 +307,7 @@ export class LanguageMigrationService {
    * 🧹 ÉTAPE 5: Nettoyer les anciens champs (après validation)
    */
   async cleanupOldLanguageFields(): Promise<void> {
-    this.logger.log('🧹 Nettoyage des anciens champs de langue...');
+    this.logger.log("🧹 Nettoyage des anciens champs de langue...");
 
     // Supprimer les anciens champs des mots
     await this.wordModel.updateMany(
@@ -284,7 +317,7 @@ export class LanguageMigrationService {
           language: 1,
           oldLanguageCode: 1,
         },
-      },
+      }
     );
 
     // Supprimer les anciens champs des utilisateurs
@@ -297,17 +330,17 @@ export class LanguageMigrationService {
           oldNativeLanguage: 1,
           oldLearningLanguages: 1,
         },
-      },
+      }
     );
 
-    this.logger.log('🧹 Nettoyage terminé !');
+    this.logger.log("🧹 Nettoyage terminé !");
   }
 
   /**
    * 🎯 MIGRATION COMPLÈTE (toutes les étapes)
    */
   async runFullMigration(): Promise<void> {
-    this.logger.log('🚀 DÉBUT DE LA MIGRATION COMPLÈTE');
+    this.logger.log("🚀 DÉBUT DE LA MIGRATION COMPLÈTE");
 
     try {
       await this.seedAfricanLanguages();
@@ -315,12 +348,12 @@ export class LanguageMigrationService {
       await this.migrateUsersToLanguageIds();
       await this.updateLanguageStatistics();
 
-      this.logger.log('✅ MIGRATION COMPLÈTE RÉUSSIE !');
+      this.logger.log("✅ MIGRATION COMPLÈTE RÉUSSIE !");
       this.logger.warn(
-        "⚠️ N'oubliez pas de mettre à jour les schémas et supprimer les anciens champs après validation",
+        "⚠️ N'oubliez pas de mettre à jour les schémas et supprimer les anciens champs après validation"
       );
     } catch (error) {
-      this.logger.error('❌ ERREUR DURANT LA MIGRATION:', error);
+      this.logger.error("❌ ERREUR DURANT LA MIGRATION:", error);
       throw error;
     }
   }
@@ -331,10 +364,10 @@ export class LanguageMigrationService {
   async getMigrationReport(): Promise<any> {
     const totalLanguages = await this.languageModel.countDocuments({});
     const activeLanguages = await this.languageModel.countDocuments({
-      systemStatus: 'active',
+      systemStatus: "active",
     });
     const pendingLanguages = await this.languageModel.countDocuments({
-      systemStatus: 'proposed',
+      systemStatus: "proposed",
     });
 
     const totalWords = await this.wordModel.countDocuments({});

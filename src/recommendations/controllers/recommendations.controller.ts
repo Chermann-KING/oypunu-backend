@@ -40,7 +40,9 @@ import {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class RecommendationsController {
-  constructor(private readonly recommendationsService: RecommendationsService) {}
+  constructor(
+    private readonly recommendationsService: RecommendationsService,
+  ) {}
 
   /**
    * Obtenir des recommandations personnalisées pour l'utilisateur connecté
@@ -48,7 +50,8 @@ export class RecommendationsController {
   @Get('personal')
   @ApiOperation({
     summary: 'Obtenir des recommandations personnalisées',
-    description: 'Génère des recommandations intelligentes basées sur l\'historique et les préférences de l\'utilisateur'
+    description:
+      "Génère des recommandations intelligentes basées sur l'historique et les préférences de l'utilisateur",
   })
   @ApiResponse({
     status: 200,
@@ -94,7 +97,10 @@ export class RecommendationsController {
     @Request() req: { user: { _id: string } },
     @Query() dto: GetRecommendationsDto,
   ): Promise<RecommendationsResponseDto> {
-    return this.recommendationsService.getPersonalRecommendations(req.user._id, dto);
+    return this.recommendationsService.getPersonalRecommendations(
+      req.user._id,
+      dto,
+    );
   }
 
   /**
@@ -103,7 +109,8 @@ export class RecommendationsController {
   @Get('trending')
   @ApiOperation({
     summary: 'Obtenir des mots en tendance',
-    description: 'Récupère les mots populaires dans la communauté selon différents critères'
+    description:
+      'Récupère les mots populaires dans la communauté selon différents critères',
   })
   @ApiResponse({
     status: 200,
@@ -143,7 +150,8 @@ export class RecommendationsController {
   @Get('linguistic/:language')
   @ApiOperation({
     summary: 'Recommandations linguistiques',
-    description: 'Génère des recommandations adaptées à l\'apprentissage d\'une langue spécifique'
+    description:
+      "Génère des recommandations adaptées à l'apprentissage d'une langue spécifique",
   })
   @ApiResponse({
     status: 200,
@@ -187,7 +195,8 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Enregistrer un feedback',
-    description: 'Permet à l\'utilisateur de donner son avis sur une recommandation pour améliorer les futures suggestions'
+    description:
+      "Permet à l'utilisateur de donner son avis sur une recommandation pour améliorer les futures suggestions",
   })
   @ApiResponse({
     status: 200,
@@ -209,7 +218,8 @@ export class RecommendationsController {
   @Get('explain/:wordId')
   @ApiOperation({
     summary: 'Expliquer une recommandation',
-    description: 'Fournit une explication détaillée des raisons d\'une recommandation spécifique'
+    description:
+      "Fournit une explication détaillée des raisons d'une recommandation spécifique",
   })
   @ApiResponse({
     status: 200,
@@ -234,23 +244,29 @@ export class RecommendationsController {
       factors: {
         behavioral: {
           score: 0.7,
-          details: ['Basé sur vos consultations récentes de mots similaires', 'Catégorie d\'intérêt identifiée']
+          details: [
+            'Basé sur vos consultations récentes de mots similaires',
+            "Catégorie d'intérêt identifiée",
+          ],
         },
         semantic: {
           score: 0.6,
-          details: ['Mots-clés en commun avec vos favoris', 'Concepts sémantiquement liés']
+          details: [
+            'Mots-clés en commun avec vos favoris',
+            'Concepts sémantiquement liés',
+          ],
         },
         community: {
           score: 0.4,
-          details: ['Populaire dans votre région', 'Tendance cette semaine']
+          details: ['Populaire dans votre région', 'Tendance cette semaine'],
         },
         linguistic: {
           score: 0.3,
-          details: ['Adapté à votre niveau', 'Langue d\'apprentissage']
-        }
+          details: ['Adapté à votre niveau', "Langue d'apprentissage"],
+        },
       },
       relatedWords: [],
-      alternatives: []
+      alternatives: [],
     };
   }
 
@@ -260,7 +276,8 @@ export class RecommendationsController {
   @Get('stats')
   @ApiOperation({
     summary: 'Statistiques des recommandations',
-    description: 'Récupère les statistiques d\'interaction avec les recommandations'
+    description:
+      "Récupère les statistiques d'interaction avec les recommandations",
   })
   @ApiResponse({
     status: 200,
@@ -280,7 +297,7 @@ export class RecommendationsController {
       topCategories: [],
       topLanguages: [],
       learningProgress: {},
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -291,7 +308,7 @@ export class RecommendationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Mettre à jour les préférences',
-    description: 'Permet de personnaliser les algorithmes de recommandations'
+    description: 'Permet de personnaliser les algorithmes de recommandations',
   })
   @ApiResponse({
     status: 200,
@@ -299,7 +316,8 @@ export class RecommendationsController {
   })
   async updatePreferences(
     @Request() req: { user: { _id: string } },
-    @Body() preferences: {
+    @Body()
+    preferences: {
       algorithmWeights?: {
         behavioral?: number;
         semantic?: number;
@@ -314,7 +332,7 @@ export class RecommendationsController {
     // les poids des algorithmes et leurs préférences
     return {
       success: true,
-      message: 'Préférences mises à jour avec succès'
+      message: 'Préférences mises à jour avec succès',
     };
   }
 
@@ -324,7 +342,8 @@ export class RecommendationsController {
   @Get('discover-languages')
   @ApiOperation({
     summary: 'Découvrir de nouvelles langues',
-    description: 'Recommande des langues intéressantes à explorer basées sur le profil utilisateur'
+    description:
+      'Recommande des langues intéressantes à explorer basées sur le profil utilisateur',
   })
   @ApiResponse({
     status: 200,
@@ -347,7 +366,7 @@ export class RecommendationsController {
       recommendations: [],
       count: 0,
       reasons: [],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -357,7 +376,8 @@ export class RecommendationsController {
   @Get('contextual')
   @ApiOperation({
     summary: 'Recommandations contextuelles',
-    description: 'Génère des recommandations adaptées au contexte actuel (heure, jour, etc.)'
+    description:
+      'Génère des recommandations adaptées au contexte actuel (heure, jour, etc.)',
   })
   @ApiResponse({
     status: 200,
@@ -373,8 +393,11 @@ export class RecommendationsController {
     // - Le jour de la semaine
     // - L'historique d'activité à cette période
     // - Les patterns comportementaux
-    
+
     // Pour l'instant, déléguer aux recommandations personnalisées
-    return this.recommendationsService.getPersonalRecommendations(req.user._id, dto);
+    return this.recommendationsService.getPersonalRecommendations(
+      req.user._id,
+      dto,
+    );
   }
 }

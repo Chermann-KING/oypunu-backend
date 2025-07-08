@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean, IsUrl, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsUrl,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -16,7 +25,10 @@ export class CreateLanguageVariantDto {
   @IsString()
   countryCode?: string;
 
-  @ApiProperty({ description: 'Autres noms pour cette variante', required: false })
+  @ApiProperty({
+    description: 'Autres noms pour cette variante',
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -32,7 +44,11 @@ export class CreateLanguageScriptDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Direction d\'écriture', enum: ['ltr', 'rtl'], default: 'ltr' })
+  @ApiProperty({
+    description: "Direction d'écriture",
+    enum: ['ltr', 'rtl'],
+    default: 'ltr',
+  })
   @IsOptional()
   @IsEnum(['ltr', 'rtl'])
   direction?: string;
@@ -52,26 +68,44 @@ export class CreateLanguageDto {
   @IsString()
   nativeName: string;
 
-  @ApiProperty({ description: 'Code ISO 639-1', example: 'fan', required: false })
+  @ApiProperty({
+    description: 'Code ISO 639-1',
+    example: 'fan',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   iso639_1?: string;
 
-  @ApiProperty({ description: 'Code ISO 639-2', example: 'fan', required: false })
+  @ApiProperty({
+    description: 'Code ISO 639-2',
+    example: 'fan',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   iso639_2?: string;
 
-  @ApiProperty({ description: 'Code ISO 639-3', example: 'fan', required: false })
+  @ApiProperty({
+    description: 'Code ISO 639-3',
+    example: 'fan',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   iso639_3?: string;
 
-  @ApiProperty({ description: 'Région principale', example: 'Afrique Centrale' })
+  @ApiProperty({
+    description: 'Région principale',
+    example: 'Afrique Centrale',
+  })
   @IsString()
   region: string;
 
-  @ApiProperty({ description: 'Pays où la langue est parlée', example: ['GA', 'GQ', 'CM'] })
+  @ApiProperty({
+    description: 'Pays où la langue est parlée',
+    example: ['GA', 'GQ', 'CM'],
+  })
   @IsArray()
   @IsString({ each: true })
   countries: string[];
@@ -82,24 +116,32 @@ export class CreateLanguageDto {
   @IsString({ each: true })
   alternativeNames?: string[];
 
-  @ApiProperty({ description: 'Variantes de la langue', type: [CreateLanguageVariantDto], required: false })
+  @ApiProperty({
+    description: 'Variantes de la langue',
+    type: [CreateLanguageVariantDto],
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateLanguageVariantDto)
   variants?: CreateLanguageVariantDto[];
 
-  @ApiProperty({ description: 'Scripts d\'écriture', type: [CreateLanguageScriptDto], required: false })
+  @ApiProperty({
+    description: "Scripts d'écriture",
+    type: [CreateLanguageScriptDto],
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateLanguageScriptDto)
   scripts?: CreateLanguageScriptDto[];
 
-  @ApiProperty({ 
-    description: 'Statut de la langue', 
+  @ApiProperty({
+    description: 'Statut de la langue',
     enum: ['major', 'regional', 'local', 'liturgical', 'extinct'],
-    default: 'local'
+    default: 'local',
   })
   @IsOptional()
   @IsEnum(['major', 'regional', 'local', 'liturgical', 'extinct'])
@@ -110,16 +152,19 @@ export class CreateLanguageDto {
   @IsNumber()
   speakerCount?: number;
 
-  @ApiProperty({ 
-    description: 'Statut d\'endangement',
+  @ApiProperty({
+    description: "Statut d'endangement",
     enum: ['endangered', 'vulnerable', 'safe', 'unknown'],
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsEnum(['endangered', 'vulnerable', 'safe', 'unknown'])
   endangermentStatus?: string;
 
-  @ApiProperty({ description: 'ID de la langue parent (pour dialectes)', required: false })
+  @ApiProperty({
+    description: 'ID de la langue parent (pour dialectes)',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   parentLanguageId?: string;
@@ -156,14 +201,18 @@ export class CreateLanguageDto {
   @IsString({ each: true })
   flagEmojis?: string[];
 
-  @ApiProperty({ description: 'Couleur principale', default: '#3B82F6', required: false })
+  @ApiProperty({
+    description: 'Couleur principale',
+    default: '#3B82F6',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   primaryColor?: string;
 }
 
 export class ApproveLanguageDto {
-  @ApiProperty({ description: 'Notes d\'approbation', required: false })
+  @ApiProperty({ description: "Notes d'approbation", required: false })
   @IsOptional()
   @IsString()
   approvalNotes?: string;
@@ -173,7 +222,7 @@ export class ApproveLanguageDto {
   @IsBoolean()
   isFeatured?: boolean;
 
-  @ApiProperty({ description: 'Ordre d\'affichage', required: false })
+  @ApiProperty({ description: "Ordre d'affichage", required: false })
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
@@ -184,7 +233,10 @@ export class RejectLanguageDto {
   @IsString()
   rejectionReason: string;
 
-  @ApiProperty({ description: 'Suggestions pour améliorer la proposition', required: false })
+  @ApiProperty({
+    description: 'Suggestions pour améliorer la proposition',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   suggestions?: string;

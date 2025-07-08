@@ -29,20 +29,30 @@ export class ValidationContext {
 
 @Schema({ timestamps: true })
 export class TrainingData {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Word', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Word',
+    required: true,
+    index: true,
+  })
   sourceWordId: Word;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Word', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Word',
+    required: true,
+    index: true,
+  })
   targetWordId: Word;
 
   @Prop({ type: Number, required: true, min: 0, max: 1 })
   similarityScore: number; // Score calculé par l'algorithme
 
-  @Prop({ 
-    type: String, 
-    required: true, 
+  @Prop({
+    type: String,
+    required: true,
     enum: ['merge', 'separate', 'uncertain'],
-    index: true 
+    index: true,
   })
   humanDecision: string; // Décision humaine
 
@@ -52,7 +62,11 @@ export class TrainingData {
   @Prop({ type: ValidationContext })
   context: ValidationContext; // Contexte de la validation
 
-  @Prop({ type: String, enum: ['auto', 'manual', 'learned'], default: 'manual' })
+  @Prop({
+    type: String,
+    enum: ['auto', 'manual', 'learned'],
+    default: 'manual',
+  })
   validationType: string; // Type de validation
 
   @Prop({ type: String })
@@ -68,7 +82,10 @@ export class TrainingData {
 export const TrainingDataSchema = SchemaFactory.createForClass(TrainingData);
 
 // Index composites pour performance et apprentissage
-TrainingDataSchema.index({ sourceWordId: 1, targetWordId: 1 }, { unique: true });
+TrainingDataSchema.index(
+  { sourceWordId: 1, targetWordId: 1 },
+  { unique: true },
+);
 TrainingDataSchema.index({ humanDecision: 1, similarityScore: -1 });
 TrainingDataSchema.index({ validatedBy: 1, createdAt: -1 });
 TrainingDataSchema.index({ 'context.categoryMatch': 1, humanDecision: 1 });

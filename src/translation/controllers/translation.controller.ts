@@ -12,7 +12,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,7 +20,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
-  ApiQuery
+  ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -31,14 +31,14 @@ import {
   CreateTranslationDto,
   ValidateTranslationDto,
   VoteTranslationDto,
-  SearchTranslationDto
+  SearchTranslationDto,
 } from '../dto/create-translation.dto';
 import {
   TranslationDto,
   AvailableLanguageDto,
   TranslationSuggestionDto,
   ValidationResultDto,
-  LanguageStatsDto
+  LanguageStatsDto,
 } from '../dto/translation-response.dto';
 
 @ApiTags('translation')
@@ -50,42 +50,51 @@ export class TranslationController {
   ) {}
 
   @Get('languages')
-  @ApiOperation({ summary: 'Récupérer toutes les langues disponibles avec statistiques' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiOperation({
+    summary: 'Récupérer toutes les langues disponibles avec statistiques',
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Liste des langues avec statistiques',
-    type: [LanguageStatsDto]
+    type: [LanguageStatsDto],
   })
   async getLanguageStats(): Promise<LanguageStatsDto[]> {
     return this.translationService.getLanguageStats();
   }
 
   @Get(':wordId/languages')
-  @ApiOperation({ summary: 'Récupérer les langues disponibles pour un mot spécifique' })
+  @ApiOperation({
+    summary: 'Récupérer les langues disponibles pour un mot spécifique',
+  })
   @ApiParam({ name: 'wordId', description: 'ID du mot source' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Langues disponibles pour ce mot',
-    type: [AvailableLanguageDto]
+    type: [AvailableLanguageDto],
   })
   async getAvailableLanguages(
-    @Param('wordId') wordId: string
+    @Param('wordId') wordId: string,
   ): Promise<AvailableLanguageDto[]> {
     return this.translationService.getAvailableLanguages(wordId);
   }
 
   @Get(':wordId/:targetLanguage')
-  @ApiOperation({ summary: 'Récupérer la traduction d\'un mot vers une langue spécifique' })
+  @ApiOperation({
+    summary: "Récupérer la traduction d'un mot vers une langue spécifique",
+  })
   @ApiParam({ name: 'wordId', description: 'ID du mot source' })
-  @ApiParam({ name: 'targetLanguage', description: 'Code de la langue cible (ex: es, en, de)' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiParam({
+    name: 'targetLanguage',
+    description: 'Code de la langue cible (ex: es, en, de)',
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Traductions disponibles',
-    type: [TranslationDto]
+    type: [TranslationDto],
   })
   async getTranslation(
     @Param('wordId') wordId: string,
-    @Param('targetLanguage') targetLanguage: string
+    @Param('targetLanguage') targetLanguage: string,
   ): Promise<TranslationDto[]> {
     return this.translationService.getTranslation(wordId, targetLanguage);
   }
@@ -94,34 +103,42 @@ export class TranslationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('contributor', 'admin', 'superadmin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Créer une nouvelle traduction avec détection intelligente de doublons' })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Traduction créée avec succès',
-    type: ValidationResultDto
+  @ApiOperation({
+    summary:
+      'Créer une nouvelle traduction avec détection intelligente de doublons',
   })
-  @ApiResponse({ 
-    status: 400, 
-    description: 'Traduction similaire détectée - confirmation requise' 
+  @ApiResponse({
+    status: 201,
+    description: 'Traduction créée avec succès',
+    type: ValidationResultDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Traduction similaire détectée - confirmation requise',
   })
   async createTranslation(
     @Body() createTranslationDto: CreateTranslationDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ValidationResultDto> {
-    return this.translationService.createTranslation(createTranslationDto, req.user.userId);
+    return this.translationService.createTranslation(
+      createTranslationDto,
+      req.user.userId,
+    );
   }
 
   @Post('suggest')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Rechercher des suggestions intelligentes pour une traduction' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiOperation({
+    summary: 'Rechercher des suggestions intelligentes pour une traduction',
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Suggestions de traduction avec scores de similarité',
-    type: [TranslationSuggestionDto]
+    type: [TranslationSuggestionDto],
   })
   async searchSuggestions(
-    @Body() searchDto: SearchTranslationDto
+    @Body() searchDto: SearchTranslationDto,
   ): Promise<TranslationSuggestionDto[]> {
     return this.translationService.searchTranslationSuggestions(searchDto);
   }
@@ -130,39 +147,46 @@ export class TranslationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('contributor', 'admin', 'superadmin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Valider une traduction proposée (fusion ou séparation)' })
-  @ApiParam({ name: 'translationId', description: 'ID de la traduction à valider' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiOperation({
+    summary: 'Valider une traduction proposée (fusion ou séparation)',
+  })
+  @ApiParam({
+    name: 'translationId',
+    description: 'ID de la traduction à valider',
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Traduction validée avec succès',
-    type: ValidationResultDto
+    type: ValidationResultDto,
   })
   async validateTranslation(
     @Param('translationId') translationId: string,
     @Body() validateDto: ValidateTranslationDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<ValidationResultDto> {
     return this.translationService.validateTranslation(
-      translationId, 
-      validateDto, 
-      req.user.userId
+      translationId,
+      validateDto,
+      req.user.userId,
     );
   }
 
   @Post(':translationId/vote')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Voter pour une traduction existante (+1 pour valider)' })
+  @ApiOperation({
+    summary: 'Voter pour une traduction existante (+1 pour valider)',
+  })
   @ApiParam({ name: 'translationId', description: 'ID de la traduction' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Vote enregistré avec succès'
+  @ApiResponse({
+    status: 200,
+    description: 'Vote enregistré avec succès',
   })
   @HttpCode(HttpStatus.OK)
   async voteForTranslation(
     @Param('translationId') translationId: string,
     @Body() voteDto: VoteTranslationDto,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<{ success: boolean; newVoteCount: number }> {
     // Valider que le vote est +1 ou -1
     if (voteDto.voteValue !== 1 && voteDto.voteValue !== -1) {
@@ -170,9 +194,9 @@ export class TranslationController {
     }
 
     return this.translationService.voteForTranslation(
-      translationId, 
-      voteDto, 
-      req.user.userId
+      translationId,
+      voteDto,
+      req.user.userId,
     );
   }
 
@@ -182,23 +206,23 @@ export class TranslationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'superadmin')
   @ApiBearerAuth()
-  @ApiOperation({ 
-    summary: 'Obtenir des insights sur l\'efficacité de l\'algorithme d\'apprentissage (Admin)',
-    description: 'Statistiques avancées sur la précision des prédictions et recommandations d\'amélioration'
+  @ApiOperation({
+    summary:
+      "Obtenir des insights sur l'efficacité de l'algorithme d'apprentissage (Admin)",
+    description:
+      "Statistiques avancées sur la précision des prédictions et recommandations d'amélioration",
   })
-  @ApiQuery({ 
-    name: 'limit', 
-    required: false, 
-    description: 'Nombre d\'entrées à analyser (défaut: 1000)',
-    example: 1000
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: "Nombre d'entrées à analyser (défaut: 1000)",
+    example: 1000,
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Insights détaillés sur l\'apprentissage automatique'
+  @ApiResponse({
+    status: 200,
+    description: "Insights détaillés sur l'apprentissage automatique",
   })
-  async getLearningInsights(
-    @Query('limit') limit?: number
-  ) {
+  async getLearningInsights(@Query('limit') limit?: number) {
     return this.learningService.generateLearningInsights(limit || 1000);
   }
 
@@ -206,13 +230,14 @@ export class TranslationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'superadmin')
   @ApiBearerAuth()
-  @ApiOperation({ 
-    summary: 'Mettre à jour les seuils d\'auto-validation (Admin)',
-    description: 'Ajuste automatiquement les seuils basés sur l\'historique d\'apprentissage'
+  @ApiOperation({
+    summary: "Mettre à jour les seuils d'auto-validation (Admin)",
+    description:
+      "Ajuste automatiquement les seuils basés sur l'historique d'apprentissage",
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Seuils mis à jour avec succès'
+  @ApiResponse({
+    status: 200,
+    description: 'Seuils mis à jour avec succès',
   })
   async updateAutoValidationThresholds() {
     return this.learningService.updateAutoValidationThresholds();
@@ -222,23 +247,22 @@ export class TranslationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'superadmin')
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Statistiques de performance du système de traduction (Admin)',
-    description: 'Métriques détaillées sur l\'usage et la qualité des traductions'
+    description:
+      "Métriques détaillées sur l'usage et la qualité des traductions",
   })
-  @ApiQuery({ 
-    name: 'days', 
-    required: false, 
+  @ApiQuery({
+    name: 'days',
+    required: false,
     description: 'Nombre de jours à analyser (défaut: 30)',
-    example: 30
+    example: 30,
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Statistiques de performance détaillées'
+  @ApiResponse({
+    status: 200,
+    description: 'Statistiques de performance détaillées',
   })
-  async getPerformanceStats(
-    @Query('days') days?: number
-  ) {
+  async getPerformanceStats(@Query('days') days?: number) {
     // Cette méthode peut être étendue pour fournir des statistiques détaillées
     const period = days || 30;
     const startDate = new Date();
@@ -254,8 +278,8 @@ export class TranslationController {
         manualValidated: 0, // À implémenter
         averageConfidence: 0, // À implémenter
         topLanguagePairs: [], // À implémenter
-        userActivity: [] // À implémenter
-      }
+        userActivity: [], // À implémenter
+      },
     };
   }
 
@@ -265,15 +289,16 @@ export class TranslationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'superadmin')
   @ApiBearerAuth()
-  @ApiOperation({ 
-    summary: 'Tester l\'algorithme de similarité entre deux mots (Debug)',
-    description: 'Endpoint de développement pour tester et déboguer l\'algorithme'
+  @ApiOperation({
+    summary: "Tester l'algorithme de similarité entre deux mots (Debug)",
+    description:
+      "Endpoint de développement pour tester et déboguer l'algorithme",
   })
   @ApiQuery({ name: 'word1Id', description: 'ID du premier mot' })
   @ApiQuery({ name: 'word2Id', description: 'ID du deuxième mot' })
   async debugSimilarity(
     @Query('word1Id') word1Id: string,
-    @Query('word2Id') word2Id: string
+    @Query('word2Id') word2Id: string,
   ) {
     // Cette méthode est principalement pour le développement
     // Elle permet de tester l'algorithme de similarité

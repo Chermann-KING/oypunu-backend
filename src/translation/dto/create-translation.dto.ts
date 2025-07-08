@@ -1,48 +1,58 @@
-import { IsString, IsOptional, IsArray, IsNumber, IsMongoId, IsEnum, IsBoolean, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsNumber,
+  IsMongoId,
+  IsEnum,
+  IsBoolean,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTranslationDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'ID du mot source',
-    example: '64f5a123456789abcdef0123'
+    example: '64f5a123456789abcdef0123',
   })
   @IsMongoId()
   sourceWordId: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Langue cible pour la traduction',
-    example: 'es'
+    example: 'es',
   })
   @IsString()
   targetLanguage: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Mot traduit',
-    example: 'solar'
+    example: 'solar',
   })
   @IsString()
   translatedWord: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'ID du mot cible existant (si disponible)',
-    example: '64f5a123456789abcdef0124'
+    example: '64f5a123456789abcdef0124',
   })
   @IsOptional()
   @IsMongoId()
   targetWordId?: string;
 
-  @ApiPropertyOptional({ 
-    description: 'Contexte d\'usage de la traduction',
-    example: ['astronomie', 'physique']
+  @ApiPropertyOptional({
+    description: "Contexte d'usage de la traduction",
+    example: ['astronomie', 'physique'],
   })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   context?: string[];
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Score de confiance (0-1)',
-    example: 0.95
+    example: 0.95,
   })
   @IsOptional()
   @IsNumber()
@@ -50,18 +60,18 @@ export class CreateTranslationDto {
   @Max(1)
   confidence?: number;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'ID du sens spécifique',
-    example: 'CONCEPT_123_SENSE_1'
+    example: 'CONCEPT_123_SENSE_1',
   })
   @IsOptional()
   @IsString()
   senseId?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Type de validation',
     enum: ['auto', 'manual', 'learned'],
-    example: 'manual'
+    example: 'manual',
   })
   @IsOptional()
   @IsEnum(['auto', 'manual', 'learned'])
@@ -69,25 +79,25 @@ export class CreateTranslationDto {
 }
 
 export class ValidateTranslationDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Action de validation',
     enum: ['merge', 'separate', 'uncertain'],
-    example: 'merge'
+    example: 'merge',
   })
   @IsEnum(['merge', 'separate', 'uncertain'])
   action: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Raison de la décision',
-    example: 'Mêmes domaines d\'usage, contexte similaire'
+    example: "Mêmes domaines d'usage, contexte similaire",
   })
   @IsOptional()
   @IsString()
   reason?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Score de confiance ajusté (0-1)',
-    example: 0.85
+    example: 0.85,
   })
   @IsOptional()
   @IsNumber()
@@ -97,16 +107,16 @@ export class ValidateTranslationDto {
 }
 
 export class VoteTranslationDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Type de vote (+1 ou -1)',
-    example: 1
+    example: 1,
   })
   @IsNumber()
   voteValue: number; // +1 ou -1
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Commentaire sur le vote',
-    example: 'Traduction parfaite dans ce contexte'
+    example: 'Traduction parfaite dans ce contexte',
   })
   @IsOptional()
   @IsString()
@@ -114,31 +124,31 @@ export class VoteTranslationDto {
 }
 
 export class SearchTranslationDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'ID du mot source',
-    example: '64f5a123456789abcdef0123'
+    example: '64f5a123456789abcdef0123',
   })
   @IsMongoId()
   wordId: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Langue cible',
-    example: 'es'
+    example: 'es',
   })
   @IsString()
   targetLanguage: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Recherche de mots suggérés',
-    example: 'solar'
+    example: 'solar',
   })
   @IsOptional()
   @IsString()
   searchTerm?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Score de similarité minimum',
-    example: 0.6
+    example: 0.6,
   })
   @IsOptional()
   @IsNumber()

@@ -31,7 +31,7 @@ export class RecommendationItemDto {
   @ApiProperty({ description: 'Prononciation (optionnel)', required: false })
   pronunciation?: string;
 
-  @ApiProperty({ description: 'Exemples d\'usage', type: [String] })
+  @ApiProperty({ description: "Exemples d'usage", type: [String] })
   examples: string[];
 
   @ApiProperty({ description: 'URL audio (optionnel)', required: false })
@@ -42,7 +42,10 @@ export class RecommendationItemDto {
 }
 
 export class RecommendationsResponseDto {
-  @ApiProperty({ description: 'Liste des recommandations', type: [RecommendationItemDto] })
+  @ApiProperty({
+    description: 'Liste des recommandations',
+    type: [RecommendationItemDto],
+  })
   recommendations: RecommendationItemDto[];
 
   @ApiProperty({ description: 'Nombre total de recommandations' })
@@ -63,7 +66,7 @@ export class RecommendationsResponseDto {
   @ApiProperty({ description: 'Score moyen des recommandations' })
   avgScore: number;
 
-  @ApiProperty({ description: 'Configuration de l\'algorithme utilisé' })
+  @ApiProperty({ description: "Configuration de l'algorithme utilisé" })
   algorithm: {
     type: string;
     weights: {
@@ -102,7 +105,9 @@ export class RecommendationExplanationDto {
     };
   };
 
-  @ApiProperty({ description: 'Mots similaires qui ont influencé la recommandation' })
+  @ApiProperty({
+    description: 'Mots similaires qui ont influencé la recommandation',
+  })
   relatedWords: {
     id: string;
     word: string;
@@ -116,15 +121,19 @@ export class RecommendationExplanationDto {
 }
 
 export class FeedbackResponseDto {
-  @ApiProperty({ description: 'Indique si le feedback a été enregistré avec succès' })
+  @ApiProperty({
+    description: 'Indique si le feedback a été enregistré avec succès',
+  })
   success: boolean;
 
   @ApiProperty({ description: 'Message de confirmation' })
   message: string;
 
-  @ApiProperty({ description: 'Impact du feedback sur les futures recommandations' })
+  @ApiProperty({
+    description: 'Impact du feedback sur les futures recommandations',
+  })
   impact: string;
 
-  @ApiProperty({ description: 'Timestamp de l\'enregistrement' })
+  @ApiProperty({ description: "Timestamp de l'enregistrement" })
   timestamp: string;
 }

@@ -1,15 +1,15 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { Language } from '../../languages/schemas/language.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Schema as MongooseSchema } from "mongoose";
+import { Language } from "../../languages/schemas/language.schema";
 
 export type UserDocument = User & Document;
 
 // Enum pour les rôles avec hiérarchie
 export enum UserRole {
-  USER = 'user',
-  CONTRIBUTOR = 'contributor',
-  ADMIN = 'admin',
-  SUPERADMIN = 'superadmin',
+  USER = "user",
+  CONTRIBUTOR = "contributor",
+  ADMIN = "admin",
+  SUPERADMIN = "superadmin",
 }
 
 @Schema({ timestamps: true })
@@ -55,19 +55,14 @@ export class User {
   @Prop({ type: [String], default: [] })
   favoriteWords: string[];
 
-  // NOUVEAU: Références vers la collection Languages
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Language' })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "Language" })
   nativeLanguageId?: Language;
 
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Language' }], default: [] })
+  @Prop({
+    type: [{ type: MongooseSchema.Types.ObjectId, ref: "Language" }],
+    default: [],
+  })
   learningLanguageIds: Language[];
-
-  // DURANT LA MIGRATION: Anciens champs pour compatibilité (à supprimer après migration)
-  @Prop()
-  nativeLanguage?: string;
-
-  @Prop({ type: [String], default: [] })
-  learningLanguages?: string[];
 
   @Prop({ type: Object, default: {} })
   socialProviders: Record<string, string>;
@@ -93,7 +88,6 @@ export class User {
   @Prop({ type: Number, default: 0 })
   totalCommunityPosts: number;
 
-  // Nouveaux champs pour l'administration
   @Prop({ type: Boolean, default: false })
   isActive: boolean;
 
@@ -107,7 +101,7 @@ export class User {
   suspensionReason?: string;
 
   @Prop({ type: String })
-  notes?: string; // Notes internes pour les admins
+  notes?: string;
 
   @Prop({ type: Date })
   lastLogin?: Date;

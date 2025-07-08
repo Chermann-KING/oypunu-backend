@@ -1,6 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import * as nodemailer from "nodemailer";
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
 
 // Interfaces pour les templates d'emails
 interface ContributorRequestConfirmationData {
@@ -72,16 +72,16 @@ export class MailService {
 
   constructor(private _configService: ConfigService) {
     // Vérifier si les variables d'environnement sont définies
-    const mailHost = this._configService.get<string>("MAIL_HOST");
-    const mailPort = this._configService.get<number>("MAIL_PORT");
-    const mailUser = this._configService.get<string>("MAIL_USER");
-    const mailPassword = this._configService.get<string>("MAIL_PASSWORD");
+    const mailHost = this._configService.get<string>('MAIL_HOST');
+    const mailPort = this._configService.get<number>('MAIL_PORT');
+    const mailUser = this._configService.get<string>('MAIL_USER');
+    const mailPassword = this._configService.get<string>('MAIL_PASSWORD');
     const mailSecure =
-      this._configService.get<string>("MAIL_SECURE") === "true";
+      this._configService.get<string>('MAIL_SECURE') === 'true';
 
     if (!mailHost || !mailPort || !mailUser || !mailPassword) {
       this._logger.warn(
-        "Configuration d'email incomplète. Le service de mail sera désactivé."
+        "Configuration d'email incomplète. Le service de mail sera désactivé.",
       );
       return;
     }
@@ -97,12 +97,12 @@ export class MailService {
         },
       });
 
-      this._logger.log("Service de mail configuré avec succès");
+      this._logger.log('Service de mail configuré avec succès');
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Erreur inconnue";
+        error instanceof Error ? error.message : 'Erreur inconnue';
       this._logger.error(
-        `Erreur lors de la configuration du service de mail: ${errorMessage}`
+        `Erreur lors de la configuration du service de mail: ${errorMessage}`,
       );
     }
   }
@@ -110,12 +110,12 @@ export class MailService {
   async sendVerificationEmail(to: string, token: string, username: string) {
     if (!this._transporter) {
       this._logger.warn(
-        "Tentative d'envoi d'email alors que le service est désactivé"
+        "Tentative d'envoi d'email alors que le service est désactivé",
       );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
     const verificationLink = `${frontendUrl}/auth/verify-email/${token}`;
 
     const emailTemplate = `
@@ -251,19 +251,19 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to,
         subject: "🙂 Vérification de votre compte O'Ypunu",
         html: emailTemplate,
       });
       this._logger.log(
-        `✅ Email de vérification envoyé à ${to} avec le nouveau template`
+        `✅ Email de vérification envoyé à ${to} avec le nouveau template`,
       );
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Erreur inconnue";
+        error instanceof Error ? error.message : 'Erreur inconnue';
       this._logger.error(
-        `❌ Erreur lors de l'envoi de l'email de vérification: ${errorMessage}`
+        `❌ Erreur lors de l'envoi de l'email de vérification: ${errorMessage}`,
       );
     }
   }
@@ -271,12 +271,12 @@ export class MailService {
   async sendPasswordResetEmail(to: string, token: string, username: string) {
     if (!this._transporter) {
       this._logger.warn(
-        "Tentative d'envoi d'email alors que le service est désactivé"
+        "Tentative d'envoi d'email alors que le service est désactivé",
       );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
     const resetLink = `${frontendUrl}/auth/reset-password/${token}`;
 
     const resetTemplate = `
@@ -420,33 +420,37 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to,
         subject: "🔑 Réinitialisation de votre mot de passe O'Ypunu",
         html: resetTemplate,
       });
       this._logger.log(
-        `✅ Email de réinitialisation de mot de passe envoyé à ${to} avec le nouveau template`
+        `✅ Email de réinitialisation de mot de passe envoyé à ${to} avec le nouveau template`,
       );
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Erreur inconnue";
+        error instanceof Error ? error.message : 'Erreur inconnue';
       this._logger.error(
-        `❌ Erreur lors de l'envoi de l'email de réinitialisation: ${errorMessage}`
+        `❌ Erreur lors de l'envoi de l'email de réinitialisation: ${errorMessage}`,
       );
     }
   }
 
   // === MÉTHODES POUR LES DEMANDES DE CONTRIBUTION ===
 
-  async sendContributorRequestConfirmation(data: ContributorRequestConfirmationData) {
+  async sendContributorRequestConfirmation(
+    data: ContributorRequestConfirmationData,
+  ) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -554,26 +558,33 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
-        subject: "✍️ Votre demande de contribution a été reçue",
+        subject: '✍️ Votre demande de contribution a été reçue',
         html: emailTemplate,
       });
-      this._logger.log(`✅ Email de confirmation de demande envoyé à ${data.to}`);
+      this._logger.log(
+        `✅ Email de confirmation de demande envoyé à ${data.to}`,
+      );
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi de l'email de confirmation: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi de l'email de confirmation: ${errorMessage}`,
+      );
     }
   }
 
   async sendContributorRequestApproved(data: ContributorRequestApprovedData) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -676,12 +687,16 @@ export class MailService {
                 
                 <p>Votre demande de contribution a été examinée et approuvée par <strong>${data.reviewerName}</strong>.</p>
                 
-                ${data.reviewNotes ? `
+                ${
+                  data.reviewNotes
+                    ? `
                 <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 15px 0;">
                     <p><strong>💬 Commentaires :</strong></p>
                     <p style="font-style: italic;">"${data.reviewNotes}"</p>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
                 <p><strong>🚀 Vous pouvez maintenant :</strong></p>
                 <ul>
@@ -713,26 +728,31 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
-        subject: "🎉 Votre demande de contribution a été approuvée !",
+        subject: '🎉 Votre demande de contribution a été approuvée !',
         html: emailTemplate,
       });
       this._logger.log(`✅ Email d'approbation envoyé à ${data.to}`);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi de l'email d'approbation: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi de l'email d'approbation: ${errorMessage}`,
+      );
     }
   }
 
   async sendContributorRequestRejected(data: ContributorRequestRejectedData) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -833,19 +853,27 @@ export class MailService {
                     <p><strong>🔍 Statut de votre demande :</strong> Non retenue pour le moment</p>
                 </div>
                 
-                ${data.rejectionReason ? `
+                ${
+                  data.rejectionReason
+                    ? `
                 <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 15px 0;">
                     <p><strong>📝 Raison :</strong></p>
                     <p>${data.rejectionReason}</p>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
-                ${data.reviewNotes ? `
+                ${
+                  data.reviewNotes
+                    ? `
                 <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 15px 0;">
                     <p><strong>💬 Commentaires :</strong></p>
                     <p style="font-style: italic;">"${data.reviewNotes}"</p>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
                 <p><strong>💡 N'hésitez pas à :</strong></p>
                 <ul>
@@ -877,26 +905,33 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
-        subject: "📋 Mise à jour de votre demande de contribution",
+        subject: '📋 Mise à jour de votre demande de contribution',
         html: emailTemplate,
       });
       this._logger.log(`✅ Email de rejet envoyé à ${data.to}`);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi de l'email de rejet: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi de l'email de rejet: ${errorMessage}`,
+      );
     }
   }
 
-  async sendContributorRequestUnderReview(data: ContributorRequestUnderReviewData) {
+  async sendContributorRequestUnderReview(
+    data: ContributorRequestUnderReviewData,
+  ) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -982,12 +1017,16 @@ export class MailService {
                     <p>Nous prenons le temps nécessaire pour examiner votre profil et vos motivations.</p>
                 </div>
                 
-                ${data.reviewNotes ? `
+                ${
+                  data.reviewNotes
+                    ? `
                 <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 15px 0;">
                     <p><strong>💬 Commentaires :</strong></p>
                     <p style="font-style: italic;">"${data.reviewNotes}"</p>
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
                 
                 <p>Nous vous tiendrons informé de l'avancement et vous recevrez une réponse finale sous peu.</p>
                 
@@ -1007,26 +1046,31 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
-        subject: "🔍 Votre demande est en cours de révision",
+        subject: '🔍 Votre demande est en cours de révision',
         html: emailTemplate,
       });
       this._logger.log(`✅ Email de révision en cours envoyé à ${data.to}`);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi de l'email de révision: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi de l'email de révision: ${errorMessage}`,
+      );
     }
   }
 
   async sendContributorWelcome(data: ContributorWelcomeData) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -1166,36 +1210,44 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
         subject: "🎉 Bienvenue dans l'équipe O'Ypunu !",
         html: emailTemplate,
       });
-      this._logger.log(`✅ Email de bienvenue contributeur envoyé à ${data.to}`);
+      this._logger.log(
+        `✅ Email de bienvenue contributeur envoyé à ${data.to}`,
+      );
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi de l'email de bienvenue: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi de l'email de bienvenue: ${errorMessage}`,
+      );
     }
   }
 
   async sendAdminNewContributorRequest(data: AdminNewContributorRequestData) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
     const adminUrl = `${frontendUrl}/admin/contributor-requests`;
-    
+
     const priorityColors = {
       low: '#6b7280',
       medium: '#0ea5e9',
       high: '#f59e0b',
-      urgent: '#dc2626'
+      urgent: '#dc2626',
     };
-    
-    const priorityColor = priorityColors[data.priority as keyof typeof priorityColors] || '#6b7280';
-    
+
+    const priorityColor =
+      priorityColors[data.priority as keyof typeof priorityColors] || '#6b7280';
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -1315,27 +1367,35 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu Admin" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu Admin" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
         subject: `🔔 Nouvelle demande de contribution (${data.priority.toUpperCase()})`,
         html: emailTemplate,
       });
       this._logger.log(`✅ Notification admin envoyée à ${data.to}`);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi de la notification admin: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi de la notification admin: ${errorMessage}`,
+      );
     }
   }
 
   async sendContributorRequestReminder(data: ContributorRequestReminderData) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
-    const daysLeft = Math.ceil((new Date(data.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+    const daysLeft = Math.ceil(
+      (new Date(data.expiresAt).getTime() - new Date().getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -1428,27 +1488,32 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
-        subject: "⏰ Rappel : Votre demande de contribution expire bientôt",
+        subject: '⏰ Rappel : Votre demande de contribution expire bientôt',
         html: emailTemplate,
       });
       this._logger.log(`✅ Rappel d'expiration envoyé à ${data.to}`);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi du rappel: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi du rappel: ${errorMessage}`,
+      );
     }
   }
 
   async sendWeeklyContributorStats(data: WeeklyContributorStatsData) {
     if (!this._transporter) {
-      this._logger.warn("Tentative d'envoi d'email alors que le service est désactivé");
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
       return;
     }
 
-    const frontendUrl = this._configService.get<string>("FRONTEND_URL");
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
     const adminUrl = `${frontendUrl}/admin/contributor-requests`;
-    
+
     const emailTemplate = `
     <!DOCTYPE html>
     <html lang="fr">
@@ -1576,15 +1641,18 @@ export class MailService {
 
     try {
       await this._transporter.sendMail({
-        from: `"O'Ypunu Admin" <${this._configService.get("MAIL_FROM")}>`,
+        from: `"O'Ypunu Admin" <${this._configService.get('MAIL_FROM')}>`,
         to: data.to,
-        subject: "📊 Rapport hebdomadaire - Demandes de contribution",
+        subject: '📊 Rapport hebdomadaire - Demandes de contribution',
         html: emailTemplate,
       });
       this._logger.log(`✅ Rapport hebdomadaire envoyé à ${data.to}`);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      this._logger.error(`❌ Erreur lors de l'envoi du rapport hebdomadaire: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(
+        `❌ Erreur lors de l'envoi du rapport hebdomadaire: ${errorMessage}`,
+      );
     }
   }
 }

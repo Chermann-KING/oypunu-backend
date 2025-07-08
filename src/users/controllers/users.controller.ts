@@ -8,7 +8,7 @@ import {
   Req,
   NotFoundException,
   Query,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
@@ -16,11 +16,11 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiBody,
-} from '@nestjs/swagger';
-import { UsersService } from '../services/users.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { UserDocument } from '../schemas/user.schema';
-import { UpdateProfileDto } from '../dto/update-profile.dto';
+} from "@nestjs/swagger";
+import { UsersService } from "../services/users.service";
+import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import { UserDocument } from "../schemas/user.schema";
+import { UpdateProfileDto } from "../dto/update-profile.dto";
 
 interface UserResponse {
   id: string;
@@ -57,67 +57,67 @@ interface UserStatsResponse {
   joinDate: Date;
 }
 
-@ApiTags('users')
-@Controller('users')
+@ApiTags("users")
+@Controller("users")
 export class UsersController {
   constructor(private _usersService: UsersService) {}
 
-  @Get('allusers')
+  @Get("allusers")
   @ApiOperation({
-    summary: 'Debug - Voir tous les utilisateurs',
+    summary: "Debug - Voir tous les utilisateurs",
   })
   async getAllUsers(): Promise<any[]> {
     const users = await this._usersService.findAll();
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
-    return users.map(user => ({
+
+    return users.map((user) => ({
       username: user.username,
       role: user.role,
       totalWordsAdded: user.totalWordsAdded || 0,
       lastActive: user.lastActive,
       isActive: user.isActive,
       isRecentlyActive: user.lastActive && user.lastActive >= fiveMinutesAgo,
-      isContributor: (user.totalWordsAdded && user.totalWordsAdded > 0) || 
-                     ['contributor', 'admin', 'superadmin'].includes(user.role),
-      qualifiesAsOnlineContributor: user.isActive && 
-                                    user.lastActive && 
-                                    user.lastActive >= fiveMinutesAgo && 
-                                    (((user.totalWordsAdded && user.totalWordsAdded > 0) || 
-                                     ['contributor', 'admin', 'superadmin'].includes(user.role)))
+      isContributor:
+        (user.totalWordsAdded && user.totalWordsAdded > 0) ||
+        ["contributor", "admin", "superadmin"].includes(user.role),
+      qualifiesAsOnlineContributor:
+        user.isActive &&
+        user.lastActive &&
+        user.lastActive >= fiveMinutesAgo &&
+        ((user.totalWordsAdded && user.totalWordsAdded > 0) ||
+          ["contributor", "admin", "superadmin"].includes(user.role)),
     }));
   }
 
-  @Get('activate-user')
+  @Get("activate-user")
   @ApiOperation({
-    summary: 'Debug - Activer tous les utilisateurs superadmin',
+    summary: "Debug - Activer tous les utilisateurs superadmin",
   })
   async activateUsers(): Promise<{ message: string; count: number }> {
     const result = await this._usersService.activateSuperAdmins();
     return {
-      message: 'Utilisateurs superadmin activés',
-      count: result
+      message: "Utilisateurs superadmin activés",
+      count: result,
     };
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('profile')
+  @Get("profile")
   @ApiOperation({ summary: "Récupérer le profil de l'utilisateur connecté" })
   @ApiResponse({
     status: 200,
-    description: 'Profil récupéré avec succès',
+    description: "Profil récupéré avec succès",
     type: Object,
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
+  @ApiResponse({ status: 404, description: "Utilisateur non trouvé" })
   @ApiBearerAuth()
   async getProfile(
-    @Req() req: { user: { _id: string } },
+    @Req() req: { user: { _id: string } }
   ): Promise<UserResponse> {
-    const user = (await this._usersService.findById(
-      req.user._id,
-    )) as UserDocument;
+    const user = await this._usersService.findByIdWithLanguages(req.user._id);
     if (!user || !user._id) {
-      throw new NotFoundException('Utilisateur non trouvé');
+      throw new NotFoundException("Utilisateur non trouvé");
     }
 
     return {
@@ -126,8 +126,15 @@ export class UsersController {
       username: user.username,
       isEmailVerified: user.isEmailVerified,
       role: user.role,
-      nativeLanguage: user.nativeLanguage || 'fr',
-      learningLanguages: user.learningLanguages || [],
+      nativeLanguage:
+        user.nativeLanguageId?.iso639_1 ||
+        user.nativeLanguageId?.iso639_2 ||
+        user.nativeLanguageId?.iso639_3 ||
+        "fr",
+      learningLanguages:
+        user.learningLanguageIds
+          ?.map((lang) => lang.iso639_1 || lang.iso639_2 || lang.iso639_3)
+          .filter(Boolean) || [],
       profilePicture: user.profilePicture,
       bio: user.bio,
       location: user.location,
@@ -138,34 +145,35 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('profile')
+  @Patch("profile")
   @ApiOperation({
     summary: "Mettre à jour le profil de l'utilisateur connecté",
   })
   @ApiResponse({
     status: 200,
-    description: 'Profil mis à jour avec succès',
+    description: "Profil mis à jour avec succès",
     type: Object,
   })
-  @ApiResponse({ status: 400, description: 'Requête invalide' })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  @ApiResponse({ status: 400, description: "Requête invalide" })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
+  @ApiResponse({ status: 404, description: "Utilisateur non trouvé" })
   @ApiBody({
     type: UpdateProfileDto,
-    description: 'Données du profil à mettre à jour',
+    description: "Données du profil à mettre à jour",
   })
   @ApiBearerAuth()
   async updateProfile(
     @Req() req: { user: { _id: string } },
-    @Body() updateData: UpdateProfileDto,
+    @Body() updateData: UpdateProfileDto
   ): Promise<UserResponse> {
-    const updatedUser = (await this._usersService.updateUser(
-      req.user._id,
-      updateData,
-    )) as UserDocument;
+    await this._usersService.updateUser(req.user._id, updateData);
+
+    const updatedUser = await this._usersService.findByIdWithLanguages(
+      req.user._id
+    );
 
     if (!updatedUser || !updatedUser._id) {
-      throw new NotFoundException('Utilisateur non trouvé');
+      throw new NotFoundException("Utilisateur non trouvé");
     }
 
     return {
@@ -174,8 +182,15 @@ export class UsersController {
       username: updatedUser.username,
       isEmailVerified: updatedUser.isEmailVerified,
       role: updatedUser.role,
-      nativeLanguage: updatedUser.nativeLanguage || 'fr',
-      learningLanguages: updatedUser.learningLanguages || [],
+      nativeLanguage:
+        updatedUser.nativeLanguageId?.iso639_1 ||
+        updatedUser.nativeLanguageId?.iso639_2 ||
+        updatedUser.nativeLanguageId?.iso639_3 ||
+        "fr",
+      learningLanguages:
+        updatedUser.learningLanguageIds
+          ?.map((lang) => lang.iso639_1 || lang.iso639_2 || lang.iso639_3)
+          .filter(Boolean) || [],
       profilePicture: updatedUser.profilePicture,
       bio: updatedUser.bio,
       location: updatedUser.location,
@@ -186,127 +201,139 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('profile/stats')
+  @Get("profile/stats")
   @ApiOperation({
     summary: "Récupérer les statistiques de l'utilisateur connecté",
   })
   @ApiResponse({
     status: 200,
-    description: 'Statistiques récupérées avec succès',
+    description: "Statistiques récupérées avec succès",
     type: Object,
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
+  @ApiResponse({ status: 404, description: "Utilisateur non trouvé" })
   @ApiBearerAuth()
   async getUserStats(
-    @Req() req: { user: { _id: string } },
+    @Req() req: { user: { _id: string } }
   ): Promise<UserStatsResponse> {
-    console.log('getUserStats - req.user:', req.user);
-    console.log('getUserStats - userId:', req.user._id);
+    console.log("getUserStats - req.user:", req.user);
+    console.log("getUserStats - userId:", req.user._id);
     return this._usersService.getUserStats(req.user._id);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('profile/recent-contributions')
+  @Get("profile/recent-contributions")
   @ApiOperation({
     summary: "Récupérer les contributions récentes de l'utilisateur connecté",
   })
   @ApiResponse({
     status: 200,
-    description: 'Contributions récentes récupérées avec succès',
+    description: "Contributions récentes récupérées avec succès",
     type: [Object],
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
   @ApiBearerAuth()
   async getUserRecentContributions(
     @Req() req: { user: { _id: string } },
-    @Query('limit') limit: string = '5'
+    @Query("limit") limit: string = "5"
   ) {
     const contributions = await this._usersService.getUserRecentContributions(
       req.user._id,
       parseInt(limit)
     );
-    
+
     return {
       contributions,
       count: contributions.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('profile/recent-consultations')
+  @Get("profile/recent-consultations")
   @ApiOperation({
     summary: "Récupérer les consultations récentes de l'utilisateur connecté",
   })
   @ApiResponse({
     status: 200,
-    description: 'Consultations récentes récupérées avec succès',
+    description: "Consultations récentes récupérées avec succès",
     type: [Object],
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
   @ApiBearerAuth()
   async getUserRecentConsultations(
     @Req() req: { user: { _id: string } },
-    @Query('limit') limit: string = '5'
+    @Query("limit") limit: string = "5"
   ) {
-    console.log('🎯 API call getUserRecentConsultations pour:', req.user._id, 'limit:', limit);
-    
+    console.log(
+      "🎯 API call getUserRecentConsultations pour:",
+      req.user._id,
+      "limit:",
+      limit
+    );
+
     const consultations = await this._usersService.getUserRecentConsultations(
       req.user._id,
       parseInt(limit)
     );
-    
+
     const response = {
       consultations,
       count: consultations.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
-    console.log('📤 Réponse API consultations:', response);
-    
+
+    console.log("📤 Réponse API consultations:", response);
+
     return response;
   }
 
-  @Get('search')
+  @Get("search")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Rechercher des utilisateurs' })
+  @ApiOperation({ summary: "Rechercher des utilisateurs" })
   @ApiResponse({
     status: 200,
-    description: 'Utilisateurs trouvés',
+    description: "Utilisateurs trouvés",
     type: [Object],
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
   @ApiBearerAuth()
   async searchUsers(
-    @Query('search') searchQuery: string,
-    @Req() req: { user: { _id: string } },
+    @Query("search") searchQuery: string,
+    @Req() req: { user: { _id: string } }
   ): Promise<PublicUserResponse[]> {
-    console.log('[UsersController] Requête de recherche reçue');
-    console.log('[UsersController] Requête utilisateur:', req.user);
-    console.log('[UsersController] Paramètre de recherche:', searchQuery);
+    console.log("[UsersController] Requête de recherche reçue");
+    console.log("[UsersController] Requête utilisateur:", req.user);
+    console.log("[UsersController] Paramètre de recherche:", searchQuery);
 
     if (!searchQuery || searchQuery.trim().length < 2) {
-      console.log('[UsersController] Requête trop courte, retour tableau vide');
+      console.log("[UsersController] Requête trop courte, retour tableau vide");
       return [];
     }
 
-    console.log('[UsersController] Appel du service de recherche...');
+    console.log("[UsersController] Appel du service de recherche...");
     const users = await this._usersService.searchUsers(
       searchQuery,
-      req.user._id,
+      req.user._id
     );
 
     console.log(
-      '[UsersController] Utilisateurs trouvés par le service:',
-      users.length,
+      "[UsersController] Utilisateurs trouvés par le service:",
+      users.length
     );
 
     const result = users.map((user) => ({
       id: user._id.toString(),
       username: user.username,
-      nativeLanguage: user.nativeLanguage || 'fr',
-      learningLanguages: user.learningLanguages || [],
+      nativeLanguage:
+        user.nativeLanguageId?.iso639_1 ||
+        user.nativeLanguageId?.iso639_2 ||
+        user.nativeLanguageId?.iso639_3 ||
+        "fr",
+      learningLanguages:
+        user.learningLanguageIds
+          ?.map((lang) => lang.iso639_1 || lang.iso639_2 || lang.iso639_3)
+          .filter(Boolean) || [],
       profilePicture: user.profilePicture,
       bio: user.bio,
       location: user.location,
@@ -315,26 +342,26 @@ export class UsersController {
     }));
 
     console.log(
-      '[UsersController] Résultat transformé:',
+      "[UsersController] Résultat transformé:",
       result.length,
-      'utilisateurs',
+      "utilisateurs"
     );
     return result;
   }
 
-  @Get('analytics/online-contributors')
+  @Get("analytics/online-contributors")
   @ApiOperation({
-    summary: 'Obtenir le nombre de contributeurs en ligne',
+    summary: "Obtenir le nombre de contributeurs en ligne",
   })
   @ApiResponse({
     status: 200,
-    description: 'Nombre de contributeurs en ligne récupéré avec succès',
+    description: "Nombre de contributeurs en ligne récupéré avec succès",
     schema: {
-      type: 'object',
+      type: "object",
       properties: {
-        onlineContributors: { type: 'number' },
-        activeUsers: { type: 'number' },
-        timestamp: { type: 'string', format: 'date-time' },
+        onlineContributors: { type: "number" },
+        activeUsers: { type: "number" },
+        timestamp: { type: "string", format: "date-time" },
       },
     },
   })
@@ -355,62 +382,71 @@ export class UsersController {
     };
   }
 
-  @Get('debug/all-users-status')
+  @Get("debug/all-users-status")
   @ApiOperation({
-    summary: 'Debug - Voir le statut de tous les utilisateurs',
+    summary: "Debug - Voir le statut de tous les utilisateurs",
   })
   async debugAllUsersStatus(): Promise<any[]> {
     const users = await this._usersService.findAll();
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
-    return users.map(user => ({
+
+    return users.map((user) => ({
       username: user.username,
       role: user.role,
       totalWordsAdded: user.totalWordsAdded || 0,
       lastActive: user.lastActive,
       isActive: user.isActive,
       isRecentlyActive: user.lastActive && user.lastActive >= fiveMinutesAgo,
-      isContributor: (user.totalWordsAdded && user.totalWordsAdded > 0) || 
-                     ['contributor', 'admin', 'superadmin'].includes(user.role),
-      qualifiesAsOnlineContributor: user.isActive && 
-                                    user.lastActive && 
-                                    user.lastActive >= fiveMinutesAgo && 
-                                    (((user.totalWordsAdded && user.totalWordsAdded > 0) || 
-                                     ['contributor', 'admin', 'superadmin'].includes(user.role)))
+      isContributor:
+        (user.totalWordsAdded && user.totalWordsAdded > 0) ||
+        ["contributor", "admin", "superadmin"].includes(user.role),
+      qualifiesAsOnlineContributor:
+        user.isActive &&
+        user.lastActive &&
+        user.lastActive >= fiveMinutesAgo &&
+        ((user.totalWordsAdded && user.totalWordsAdded > 0) ||
+          ["contributor", "admin", "superadmin"].includes(user.role)),
     }));
   }
 
-  @Get(':username')
+  @Get(":username")
   @ApiOperation({
     summary:
       "Récupérer le profil public d'un utilisateur par son nom d'utilisateur",
   })
   @ApiResponse({
     status: 200,
-    description: 'Profil public récupéré avec succès',
+    description: "Profil public récupéré avec succès",
     type: Object,
   })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+  @ApiResponse({ status: 404, description: "Utilisateur non trouvé" })
   @ApiParam({
-    name: 'username',
+    name: "username",
     description: "Nom d'utilisateur",
-    example: 'johndoe',
+    example: "johndoe",
   })
   async getUserByUsername(
-    @Param('username') username: string,
+    @Param("username") username: string
   ): Promise<PublicUserResponse> {
     const user = (await this._usersService.findByUsername(
-      username,
+      username
     )) as UserDocument;
     if (!user || !user._id) {
-      throw new NotFoundException('Utilisateur non trouvé');
+      throw new NotFoundException("Utilisateur non trouvé");
     }
 
     return {
       id: user._id.toString(),
       username: user.username,
-      nativeLanguage: user.nativeLanguage || 'fr',
-      learningLanguages: user.learningLanguages || [],
+      nativeLanguage:
+        user.nativeLanguageId?.iso639_1 ||
+        user.nativeLanguageId?.iso639_2 ||
+        user.nativeLanguageId?.iso639_3 ||
+        "fr",
+      learningLanguages:
+        user.learningLanguageIds
+          ?.map((lang) => lang.iso639_1 || lang.iso639_2 || lang.iso639_3)
+          .filter(Boolean) || [],
       profilePicture: user.profilePicture,
       bio: user.bio,
       location: user.location,

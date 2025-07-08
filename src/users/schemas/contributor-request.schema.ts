@@ -18,9 +18,9 @@ export enum ContributorRequestPriority {
   URGENT = 'urgent',
 }
 
-@Schema({ 
+@Schema({
   timestamps: true,
-  collection: 'contributor_requests'
+  collection: 'contributor_requests',
 })
 export class ContributorRequest {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
@@ -32,44 +32,44 @@ export class ContributorRequest {
   @Prop({ required: true, trim: true, lowercase: true })
   email: string;
 
-  @Prop({ 
-    required: true, 
-    minlength: 50, 
+  @Prop({
+    required: true,
+    minlength: 50,
     maxlength: 1000,
-    trim: true 
+    trim: true,
   })
   motivation: string;
 
-  @Prop({ 
+  @Prop({
     maxlength: 500,
     trim: true,
-    default: ''
+    default: '',
   })
   experience: string;
 
-  @Prop({ 
+  @Prop({
     maxlength: 200,
     trim: true,
-    default: ''
+    default: '',
   })
   languages: string;
 
   @Prop({ required: true, default: true })
   commitment: boolean;
 
-  @Prop({ 
-    type: String, 
-    enum: ContributorRequestStatus, 
+  @Prop({
+    type: String,
+    enum: ContributorRequestStatus,
     default: ContributorRequestStatus.PENDING,
-    index: true
+    index: true,
   })
   status: ContributorRequestStatus;
 
-  @Prop({ 
-    type: String, 
-    enum: ContributorRequestPriority, 
+  @Prop({
+    type: String,
+    enum: ContributorRequestPriority,
     default: ContributorRequestPriority.MEDIUM,
-    index: true
+    index: true,
   })
   priority: ContributorRequestPriority;
 
@@ -79,15 +79,15 @@ export class ContributorRequest {
   @Prop()
   reviewedAt?: Date;
 
-  @Prop({ 
+  @Prop({
     maxlength: 500,
-    trim: true 
+    trim: true,
   })
   reviewNotes?: string;
 
-  @Prop({ 
+  @Prop({
     maxlength: 500,
-    trim: true 
+    trim: true,
   })
   rejectionReason?: string;
 
@@ -95,14 +95,16 @@ export class ContributorRequest {
   @Prop({ default: 0 })
   reviewCount: number;
 
-  @Prop([{ 
-    action: { type: String, required: true },
-    performedBy: { type: Types.ObjectId, ref: 'User', required: true },
-    performedAt: { type: Date, default: Date.now },
-    notes: { type: String, maxlength: 300 },
-    oldStatus: { type: String, enum: ContributorRequestStatus },
-    newStatus: { type: String, enum: ContributorRequestStatus }
-  }])
+  @Prop([
+    {
+      action: { type: String, required: true },
+      performedBy: { type: Types.ObjectId, ref: 'User', required: true },
+      performedAt: { type: Date, default: Date.now },
+      notes: { type: String, maxlength: 300 },
+      oldStatus: { type: String, enum: ContributorRequestStatus },
+      newStatus: { type: String, enum: ContributorRequestStatus },
+    },
+  ])
   activityLog: Array<{
     action: string;
     performedBy: Types.ObjectId;
@@ -151,28 +153,28 @@ export class ContributorRequest {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   recommendedBy?: Types.ObjectId;
 
-  @Prop({ 
+  @Prop({
     maxlength: 300,
-    trim: true 
+    trim: true,
   })
   recommendationNotes?: string;
 
   // Informations de contact supplémentaires
-  @Prop({ 
+  @Prop({
     maxlength: 100,
-    trim: true 
+    trim: true,
   })
   linkedIn?: string;
 
-  @Prop({ 
+  @Prop({
     maxlength: 100,
-    trim: true 
+    trim: true,
   })
   github?: string;
 
-  @Prop({ 
+  @Prop({
     maxlength: 200,
-    trim: true 
+    trim: true,
   })
   portfolio?: string;
 
@@ -188,7 +190,8 @@ export class ContributorRequest {
   lastNotificationSent?: Date;
 }
 
-export const ContributorRequestSchema = SchemaFactory.createForClass(ContributorRequest);
+export const ContributorRequestSchema =
+  SchemaFactory.createForClass(ContributorRequest);
 
 // Indexes pour les performances
 ContributorRequestSchema.index({ status: 1, createdAt: -1 });
@@ -199,10 +202,10 @@ ContributorRequestSchema.index({ isHighPriority: 1, status: 1 });
 ContributorRequestSchema.index({ expiresAt: 1 });
 
 // Index composé pour la pagination efficace
-ContributorRequestSchema.index({ 
-  status: 1, 
-  priority: -1, 
-  createdAt: -1 
+ContributorRequestSchema.index({
+  status: 1,
+  priority: -1,
+  createdAt: -1,
 });
 
 // Index de recherche textuelle
@@ -211,11 +214,11 @@ ContributorRequestSchema.index({
   email: 'text',
   motivation: 'text',
   experience: 'text',
-  languages: 'text'
+  languages: 'text',
 });
 
 // Middleware pour définir l'expiration automatique (30 jours)
-ContributorRequestSchema.pre('save', function(next) {
+ContributorRequestSchema.pre('save', function (next) {
   if (this.isNew && !this.expiresAt) {
     this.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 jours
   }
@@ -223,12 +226,12 @@ ContributorRequestSchema.pre('save', function(next) {
 });
 
 // Méthode pour ajouter une entrée au log d'activité
-ContributorRequestSchema.methods.addActivityLog = function(
+ContributorRequestSchema.methods.addActivityLog = function (
   action: string,
   performedBy: Types.ObjectId,
   notes?: string,
   oldStatus?: ContributorRequestStatus,
-  newStatus?: ContributorRequestStatus
+  newStatus?: ContributorRequestStatus,
 ) {
   this.activityLog.push({
     action,
@@ -236,27 +239,33 @@ ContributorRequestSchema.methods.addActivityLog = function(
     performedAt: new Date(),
     notes,
     oldStatus,
-    newStatus
+    newStatus,
   });
 };
 
 // Méthode pour calculer l'ancienneté de la demande
-ContributorRequestSchema.methods.getDaysOld = function(): number {
+ContributorRequestSchema.methods.getDaysOld = function (): number {
   const now = new Date();
   const created = new Date(this.createdAt);
-  return Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor(
+    (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24),
+  );
 };
 
 // Méthode pour vérifier si la demande va expirer bientôt
-ContributorRequestSchema.methods.isExpiringSoon = function(days: number = 7): boolean {
+ContributorRequestSchema.methods.isExpiringSoon = function (
+  days: number = 7,
+): boolean {
   if (!this.expiresAt) return false;
   const now = new Date();
-  const daysUntilExpiry = Math.floor((this.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const daysUntilExpiry = Math.floor(
+    (this.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
   return daysUntilExpiry <= days && daysUntilExpiry > 0;
 };
 
 // Méthode pour vérifier si la demande est expirée
-ContributorRequestSchema.methods.isExpired = function(): boolean {
+ContributorRequestSchema.methods.isExpired = function (): boolean {
   if (!this.expiresAt) return false;
   return new Date() > this.expiresAt;
 };

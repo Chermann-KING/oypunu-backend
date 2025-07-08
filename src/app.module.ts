@@ -1,33 +1,34 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
+import { Module, MiddlewareConsumer, NestModule } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 // import { RedisModule } from '@nestjs-modules/ioredis';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { DictionaryModule } from './dictionary/dictionary.module';
-import { HomeModule } from './home/home.module';
-import { CommunitiesModule } from './communities/communities.module';
-import { MessagingModule } from './messaging/messaging.module';
-import { AdminModule } from './admin/admin.module';
-import { TranslationModule } from './translation/translation.module';
-import { LanguagesModule } from './languages/languages.module';
-import { ActivityModule } from './common/activity.module';
-import { RecommendationsModule } from './recommendations/recommendations.module';
-import { CommunityPostsController } from './communities/controllers/community-posts.controller';
-import { CommunitiesService } from './communities/services/communities.service';
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { AuthModule } from "./auth/auth.module";
+import { UsersModule } from "./users/users.module";
+import { SecurityModule } from "./auth/security/security.module";
+import { AdminModule } from "./admin/admin.module";
+import { DictionaryModule } from "./dictionary/dictionary.module";
+import { HomeModule } from "./home/home.module";
+import { CommunitiesModule } from "./communities/communities.module";
+import { MessagingModule } from "./messaging/messaging.module";
+import { TranslationModule } from "./translation/translation.module";
+import { LanguagesModule } from "./languages/languages.module";
+import { ActivityModule } from "./common/activity.module";
+import { RecommendationsModule } from "./recommendations/recommendations.module";
+import { CommunityPostsController } from "./communities/controllers/community-posts.controller";
+import { CommunitiesService } from "./communities/services/communities.service";
 import {
   Community,
   CommunitySchema,
-} from './communities/schemas/community.schema';
+} from "./communities/schemas/community.schema";
 import {
   CommunityMember,
   CommunityMemberSchema,
-} from './communities/schemas/community-member.schema';
-import { User, UserSchema } from './users/schemas/user.schema';
-import { ActivityTrackingMiddleware } from './common/middleware/activity-tracking.middleware';
+} from "./communities/schemas/community-member.schema";
+import { User, UserSchema } from "./users/schemas/user.schema";
+import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 // import { LessonsModule } from './lessons/lessons.module';
 
 @Module({
@@ -37,22 +38,22 @@ import { ActivityTrackingMiddleware } from './common/middleware/activity-trackin
     }),
     EventEmitterModule.forRoot({
       wildcard: false,
-      delimiter: '.',
+      delimiter: ".",
       newListener: false,
       removeListener: false,
       maxListeners: 10,
       verboseMemoryLeak: false,
-      ignoreErrors: false
+      ignoreErrors: false,
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const uri = await Promise.resolve(
-          configService.get<string>('MONGODB_URI'),
+          configService.get<string>("MONGODB_URI")
         );
         if (!uri) {
           throw new Error(
-            "MONGODB_URI n'est pas définie dans les variables d'environnement",
+            "MONGODB_URI n'est pas définie dans les variables d'environnement"
           );
         }
         return { uri };
@@ -87,6 +88,7 @@ import { ActivityTrackingMiddleware } from './common/middleware/activity-trackin
       { name: CommunityMember.name, schema: CommunityMemberSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    SecurityModule,
     AuthModule,
     UsersModule,
     DictionaryModule,
@@ -107,7 +109,13 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(ActivityTrackingMiddleware)
-      .exclude('/', '/auth/login', '/auth/register', '/users/analytics/online-contributors', '/users/allusers')
-      .forRoutes('*'); // Appliquer aux routes qui peuvent être authentifiées
+      .exclude(
+        "/",
+        "/auth/login",
+        "/auth/register",
+        "/users/analytics/online-contributors",
+        "/users/allusers"
+      )
+      .forRoutes("*"); // Appliquer aux routes qui peuvent être authentifiées
   }
 }

@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { MailService } from '../../common/services/mail.service';
-import { User, UserDocument } from '../schemas/user.schema';
-import { ContributorRequest, ContributorRequestDocument } from '../schemas/contributor-request.schema';
+import { Injectable } from "@nestjs/common";
+import { OnEvent } from "@nestjs/event-emitter";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { MailService } from "../../common/services/mail.service";
+import { User, UserDocument } from "../schemas/user.schema";
+import {
+  ContributorRequest,
+  ContributorRequestDocument,
+} from "../schemas/contributor-request.schema";
 
 export interface ContributorRequestCreatedEvent {
   requestId: string;
@@ -32,11 +35,12 @@ export interface UserPromotedEvent {
 export class ContributorRequestListener {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(ContributorRequest.name) private contributorRequestModel: Model<ContributorRequestDocument>,
-    private mailService: MailService,
+    @InjectModel(ContributorRequest.name)
+    private contributorRequestModel: Model<ContributorRequestDocument>,
+    private mailService: MailService
   ) {}
 
-  @OnEvent('contributor.request.created')
+  @OnEvent("contributor.request.created")
   async handleRequestCreated(event: ContributorRequestCreatedEvent) {
     try {
       // Envoyer un email de confirmation au demandeur
@@ -53,17 +57,22 @@ export class ContributorRequestListener {
       await this.notifyAdminsOfNewRequest(event);
 
       // Si priorité élevée, notification urgente
-      if (event.priority === 'high' || event.priority === 'urgent') {
+      if (event.priority === "high" || event.priority === "urgent") {
         await this.notifyAdminsUrgent(event);
       }
 
-      console.log(`✅ Notifications envoyées pour la nouvelle demande ${event.requestId}`);
+      console.log(
+        `✅ Notifications envoyées pour la nouvelle demande ${event.requestId}`
+      );
     } catch (error) {
-      console.error('❌ Erreur lors de l\'envoi des notifications de création:', error);
+      console.error(
+        "❌ Erreur lors de l'envoi des notifications de création:",
+        error
+      );
     }
   }
 
-  @OnEvent('contributor.request.reviewed')
+  @OnEvent("contributor.request.reviewed")
   async handleRequestReviewed(event: ContributorRequestReviewedEvent) {
     try {
       const [request, user, reviewer] = await Promise.all([
@@ -73,36 +82,38 @@ export class ContributorRequestListener {
       ]);
 
       if (!request || !user) {
-        console.error(`❌ Données manquantes pour la notification de révision ${event.requestId}`);
+        console.error(
+          `❌ Données manquantes pour la notification de révision ${event.requestId}`
+        );
         return;
       }
 
       // Envoyer un email selon le nouveau statut
       switch (event.newStatus) {
-        case 'approved':
+        case "approved":
           await this.mailService.sendContributorRequestApproved({
             to: user.email,
             username: user.username,
-            reviewerName: reviewer?.username || 'L\'équipe admin',
+            reviewerName: reviewer?.username || "L'équipe admin",
             reviewNotes: event.reviewNotes,
           });
           break;
 
-        case 'rejected':
+        case "rejected":
           await this.mailService.sendContributorRequestRejected({
             to: user.email,
             username: user.username,
-            reviewerName: reviewer?.username || 'L\'équipe admin',
+            reviewerName: reviewer?.username || "L'équipe admin",
             rejectionReason: request.rejectionReason,
             reviewNotes: event.reviewNotes,
           });
           break;
 
-        case 'under_review':
+        case "under_review":
           await this.mailService.sendContributorRequestUnderReview({
             to: user.email,
             username: user.username,
-            reviewerName: reviewer?.username || 'L\'équipe admin',
+            reviewerName: reviewer?.username || "L'équipe admin",
             reviewNotes: event.reviewNotes,
           });
           break;
@@ -114,18 +125,25 @@ export class ContributorRequestListener {
         lastNotificationSent: new Date(),
       });
 
-      console.log(`✅ Notification de révision envoyée pour ${event.requestId} (${event.newStatus})`);
+      console.log(
+        `✅ Notification de révision envoyée pour ${event.requestId} (${event.newStatus})`
+      );
     } catch (error) {
-      console.error('❌ Erreur lors de l\'envoi des notifications de révision:', error);
+      console.error(
+        "❌ Erreur lors de l'envoi des notifications de révision:",
+        error
+      );
     }
   }
 
-  @OnEvent('user.promoted')
+  @OnEvent("user.promoted")
   async handleUserPromoted(event: UserPromotedEvent) {
     try {
       const user = await this.userModel.findById(event.userId);
       if (!user) {
-        console.error(`❌ Utilisateur ${event.userId} non trouvé pour la promotion`);
+        console.error(
+          `❌ Utilisateur ${event.userId} non trouvé pour la promotion`
+        );
         return;
       }
 
@@ -137,22 +155,29 @@ export class ContributorRequestListener {
         promotedAt: event.promotedAt,
       });
 
-      console.log(`✅ Email de bienvenue envoyé au nouveau contributeur ${user.username}`);
+      console.log(
+        `✅ Email de bienvenue envoyé au nouveau contributeur ${user.username}`
+      );
     } catch (error) {
-      console.error('❌ Erreur lors de l\'envoi de l\'email de promotion:', error);
+      console.error(
+        "❌ Erreur lors de l'envoi de l'email de promotion:",
+        error
+      );
     }
   }
 
-  private async notifyAdminsOfNewRequest(event: ContributorRequestCreatedEvent) {
+  private async notifyAdminsOfNewRequest(
+    event: ContributorRequestCreatedEvent
+  ) {
     try {
       // Récupérer tous les administrateurs
       const admins = await this.userModel.find({
-        role: { $in: ['admin', 'superadmin'] },
+        role: { $in: ["admin", "superadmin"] },
         isActive: true,
       });
 
       // Envoyer une notification à chaque admin
-      const notifications = admins.map(admin =>
+      const notifications = admins.map((admin) =>
         this.mailService.sendAdminNewContributorRequest({
           to: admin.email,
           adminName: admin.username,
@@ -163,28 +188,32 @@ export class ContributorRequestListener {
       );
 
       await Promise.allSettled(notifications);
-      console.log(`✅ ${admins.length} administrateurs notifiés de la nouvelle demande`);
+      console.log(
+        `✅ ${admins.length} administrateurs notifiés de la nouvelle demande`
+      );
     } catch (error) {
-      console.error('❌ Erreur lors de la notification des admins:', error);
+      console.error("❌ Erreur lors de la notification des admins:", error);
     }
   }
 
   private async notifyAdminsUrgent(event: ContributorRequestCreatedEvent) {
     try {
-      // Pour les demandes urgentes, on peut ajouter d'autres canaux de notification
-      // Par exemple : Slack, Discord, SMS, etc.
-      
+      // ?Pour les demandes urgentes, on peut ajouter d'autres canaux de notification
+      // ?Par exemple : Slack, Discord, SMS, etc.
+
       // Ici on se contente de marquer dans les logs
-      console.log(`🚨 DEMANDE URGENTE: ${event.requestId} de ${event.username} (priorité: ${event.priority})`);
-      
+      console.log(
+        `🚨 DEMANDE URGENTE: ${event.requestId} de ${event.username} (priorité: ${event.priority})`
+      );
+
       // TODO: Implémenter les notifications urgentes (Slack, webhooks, etc.)
     } catch (error) {
-      console.error('❌ Erreur lors de la notification urgente:', error);
+      console.error("❌ Erreur lors de la notification urgente:", error);
     }
   }
 
   // Méthode pour nettoyer les demandes expirées et envoyer des rappels
-  @OnEvent('contributor.request.cleanup')
+  @OnEvent("contributor.request.cleanup")
   async handleCleanupAndReminders() {
     try {
       const now = new Date();
@@ -193,11 +222,11 @@ export class ContributorRequestListener {
       // Trouver les demandes qui expirent dans 7 jours
       const expiringSoon = await this.contributorRequestModel
         .find({
-          status: 'pending',
+          status: "pending",
           expiresAt: { $lte: weekFromNow, $gt: now },
           applicantNotified: false,
         })
-        .populate('userId', 'username email');
+        .populate("userId", "username email");
 
       // Envoyer des rappels
       for (const request of expiringSoon) {
@@ -221,18 +250,18 @@ export class ContributorRequestListener {
 
       // Nettoyer les demandes expirées
       const expired = await this.contributorRequestModel.deleteMany({
-        status: 'pending',
+        status: "pending",
         expiresAt: { $lt: now },
       });
 
       console.log(`🗑️ ${expired.deletedCount} demandes expirées supprimées`);
     } catch (error) {
-      console.error('❌ Erreur lors du nettoyage des demandes:', error);
+      console.error("❌ Erreur lors du nettoyage des demandes:", error);
     }
   }
 
   // Méthode pour les statistiques périodiques
-  @OnEvent('contributor.request.weekly.stats')
+  @OnEvent("contributor.request.weekly.stats")
   async handleWeeklyStats() {
     try {
       const now = new Date();
@@ -250,17 +279,17 @@ export class ContributorRequestListener {
             total: { $sum: 1 },
             pending: {
               $sum: {
-                $cond: [{ $eq: ['$status', 'pending'] }, 1, 0],
+                $cond: [{ $eq: ["$status", "pending"] }, 1, 0],
               },
             },
             approved: {
               $sum: {
-                $cond: [{ $eq: ['$status', 'approved'] }, 1, 0],
+                $cond: [{ $eq: ["$status", "approved"] }, 1, 0],
               },
             },
             rejected: {
               $sum: {
-                $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0],
+                $cond: [{ $eq: ["$status", "rejected"] }, 1, 0],
               },
             },
           },
@@ -270,11 +299,11 @@ export class ContributorRequestListener {
       if (stats) {
         // Envoyer un rapport hebdomadaire aux super admins
         const superAdmins = await this.userModel.find({
-          role: 'superadmin',
+          role: "superadmin",
           isActive: true,
         });
 
-        const reports = superAdmins.map(admin =>
+        const reports = superAdmins.map((admin) =>
           this.mailService.sendWeeklyContributorStats({
             to: admin.email,
             adminName: admin.username,
@@ -283,16 +312,21 @@ export class ContributorRequestListener {
               pending: stats.pending,
               approved: stats.approved,
               rejected: stats.rejected,
-              week: weekAgo.toISOString().split('T')[0],
+              week: weekAgo.toISOString().split("T")[0],
             },
           })
         );
 
         await Promise.allSettled(reports);
-        console.log(`📊 Rapport hebdomadaire envoyé à ${superAdmins.length} super admins`);
+        console.log(
+          `📊 Rapport hebdomadaire envoyé à ${superAdmins.length} super admins`
+        );
       }
     } catch (error) {
-      console.error('❌ Erreur lors de l\'envoi du rapport hebdomadaire:', error);
+      console.error(
+        "❌ Erreur lors de l'envoi du rapport hebdomadaire:",
+        error
+      );
     }
   }
 }

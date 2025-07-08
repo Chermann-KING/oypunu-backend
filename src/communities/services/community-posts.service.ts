@@ -103,12 +103,12 @@ export class CommunityPostsService {
 
   private _buildSortQuery(sortBy: string, timeRange?: string) {
     let sort: any = {};
-    let timeFilter: any = {};
+    const timeFilter: any = {};
 
     // Filtre temporel si spécifié
     if (timeRange && timeRange !== 'all') {
       const now = new Date();
-      let startDate = new Date();
+      const startDate = new Date();
 
       switch (timeRange) {
         case 'day':

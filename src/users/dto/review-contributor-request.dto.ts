@@ -1,33 +1,37 @@
-import { 
-  IsString, 
-  IsEnum, 
-  IsOptional, 
-  MaxLength, 
-  IsNumber, 
-  Min, 
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  MaxLength,
+  IsNumber,
+  Min,
   Max,
   IsArray,
   IsBoolean,
   ValidateNested,
-  IsObject
+  IsObject,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ContributorRequestStatus, ContributorRequestPriority } from '../schemas/contributor-request.schema';
+import {
+  ContributorRequestStatus,
+  ContributorRequestPriority,
+} from '../schemas/contributor-request.schema';
 
 export class ReviewContributorRequestDto {
   @ApiProperty({
     description: 'Action à effectuer sur la demande',
     enum: ContributorRequestStatus,
-    example: ContributorRequestStatus.APPROVED
+    example: ContributorRequestStatus.APPROVED,
   })
   @IsEnum(ContributorRequestStatus)
   status: ContributorRequestStatus;
 
   @ApiPropertyOptional({
-    description: 'Notes de révision de l\'administrateur',
-    example: 'Candidat très motivé avec une excellente expérience linguistique.',
-    maxLength: 500
+    description: "Notes de révision de l'administrateur",
+    example:
+      'Candidat très motivé avec une excellente expérience linguistique.',
+    maxLength: 500,
   })
   @IsOptional()
   @IsString()
@@ -36,8 +40,9 @@ export class ReviewContributorRequestDto {
 
   @ApiPropertyOptional({
     description: 'Raison du rejet (requis si status = rejected)',
-    example: 'Expérience linguistique insuffisante pour le rôle de contributeur.',
-    maxLength: 500
+    example:
+      'Expérience linguistique insuffisante pour le rôle de contributeur.',
+    maxLength: 500,
   })
   @IsOptional()
   @IsString()
@@ -45,10 +50,10 @@ export class ReviewContributorRequestDto {
   rejectionReason?: string;
 
   @ApiPropertyOptional({
-    description: 'Score d\'évaluation (0-100)',
+    description: "Score d'évaluation (0-100)",
     example: 85,
     minimum: 0,
-    maximum: 100
+    maximum: 100,
   })
   @IsOptional()
   @IsNumber()
@@ -57,8 +62,12 @@ export class ReviewContributorRequestDto {
   evaluationScore?: number;
 
   @ApiPropertyOptional({
-    description: 'Critères d\'évaluation',
-    example: ['Motivation excellente', 'Expérience pertinente', 'Engagement communautaire']
+    description: "Critères d'évaluation",
+    example: [
+      'Motivation excellente',
+      'Expérience pertinente',
+      'Engagement communautaire',
+    ],
   })
   @IsOptional()
   @IsArray()
@@ -67,7 +76,7 @@ export class ReviewContributorRequestDto {
 
   @ApiPropertyOptional({
     description: 'Évaluation des compétences par domaine',
-    example: { 'linguistique': 90, 'communication': 85, 'technique': 70 }
+    example: { linguistique: 90, communication: 85, technique: 70 },
   })
   @IsOptional()
   @IsObject()
@@ -75,7 +84,7 @@ export class ReviewContributorRequestDto {
 
   @ApiPropertyOptional({
     description: 'Marquer comme priorité élevée',
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -83,7 +92,7 @@ export class ReviewContributorRequestDto {
 
   @ApiPropertyOptional({
     description: 'Nécessite une révision spéciale',
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -94,15 +103,15 @@ export class UpdateContributorRequestPriorityDto {
   @ApiProperty({
     description: 'Nouvelle priorité de la demande',
     enum: ContributorRequestPriority,
-    example: ContributorRequestPriority.HIGH
+    example: ContributorRequestPriority.HIGH,
   })
   @IsEnum(ContributorRequestPriority)
   priority: ContributorRequestPriority;
 
   @ApiPropertyOptional({
     description: 'Raison du changement de priorité',
-    example: 'Candidat recommandé par un membre de l\'équipe',
-    maxLength: 300
+    example: "Candidat recommandé par un membre de l'équipe",
+    maxLength: 300,
   })
   @IsOptional()
   @IsString()
@@ -113,7 +122,7 @@ export class UpdateContributorRequestPriorityDto {
 export class BulkActionDto {
   @ApiProperty({
     description: 'IDs des demandes à traiter',
-    example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012']
+    example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'],
   })
   @IsArray()
   @IsString({ each: true })
@@ -122,14 +131,14 @@ export class BulkActionDto {
   @ApiProperty({
     description: 'Action à effectuer',
     enum: ContributorRequestStatus,
-    example: ContributorRequestStatus.UNDER_REVIEW
+    example: ContributorRequestStatus.UNDER_REVIEW,
   })
   @IsEnum(ContributorRequestStatus)
   action: ContributorRequestStatus;
 
   @ApiPropertyOptional({
-    description: 'Notes pour l\'action groupée',
-    maxLength: 300
+    description: "Notes pour l'action groupée",
+    maxLength: 300,
   })
   @IsOptional()
   @IsString()
@@ -140,7 +149,7 @@ export class BulkActionDto {
 export class ContributorRequestFiltersDto {
   @ApiPropertyOptional({
     description: 'Filtrer par statut',
-    enum: ContributorRequestStatus
+    enum: ContributorRequestStatus,
   })
   @IsOptional()
   @IsEnum(ContributorRequestStatus)
@@ -148,7 +157,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Filtrer par priorité',
-    enum: ContributorRequestPriority
+    enum: ContributorRequestPriority,
   })
   @IsOptional()
   @IsEnum(ContributorRequestPriority)
@@ -156,7 +165,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Recherche textuelle',
-    example: 'linguistique'
+    example: 'linguistique',
   })
   @IsOptional()
   @IsString()
@@ -165,7 +174,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Filtrer par reviewer',
-    example: '507f1f77bcf86cd799439011'
+    example: '507f1f77bcf86cd799439011',
   })
   @IsOptional()
   @IsString()
@@ -173,7 +182,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Afficher seulement les priorités élevées',
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -181,7 +190,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Afficher seulement celles nécessitant une révision spéciale',
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -189,7 +198,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Nombre de jours depuis la création (max)',
-    example: 30
+    example: 30,
   })
   @IsOptional()
   @IsNumber()
@@ -199,7 +208,7 @@ export class ContributorRequestFiltersDto {
 
   @ApiPropertyOptional({
     description: 'Afficher seulement celles expirant bientôt',
-    example: false
+    example: false,
   })
   @IsOptional()
   @IsBoolean()

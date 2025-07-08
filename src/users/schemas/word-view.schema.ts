@@ -7,10 +7,20 @@ export type WordViewDocument = WordView & Document;
 
 @Schema({ timestamps: true })
 export class WordView {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true,
+  })
   userId: User;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Word', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Word',
+    required: true,
+    index: true,
+  })
   wordId: Word;
 
   @Prop({ type: String, required: true })
@@ -22,7 +32,11 @@ export class WordView {
   @Prop({ type: Date, default: Date.now, index: true })
   viewedAt: Date;
 
-  @Prop({ type: String, enum: ['search', 'direct', 'favorite', 'recommendation'], default: 'direct' })
+  @Prop({
+    type: String,
+    enum: ['search', 'direct', 'favorite', 'recommendation'],
+    default: 'direct',
+  })
   viewType: string; // Comment l'utilisateur a trouvé ce mot
 
   @Prop({ type: Number, default: 1 })

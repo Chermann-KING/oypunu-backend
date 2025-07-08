@@ -25,7 +25,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../schemas/user.schema';
-import { ContributorRequestStatus, ContributorRequestPriority } from '../schemas/contributor-request.schema';
+import {
+  ContributorRequestStatus,
+  ContributorRequestPriority,
+} from '../schemas/contributor-request.schema';
 import { CreateContributorRequestDto } from '../dto/create-contributor-request.dto';
 import {
   ReviewContributorRequestDto,
@@ -97,17 +100,47 @@ export class ContributorRequestController {
   @Get()
   @Roles('admin', 'superadmin')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Récupérer la liste des demandes de contribution (Admin)' })
+  @ApiOperation({
+    summary: 'Récupérer la liste des demandes de contribution (Admin)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected', 'under_review'] })
-  @ApiQuery({ name: 'priority', required: false, enum: ['low', 'medium', 'high', 'urgent'] })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Recherche textuelle' })
-  @ApiQuery({ name: 'reviewedBy', required: false, type: String, description: 'ID du reviewer' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'approved', 'rejected', 'under_review'],
+  })
+  @ApiQuery({
+    name: 'priority',
+    required: false,
+    enum: ['low', 'medium', 'high', 'urgent'],
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Recherche textuelle',
+  })
+  @ApiQuery({
+    name: 'reviewedBy',
+    required: false,
+    type: String,
+    description: 'ID du reviewer',
+  })
   @ApiQuery({ name: 'highPriorityOnly', required: false, type: Boolean })
   @ApiQuery({ name: 'specialReviewOnly', required: false, type: Boolean })
-  @ApiQuery({ name: 'maxDaysOld', required: false, type: Number, description: 'Demandes de moins de X jours' })
-  @ApiQuery({ name: 'expiringSoon', required: false, type: Boolean, description: 'Demandes expirant bientôt' })
+  @ApiQuery({
+    name: 'maxDaysOld',
+    required: false,
+    type: Number,
+    description: 'Demandes de moins de X jours',
+  })
+  @ApiQuery({
+    name: 'expiringSoon',
+    required: false,
+    type: Boolean,
+    description: 'Demandes expirant bientôt',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Liste des demandes récupérée avec succès',
@@ -155,7 +188,10 @@ export class ContributorRequestController {
     @Param('id') requestId: string,
     @Request() req: { user: JwtUser },
   ) {
-    return this.contributorRequestService.getRequestById(requestId, req.user.role);
+    return this.contributorRequestService.getRequestById(
+      requestId,
+      req.user.role,
+    );
   }
 
   @Patch(':id/review')
@@ -196,7 +232,7 @@ export class ContributorRequestController {
   @Patch(':id/priority')
   @Roles('admin', 'superadmin')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Mettre à jour la priorité d\'une demande (Admin)' })
+  @ApiOperation({ summary: "Mettre à jour la priorité d'une demande (Admin)" })
   @ApiParam({ name: 'id', description: 'ID de la demande' })
   @ApiBody({ type: UpdateContributorRequestPriorityDto })
   @ApiResponse({
@@ -261,7 +297,9 @@ export class ContributorRequestController {
   @Get('pending/quick-view')
   @Roles('contributor', 'admin', 'superadmin')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Vue rapide des demandes en attente (Contributeurs+)' })
+  @ApiOperation({
+    summary: 'Vue rapide des demandes en attente (Contributeurs+)',
+  })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -306,8 +344,16 @@ export class ContributorRequestController {
     schema: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['recommend', 'flag'], example: 'recommend' },
-        notes: { type: 'string', maxLength: 300, example: 'Candidat prometteur' },
+        action: {
+          type: 'string',
+          enum: ['recommend', 'flag'],
+          example: 'recommend',
+        },
+        notes: {
+          type: 'string',
+          maxLength: 300,
+          example: 'Candidat prometteur',
+        },
       },
       required: ['action'],
     },
@@ -330,7 +376,10 @@ export class ContributorRequestController {
       // Marquer comme recommandé par un contributeur
       return this.contributorRequestService.updatePriority(
         requestId,
-        { priority: ContributorRequestPriority.HIGH, reason: `Recommandé par ${req.user.username}: ${body.notes || ''}` },
+        {
+          priority: ContributorRequestPriority.HIGH,
+          reason: `Recommandé par ${req.user.username}: ${body.notes || ''}`,
+        },
         contributorId,
         req.user.role,
       );
@@ -338,7 +387,10 @@ export class ContributorRequestController {
       // Marquer pour révision spéciale
       return this.contributorRequestService.updatePriority(
         requestId,
-        { priority: ContributorRequestPriority.URGENT, reason: `Signalé par ${req.user.username}: ${body.notes || ''}` },
+        {
+          priority: ContributorRequestPriority.URGENT,
+          reason: `Signalé par ${req.user.username}: ${body.notes || ''}`,
+        },
         contributorId,
         req.user.role,
       );

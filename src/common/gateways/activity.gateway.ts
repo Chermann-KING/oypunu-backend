@@ -5,7 +5,7 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
   MessageBody,
-  ConnectedSocket
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -14,7 +14,10 @@ import { ActivityService } from '../services/activity.service';
 import { ActivityFeed } from '../schemas/activity-feed.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Language, LanguageDocument } from '../../languages/schemas/language.schema';
+import {
+  Language,
+  LanguageDocument,
+} from '../../languages/schemas/language.schema';
 
 type ActivitySocket = Socket & {
   userId?: string;
@@ -28,7 +31,9 @@ type ActivitySocket = Socket & {
   },
   namespace: '/activities',
 })
-export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ActivityGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -38,21 +43,21 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
   constructor(
     private readonly activityService: ActivityService,
     @InjectModel(Language.name)
-    private languageModel: Model<LanguageDocument>
+    private languageModel: Model<LanguageDocument>,
   ) {}
 
   async handleConnection(client: ActivitySocket) {
     try {
       this.connectedClients.add(client.id);
       this.logger.log(`Client connecté aux activités: ${client.id}`);
-      
+
       // Envoyer les activités récentes au nouveau client
-      const recentActivities = await this.activityService.getRecentActivities(10);
+      const recentActivities =
+        await this.activityService.getRecentActivities(10);
       client.emit('activities:recent', recentActivities);
-      
+
       // Notifier le nombre de clients connectés
       this.server.emit('activities:clients_count', this.connectedClients.size);
-      
     } catch (error) {
       this.logger.error('Erreur lors de la connexion:', error);
       client.disconnect();
@@ -62,7 +67,7 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
   async handleDisconnect(client: ActivitySocket) {
     this.connectedClients.delete(client.id);
     this.logger.log(`Client déconnecté des activités: ${client.id}`);
-    
+
     // Notifier le nouveau nombre de clients
     this.server.emit('activities:clients_count', this.connectedClients.size);
   }
@@ -70,62 +75,71 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
   @SubscribeMessage('activities:request_recent')
   async handleRequestRecent(
     @ConnectedSocket() client: ActivitySocket,
-    @MessageBody() data: { limit?: number; prioritizeAfrican?: boolean }
+    @MessageBody() data: { limit?: number; prioritizeAfrican?: boolean },
   ) {
     try {
       const activities = await this.activityService.getRecentActivities(
         data.limit || 10,
-        data.prioritizeAfrican !== false
+        data.prioritizeAfrican !== false,
       );
-      
+
       client.emit('activities:recent', activities);
     } catch (error) {
       this.logger.error('Erreur lors de la récupération des activités:', error);
-      client.emit('activities:error', { message: 'Erreur lors de la récupération des activités' });
+      client.emit('activities:error', {
+        message: 'Erreur lors de la récupération des activités',
+      });
     }
   }
 
   @SubscribeMessage('activities:request_by_type')
   async handleRequestByType(
     @ConnectedSocket() client: ActivitySocket,
-    @MessageBody() data: { activityType: string; limit?: number }
+    @MessageBody() data: { activityType: string; limit?: number },
   ) {
     try {
       const activities = await this.activityService.getActivitiesByType(
         data.activityType as any,
-        data.limit || 5
+        data.limit || 5,
       );
-      
+
       client.emit('activities:by_type', {
         activityType: data.activityType,
-        activities
+        activities,
       });
     } catch (error) {
-      this.logger.error('Erreur lors de la récupération des activités par type:', error);
-      client.emit('activities:error', { message: 'Erreur lors de la récupération des activités' });
+      this.logger.error(
+        'Erreur lors de la récupération des activités par type:',
+        error,
+      );
+      client.emit('activities:error', {
+        message: 'Erreur lors de la récupération des activités',
+      });
     }
   }
 
   // Écouter les événements d'activité pour diffusion temps réel
   @OnEvent('activity.created')
-  async handleActivityCreated(payload: { activity: ActivityFeed; userId: string }) {
+  async handleActivityCreated(payload: {
+    activity: ActivityFeed;
+    userId: string;
+  }) {
     try {
       const { activity } = payload;
-      
+
       console.log('🔴 Diffusion nouvelle activité:', {
         type: activity.activityType,
         user: activity.username,
-        clients: this.connectedClients.size
+        clients: this.connectedClients.size,
       });
 
       // Diffuser la nouvelle activité à tous les clients connectés
       this.server.emit('activities:new', {
         activity: await this.formatActivityForFrontend(activity),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
-      this.logger.error('Erreur lors de la diffusion d\'activité:', error);
+      this.logger.error("Erreur lors de la diffusion d'activité:", error);
     }
   }
 
@@ -136,11 +150,13 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   // Formater l'activité pour le frontend
-  private async formatActivityForFrontend(activity: ActivityFeed | any): Promise<any> {
+  private async formatActivityForFrontend(
+    activity: ActivityFeed | any,
+  ): Promise<any> {
     console.log('🔧 Formatage activité:', {
       type: activity.activityType,
       username: activity.username,
-      metadata: activity.metadata
+      metadata: activity.metadata,
     });
 
     const formatted: any = {
@@ -157,7 +173,7 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
       isPublic: activity.isPublic,
       timeAgo: this.getTimeAgo(activity.createdAt),
       message: '',
-      flag: ''
+      flag: '',
     };
 
     // Générer le message d'activité localisé
@@ -170,42 +186,42 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
   // Générer le message d'activité en français
   private async generateActivityMessage(activity: any): Promise<string> {
     const { activityType, metadata, username } = activity;
-    
+
     switch (activityType) {
       case 'word_created':
         return `a ajouté "${metadata.wordName}"`;
-      
+
       case 'translation_added':
         return `a traduit "${metadata.wordName}" vers ${await this.getLanguageName(metadata.targetLanguageCode)}`;
-      
+
       case 'synonym_added':
         const count = metadata.synonymsCount || 1;
         return `a ajouté ${count} synonyme${count > 1 ? 's' : ''}`;
-      
+
       case 'word_approved':
         return `a approuvé "${metadata.wordName}"`;
-      
+
       case 'word_verified':
         return `a vérifié une traduction`;
-      
+
       case 'community_post_created':
         return `a publié dans ${metadata.communityName}`;
-      
+
       case 'user_registered':
         return `a rejoint O'Ypunu`;
-      
+
       case 'user_logged_in':
         return `s'est connecté(e)`;
-      
+
       case 'community_joined':
         return `a rejoint ${metadata.communityName}`;
-      
+
       case 'community_created':
         return `a créé la communauté ${metadata.communityName}`;
-      
+
       case 'comment_added':
         return `a commenté dans ${metadata.communityName}`;
-      
+
       default:
         return 'a effectué une action';
     }
@@ -216,13 +232,15 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
     if (!languageCode) return 'une langue';
 
     try {
-      const language = await this.languageModel.findOne({
-        $or: [
-          { iso639_1: languageCode },
-          { iso639_2: languageCode },
-          { iso639_3: languageCode }
-        ]
-      }).exec();
+      const language = await this.languageModel
+        .findOne({
+          $or: [
+            { iso639_1: languageCode },
+            { iso639_2: languageCode },
+            { iso639_3: languageCode },
+          ],
+        })
+        .exec();
 
       if (language) {
         return `le ${language.nativeName || language.name}`;
@@ -234,24 +252,42 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
     // Fallback vers les mappings statiques
     const nameMap: { [key: string]: string } = {
       // Langues africaines
-      'yo': 'le yorùbá', 'ha': 'l\'hausa', 'ig': 'l\'igbo',
-      'ff': 'le fulfulde', 'wo': 'le wolof', 'bm': 'le bambara',
-      'ln': 'le lingala', 'kg': 'le kikongo', 'sw': 'le kiswahili',
-      'rw': 'le kinyarwanda', 'zu': 'le zulu', 'xh': 'le xhosa',
-      'af': 'l\'afrikaans', 'ar': 'l\'arabe', 'ber': 'le berbère',
-      'am': 'l\'amharique', 'om': 'l\'oromo', 'so': 'le somali',
-      'mg': 'le malgache',
-      
+      yo: 'le yorùbá',
+      ha: "l'hausa",
+      ig: "l'igbo",
+      ff: 'le fulfulde',
+      wo: 'le wolof',
+      bm: 'le bambara',
+      ln: 'le lingala',
+      kg: 'le kikongo',
+      sw: 'le kiswahili',
+      rw: 'le kinyarwanda',
+      zu: 'le zulu',
+      xh: 'le xhosa',
+      af: "l'afrikaans",
+      ar: "l'arabe",
+      ber: 'le berbère',
+      am: "l'amharique",
+      om: "l'oromo",
+      so: 'le somali',
+      mg: 'le malgache',
+
       // Autres langues
-      'fr': 'le français', 'en': 'l\'anglais', 'es': 'l\'espagnol',
-      'de': 'l\'allemand', 'it': 'l\'italien', 'pt': 'le portugais',
-      'ja': 'le japonais', 'ko': 'le coréen', 'zh': 'le chinois',
-      'hi': 'l\'hindi', 'ru': 'le russe'
+      fr: 'le français',
+      en: "l'anglais",
+      es: "l'espagnol",
+      de: "l'allemand",
+      it: "l'italien",
+      pt: 'le portugais',
+      ja: 'le japonais',
+      ko: 'le coréen',
+      zh: 'le chinois',
+      hi: "l'hindi",
+      ru: 'le russe',
     };
 
     return nameMap[languageCode] || 'une langue';
   }
-
 
   // Calculer le temps écoulé
   private getTimeAgo(createdAt: Date): string {
@@ -260,7 +296,7 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
     const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
 
     if (diffInMinutes < 1) {
-      return 'à l\'instant';
+      return "à l'instant";
     } else if (diffInMinutes === 1) {
       return 'il y a 1 min';
     } else if (diffInMinutes < 60) {
@@ -290,15 +326,15 @@ export class ActivityGateway implements OnGatewayConnection, OnGatewayDisconnect
       activityType: 'word_created',
       metadata: {
         wordName: 'test',
-        languageCode: 'yo'
+        languageCode: 'yo',
       },
       createdAt: new Date(),
-      timeAgo: 'à l\'instant'
+      timeAgo: "à l'instant",
     };
 
     this.server.emit('activities:new', {
       activity: await this.formatActivityForFrontend(testActivity),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }

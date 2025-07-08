@@ -69,28 +69,28 @@ export class Language {
   @Prop({ type: [LanguageScript], default: [] })
   scripts: LanguageScript[]; // Scripts d'écriture supportés
 
-  @Prop({ 
-    required: true, 
+  @Prop({
+    required: true,
     enum: ['major', 'regional', 'local', 'liturgical', 'extinct'],
     default: 'local',
-    index: true 
+    index: true,
   })
   status: string; // Statut de la langue
 
-  @Prop({ 
-    required: true, 
+  @Prop({
+    required: true,
     enum: ['active', 'proposed', 'deprecated'],
     default: 'proposed',
-    index: true 
+    index: true,
   })
   systemStatus: string; // Statut dans le système
 
   @Prop({ type: Number, default: 0 })
   speakerCount: number; // Nombre approximatif de locuteurs
 
-  @Prop({ 
+  @Prop({
     enum: ['endangered', 'vulnerable', 'safe', 'unknown'],
-    default: 'unknown' 
+    default: 'unknown',
   })
   endangermentStatus?: string; // Statut d'endangement UNESCO
 
@@ -173,8 +173,8 @@ LanguageSchema.index({ wordCount: -1, systemStatus: 1 });
 LanguageSchema.index({ systemStatus: 1, isFeatured: -1, sortOrder: 1 });
 
 // Index de recherche textuelle
-LanguageSchema.index({ 
-  name: 'text', 
-  nativeName: 'text', 
-  alternativeNames: 'text' 
+LanguageSchema.index({
+  name: 'text',
+  nativeName: 'text',
+  alternativeNames: 'text',
 });

@@ -6,13 +6,13 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from "@nestjs/websockets";
-import { Server, Socket } from "socket.io";
-import { MessagingService } from "../services/messaging.service";
-import { SendMessageDto } from "../dto/send-message.dto";
-import { JwtService } from "@nestjs/jwt";
-import { Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { MessagingService } from '../services/messaging.service';
+import { SendMessageDto } from '../dto/send-message.dto';
+import { JwtService } from '@nestjs/jwt';
+import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 type AuthenticatedSocket = Socket & {
   userId?: string;
@@ -21,10 +21,10 @@ type AuthenticatedSocket = Socket & {
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:4200",
+    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
     credentials: true,
   },
-  namespace: "/messaging",
+  namespace: '/messaging',
 })
 export class MessagingGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -38,7 +38,7 @@ export class MessagingGateway
   constructor(
     private readonly _messagingService: MessagingService,
     private readonly _jwtService: JwtService,
-    private readonly _configService: ConfigService
+    private readonly _configService: ConfigService,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
@@ -56,7 +56,7 @@ export class MessagingGateway
       }
 
       const payload = this._jwtService.verify(token, {
-        secret: this._configService.get<string>("JWT_SECRET"),
+        secret: this._configService.get<string>('JWT_SECRET'),
       });
 
       client.userId = payload.sub;
@@ -71,11 +71,11 @@ export class MessagingGateway
       client.join(`user_${client.userId}`);
 
       this.logger.log(
-        `✅ Utilisateur ${client.username} (${client.userId}) connecté via WebSocket`
+        `✅ Utilisateur ${client.username} (${client.userId}) connecté via WebSocket`,
       );
 
       // Notifier les autres utilisateurs que cet utilisateur est en ligne
-      client.broadcast.emit("user_online", {
+      client.broadcast.emit('user_online', {
         userId: client.userId,
         username: client.username,
       });
@@ -84,7 +84,7 @@ export class MessagingGateway
       this.logger.error(error);
 
       // Debug du token en cas d'erreur
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NODE_ENV === 'development') {
         this._debugTokenError(client, error);
       }
 
@@ -98,60 +98,60 @@ export class MessagingGateway
       this.connectedUsers.delete(client.userId);
 
       this.logger.log(
-        `🔌 Utilisateur ${client.username} (${client.userId}) déconnecté`
+        `🔌 Utilisateur ${client.username} (${client.userId}) déconnecté`,
       );
 
       // Notifier les autres utilisateurs que cet utilisateur est hors ligne
-      client.broadcast.emit("user_offline", {
+      client.broadcast.emit('user_offline', {
         userId: client.userId,
         username: client.username,
       });
     }
   }
 
-  @SubscribeMessage("send_message")
+  @SubscribeMessage('send_message')
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: SendMessageDto
+    @MessageBody() data: SendMessageDto,
   ) {
     try {
       if (!client.userId) {
-        client.emit("error", { message: "Non authentifié" });
+        client.emit('error', { message: 'Non authentifié' });
         return;
       }
 
       // Envoyer le message via le service
       const message = await this._messagingService.sendMessage(
         client.userId,
-        data
+        data,
       );
 
       // Envoyer le message au destinataire s'il est connecté
       const receiverSocketId = this.connectedUsers.get(data.receiverId);
       if (receiverSocketId) {
-        this.server.to(receiverSocketId).emit("new_message", message);
+        this.server.to(receiverSocketId).emit('new_message', message);
       }
 
       // Confirmer l'envoi à l'expéditeur
-      client.emit("message_sent", message);
+      client.emit('message_sent', message);
 
       this.logger.log(
-        `📤 Message envoyé de ${client.userId} vers ${data.receiverId}`
+        `📤 Message envoyé de ${client.userId} vers ${data.receiverId}`,
       );
     } catch (error) {
       this.logger.error("❌ Erreur lors de l'envoi du message:", error);
-      client.emit("error", { message: "Erreur lors de l'envoi du message" });
+      client.emit('error', { message: "Erreur lors de l'envoi du message" });
     }
   }
 
-  @SubscribeMessage("join_conversation")
+  @SubscribeMessage('join_conversation')
   async handleJoinConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { conversationId: string }
+    @MessageBody() data: { conversationId: string },
   ) {
     try {
       if (!client.userId) {
-        client.emit("error", { message: "Non authentifié" });
+        client.emit('error', { message: 'Non authentifié' });
         return;
       }
 
@@ -159,59 +159,59 @@ export class MessagingGateway
       client.join(`conversation_${data.conversationId}`);
 
       this.logger.log(
-        `🏠 Utilisateur ${client.userId} a rejoint la conversation ${data.conversationId}`
+        `🏠 Utilisateur ${client.userId} a rejoint la conversation ${data.conversationId}`,
       );
     } catch (error) {
       this.logger.error(
-        "❌ Erreur lors de la jointure de conversation:",
-        error
+        '❌ Erreur lors de la jointure de conversation:',
+        error,
       );
-      client.emit("error", {
-        message: "Erreur lors de la jointure de conversation",
+      client.emit('error', {
+        message: 'Erreur lors de la jointure de conversation',
       });
     }
   }
 
-  @SubscribeMessage("leave_conversation")
+  @SubscribeMessage('leave_conversation')
   async handleLeaveConversation(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { conversationId: string }
+    @MessageBody() data: { conversationId: string },
   ) {
     try {
       // Quitter la room de la conversation
       client.leave(`conversation_${data.conversationId}`);
 
       this.logger.log(
-        `🚪 Utilisateur ${client.userId} a quitté la conversation ${data.conversationId}`
+        `🚪 Utilisateur ${client.userId} a quitté la conversation ${data.conversationId}`,
       );
     } catch (error) {
-      this.logger.error("❌ Erreur lors de la sortie de conversation:", error);
+      this.logger.error('❌ Erreur lors de la sortie de conversation:', error);
     }
   }
 
-  @SubscribeMessage("typing_start")
+  @SubscribeMessage('typing_start')
   async handleTypingStart(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { conversationId: string }
+    @MessageBody() data: { conversationId: string },
   ) {
     try {
       if (!client.userId) return;
 
       // Notifier les autres participants de la conversation que l'utilisateur tape
-      client.to(`conversation_${data.conversationId}`).emit("user_typing", {
+      client.to(`conversation_${data.conversationId}`).emit('user_typing', {
         userId: client.userId,
         username: client.username,
         conversationId: data.conversationId,
       });
     } catch (error) {
-      this.logger.error("❌ Erreur lors de la notification de frappe:", error);
+      this.logger.error('❌ Erreur lors de la notification de frappe:', error);
     }
   }
 
-  @SubscribeMessage("typing_stop")
+  @SubscribeMessage('typing_stop')
   async handleTypingStop(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { conversationId: string }
+    @MessageBody() data: { conversationId: string },
   ) {
     try {
       if (!client.userId) return;
@@ -219,7 +219,7 @@ export class MessagingGateway
       // Notifier les autres participants que l'utilisateur a arrêté de taper
       client
         .to(`conversation_${data.conversationId}`)
-        .emit("user_stopped_typing", {
+        .emit('user_stopped_typing', {
           userId: client.userId,
           username: client.username,
           conversationId: data.conversationId,
@@ -227,7 +227,7 @@ export class MessagingGateway
     } catch (error) {
       this.logger.error(
         "❌ Erreur lors de la notification d'arrêt de frappe:",
-        error
+        error,
       );
     }
   }
@@ -236,7 +236,7 @@ export class MessagingGateway
    * Méthode pour extraire le token Bearer
    */
   private _extractTokenFromAuth(authorization?: string): string | null {
-    if (authorization && authorization.startsWith("Bearer ")) {
+    if (authorization && authorization.startsWith('Bearer ')) {
       return authorization.substring(7);
     }
     return null;
@@ -246,18 +246,18 @@ export class MessagingGateway
    * Méthode de debug pour les erreurs de token
    */
   private _debugTokenError(client: AuthenticatedSocket, error: any) {
-    this.logger.debug("🔍 Debug WebSocket Authentication Error:");
+    this.logger.debug('🔍 Debug WebSocket Authentication Error:');
     this.logger.debug(
-      "Authorization header:",
-      client.handshake.headers?.authorization
+      'Authorization header:',
+      client.handshake.headers?.authorization,
     );
-    this.logger.debug("Query token:", client.handshake.query?.token);
-    this.logger.debug("Auth token:", client.handshake.auth?.token);
+    this.logger.debug('Query token:', client.handshake.query?.token);
+    this.logger.debug('Auth token:', client.handshake.auth?.token);
     this.logger.debug(
-      "JWT Secret configured:",
-      !!this._configService.get<string>("JWT_SECRET")
+      'JWT Secret configured:',
+      !!this._configService.get<string>('JWT_SECRET'),
     );
-    this.logger.debug("Error details:", error.message);
+    this.logger.debug('Error details:', error.message);
   }
 
   /**

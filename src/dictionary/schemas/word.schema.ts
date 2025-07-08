@@ -66,7 +66,11 @@ export class Meaning {
 @Schema()
 export class Translation {
   // NOUVEAU: Référence vers la collection Languages
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Language', required: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Language',
+    required: true,
+  })
   languageId: Language;
 
   // DURANT LA MIGRATION: Ancien champ pour compatibilité (à supprimer après migration)
@@ -86,7 +90,11 @@ export class Translation {
   verifiedBy: string[];
 
   // ===== NOUVELLES PROPRIÉTÉS POUR LE SYSTÈME DE TRADUCTION INTELLIGENTE =====
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'TranslationGroup', index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'TranslationGroup',
+    index: true,
+  })
   translationGroupId?: string; // Référence au groupe de traduction
 
   @Prop()
@@ -101,17 +109,20 @@ export class Translation {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
   validatedBy?: User; // Utilisateur qui a validé (null si auto-validé)
 
-  @Prop({ 
-    type: String, 
-    enum: ['auto', 'manual', 'learned'], 
-    default: 'manual' 
+  @Prop({
+    type: String,
+    enum: ['auto', 'manual', 'learned'],
+    default: 'manual',
   })
   validationType: string; // Type de validation
 
   @Prop({ type: Number, default: 0 })
   votes: number; // Votes +1 pour valider la traduction
 
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }], default: [] })
+  @Prop({
+    type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
   votedBy: User[]; // Utilisateurs qui ont voté
 
   @Prop({ default: Date.now })
@@ -124,7 +135,12 @@ export class Word {
   word: string;
 
   // NOUVEAU: Référence vers la collection Languages
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Language', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Language',
+    required: true,
+    index: true,
+  })
   languageId: Language;
 
   // DURANT LA MIGRATION: Ancien champ pour compatibilité (à supprimer après migration)

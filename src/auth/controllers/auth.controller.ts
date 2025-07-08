@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 import { Request as ExpressRequest, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { TokenMetadata } from '../services/refresh-token.service';
 
 interface SocialAuthRequest extends ExpressRequest {
   user: {
@@ -48,12 +49,21 @@ class ResetPasswordDto {
 
 class AuthResponseDto {
   access_token: string;
+  refresh_token: string;
   user: {
     id: string;
     email: string;
     username: string;
     role: string;
   };
+}
+
+class RefreshTokenDto {
+  refresh_token: string;
+}
+
+class LogoutDto {
+  refresh_token: string;
 }
 
 @ApiTags('authentication')
@@ -110,8 +120,12 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Données de connexion invalides' })
   @ApiResponse({ status: 401, description: 'Identifiants incorrects' })
   @ApiBody({ type: LoginDto })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Request() req: ExpressRequest) {
+    const metadata: TokenMetadata = {
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    };
+    return this.authService.login(loginDto, metadata);
   }
 
   @Get('verify-email/:token')
@@ -436,5 +450,69 @@ export class AuthController {
       consumerKey.trim() !== '' &&
       consumerSecret.trim() !== ''
     );
+  }
+
+  // 🔄 NOUVELLES ROUTES POUR REFRESH TOKENS
+
+  @Post('refresh')
+  @ApiOperation({ summary: "Rafraîchir les tokens d'accès" })
+  @ApiResponse({
+    status: 200,
+    description: 'Tokens rafraîchis avec succès',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Refresh token invalide ou expiré' })
+  @ApiBody({ type: RefreshTokenDto })
+  async refreshTokens(
+    @Body() body: RefreshTokenDto,
+    @Request() req: ExpressRequest,
+  ) {
+    const metadata: TokenMetadata = {
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    };
+
+    return this.authService.refreshTokens(body.refresh_token, metadata);
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Déconnexion avec révocation du refresh token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Déconnexion réussie',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Déconnexion réussie' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Refresh token invalide' })
+  @ApiBody({ type: LogoutDto })
+  async logout(@Body() body: LogoutDto) {
+    return this.authService.logout(body.refresh_token);
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Déconnexion globale - révoque tous les tokens' })
+  @ApiResponse({
+    status: 200,
+    description: 'Déconnexion globale réussie',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Déconnexion effectuée sur tous les appareils',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  async logoutAllDevices(@Request() req: any) {
+    const userId = req.user.id || req.user._id;
+    return this.authService.logoutAllDevices(userId.toString());
   }
 }

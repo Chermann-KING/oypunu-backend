@@ -4,18 +4,19 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import * as bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { User, UserDocument } from '../../users/schemas/user.schema';
-import { RegisterDto } from '../../users/dto/register.dto';
-import { LoginDto } from '../../users/dto/login.dto';
-import { ConfigService } from '@nestjs/config';
-import { MailService } from '../../common/services/mail.service';
-import { ActivityService } from '../../common/services/activity.service';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import * as bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
+import { User, UserDocument } from "../../users/schemas/user.schema";
+import { RegisterDto } from "../../users/dto/register.dto";
+import { LoginDto } from "../../users/dto/login.dto";
+import { ConfigService } from "@nestjs/config";
+import { MailService } from "../../common/services/mail.service";
+import { ActivityService } from "../../common/services/activity.service";
+import { RefreshTokenService, TokenMetadata } from "./refresh-token.service";
 
 // Type pour l'utilisateur social
 interface SocialUser {
@@ -48,11 +49,12 @@ export class AuthService {
     private configService: ConfigService,
     private _mailService: MailService,
     private activityService: ActivityService,
+    private refreshTokenService: RefreshTokenService
   ) {}
 
   async register(
     registerDto: RegisterDto,
-    requestInfo?: { ip: string; userAgent: string },
+    requestInfo?: { ip: string; userAgent: string }
   ): Promise<{ message: string }> {
     const {
       email,
@@ -69,7 +71,7 @@ export class AuthService {
 
     if (existingUser) {
       if (existingUser.email === email) {
-        throw new BadRequestException('Cet email est déjà utilisé');
+        throw new BadRequestException("Cet email est déjà utilisé");
       }
       if (existingUser.username === username) {
         throw new BadRequestException("Ce nom d'utilisateur est déjà pris");
@@ -79,7 +81,7 @@ export class AuthService {
     // Vérifier que l'utilisateur a accepté les conditions
     if (!hasAcceptedTerms || !hasAcceptedPrivacyPolicy) {
       throw new BadRequestException(
-        "Vous devez accepter les conditions d'utilisation et la politique de confidentialité",
+        "Vous devez accepter les conditions d'utilisation et la politique de confidentialité"
       );
     }
 
@@ -93,8 +95,8 @@ export class AuthService {
 
     // Préparer les informations de consentement
     const consentTimestamp = new Date();
-    const termsVersion = 'v1.0'; // Version actuelle des CGU
-    const privacyPolicyVersion = 'v1.0'; // Version actuelle de la politique
+    const termsVersion = "v1.0"; // Version actuelle des CGU
+    const privacyPolicyVersion = "v1.0"; // Version actuelle de la politique
 
     // Création de l'utilisateur avec informations de consentement
     const newUser = new this.userModel({
@@ -110,9 +112,9 @@ export class AuthService {
       privacyPolicyAcceptedAt: consentTimestamp,
       termsAcceptedVersion: termsVersion,
       privacyPolicyAcceptedVersion: privacyPolicyVersion,
-      consentIP: requestInfo?.ip || 'unknown',
-      consentUserAgent: requestInfo?.userAgent || 'unknown',
-      registrationIP: requestInfo?.ip || 'unknown',
+      consentIP: requestInfo?.ip || "unknown",
+      consentUserAgent: requestInfo?.userAgent || "unknown",
+      registrationIP: requestInfo?.ip || "unknown",
     });
 
     await newUser.save();
@@ -121,16 +123,16 @@ export class AuthService {
     try {
       await this.activityService.logUserRegistered(
         newUser._id.toString(),
-        newUser.username,
+        newUser.username
       );
       console.log(
         '✅ Activité "user_registered" enregistrée pour:',
-        newUser.username,
+        newUser.username
       );
     } catch (error) {
       console.error(
         "❌ Erreur lors du logging d'activité d'inscription:",
-        error,
+        error
       );
     }
 
@@ -139,20 +141,20 @@ export class AuthService {
       await this._mailService.sendVerificationEmail(
         email,
         verificationToken,
-        username,
+        username
       );
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Erreur inconnue';
+        error instanceof Error ? error.message : "Erreur inconnue";
       this._logger.error(
-        `Erreur lors de l'envoi de l'email de vérification: ${errorMessage}`,
+        `Erreur lors de l'envoi de l'email de vérification: ${errorMessage}`
       );
       // On ne relance pas l'erreur pour éviter de bloquer le processus d'inscription
     }
 
     return {
       message:
-        'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
+        "Inscription réussie. Veuillez vérifier votre email pour activer votre compte.",
     };
   }
 
@@ -163,18 +165,18 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Token invalide ou expiré');
+      throw new BadRequestException("Token invalide ou expiré");
     }
 
     user.isEmailVerified = true;
-    user.emailVerificationToken = '';
+    user.emailVerificationToken = "";
     user.emailVerificationTokenExpires = new Date(0);
 
     await user.save();
 
     return {
       message:
-        'Email vérifié avec succès. Vous pouvez maintenant vous connecter.',
+        "Email vérifié avec succès. Vous pouvez maintenant vous connecter.",
     };
   }
 
@@ -182,11 +184,11 @@ export class AuthService {
     const user = await this.userModel.findOne({ email });
 
     if (!user) {
-      throw new BadRequestException('Utilisateur non trouvé');
+      throw new BadRequestException("Utilisateur non trouvé");
     }
 
     if (user.isEmailVerified) {
-      throw new BadRequestException('Cet email est déjà vérifié');
+      throw new BadRequestException("Cet email est déjà vérifié");
     }
 
     // Générer un nouveau token
@@ -204,43 +206,47 @@ export class AuthService {
       await this._mailService.sendVerificationEmail(
         email,
         verificationToken,
-        user.username,
+        user.username
       );
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Erreur inconnue';
+        error instanceof Error ? error.message : "Erreur inconnue";
       this._logger.error(
-        `Erreur lors de l'envoi de l'email de vérification: ${errorMessage}`,
+        `Erreur lors de l'envoi de l'email de vérification: ${errorMessage}`
       );
       // On ne relance pas l'erreur pour éviter de bloquer le processus
     }
 
     return {
-      message: 'Un nouvel email de vérification a été envoyé.',
+      message: "Un nouvel email de vérification a été envoyé.",
     };
   }
 
   async login(
     loginDto: LoginDto,
-  ): Promise<{ tokens: { access_token: string }; user: any }> {
+    metadata?: TokenMetadata
+  ): Promise<{
+    tokens: { access_token: string; refresh_token: string };
+    user: any;
+  }> {
     const { email, password } = loginDto;
 
     const user = await this.userModel.findOne({ email });
 
     if (!user) {
-      throw new UnauthorizedException('Email ou mot de passe incorrect');
+      throw new UnauthorizedException("Email ou mot de passe incorrect");
     }
 
     if (!user.isEmailVerified) {
       throw new UnauthorizedException(
-        'Veuillez vérifier votre email avant de vous connecter',
+        "Veuillez vérifier votre email avant de vous connecter"
       );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Email ou mot de passe incorrect');
+      throw new UnauthorizedException("Email ou mot de passe incorrect");
     }
 
     // ✅ AUTOMATIQUEMENT activer l'utilisateur et mettre à jour sa dernière activité lors du login
@@ -250,22 +256,22 @@ export class AuthService {
       lastLogin: new Date(),
     });
 
-    console.log('🔐 Connexion réussie - utilisateur activé:', user.username);
+    console.log("🔐 Connexion réussie - utilisateur activé:", user.username);
 
     // 📊 Logger l'activité de connexion
     try {
       await this.activityService.logUserLoggedIn(
         user._id.toString(),
-        user.username,
+        user.username
       );
       console.log(
         '✅ Activité "user_logged_in" enregistrée pour:',
-        user.username,
+        user.username
       );
     } catch (error) {
       console.error(
         "❌ Erreur lors du logging d'activité de connexion:",
-        error,
+        error
       );
     }
 
@@ -276,9 +282,17 @@ export class AuthService {
       role: user.role,
     };
 
+    // 🔐 Générer une paire de tokens (access + refresh)
+    const tokenPair = await this.refreshTokenService.generateTokenPair(
+      user._id.toString(),
+      payload,
+      metadata
+    );
+
     return {
       tokens: {
-        access_token: this._jwtService.sign(payload),
+        access_token: tokenPair.accessToken,
+        refresh_token: tokenPair.refreshToken,
       },
       user: {
         id: user._id,
@@ -286,8 +300,8 @@ export class AuthService {
         username: user.username,
         isEmailVerified: user.isEmailVerified,
         role: user.role,
-        nativeLanguage: user.nativeLanguage,
-        learningLanguages: user.learningLanguages,
+        nativeLanguage: user.nativeLanguageId,
+        learningLanguages: user.learningLanguageIds,
         profilePicture: user.profilePicture,
       },
     };
@@ -297,7 +311,7 @@ export class AuthService {
     const user = await this.userModel.findOne({ email });
 
     if (!user) {
-      throw new BadRequestException('Aucun compte associé à cet email');
+      throw new BadRequestException("Aucun compte associé à cet email");
     }
 
     const resetToken = uuidv4();
@@ -314,25 +328,25 @@ export class AuthService {
       await this._mailService.sendPasswordResetEmail(
         email,
         resetToken,
-        user.username,
+        user.username
       );
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Erreur inconnue';
+        error instanceof Error ? error.message : "Erreur inconnue";
       this._logger.error(
-        `Erreur lors de l'envoi de l'email de réinitialisation: ${errorMessage}`,
+        `Erreur lors de l'envoi de l'email de réinitialisation: ${errorMessage}`
       );
       // On ne relance pas l'erreur pour éviter de bloquer le processus
     }
 
     return {
-      message: 'Un email de réinitialisation de mot de passe a été envoyé.',
+      message: "Un email de réinitialisation de mot de passe a été envoyé.",
     };
   }
 
   async resetPassword(
     token: string,
-    newPassword: string,
+    newPassword: string
   ): Promise<{ message: string }> {
     const user = await this.userModel.findOne({
       passwordResetToken: token,
@@ -340,24 +354,24 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Token invalide ou expiré');
+      throw new BadRequestException("Token invalide ou expiré");
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     user.password = hashedPassword;
-    user.passwordResetToken = '';
+    user.passwordResetToken = "";
     user.passwordResetTokenExpires = new Date(0);
 
     await user.save();
 
-    return { message: 'Mot de passe réinitialisé avec succès' };
+    return { message: "Mot de passe réinitialisé avec succès" };
   }
 
   async validateUser(userId: string): Promise<User> {
     const user = await this.userModel.findById(userId);
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé');
+      throw new UnauthorizedException("Utilisateur non trouvé");
     }
 
     // ✅ Mettre à jour lastActive à chaque validation JWT (requête authentifiée)
@@ -368,11 +382,75 @@ export class AuthService {
       .exec();
 
     console.log(
-      '🔄 JWT validation - lastActive mis à jour pour:',
-      user.username,
+      "🔄 JWT validation - lastActive mis à jour pour:",
+      user.username
     );
 
     return user;
+  }
+
+  /**
+   * 🔄 Rafraîchit les tokens d'accès
+   */
+  async refreshTokens(
+    refreshToken: string,
+    metadata?: TokenMetadata
+  ): Promise<{ tokens: { access_token: string; refresh_token: string } }> {
+    try {
+      const tokenPair = await this.refreshTokenService.refreshTokens(
+        refreshToken,
+        metadata
+      );
+
+      return {
+        tokens: {
+          access_token: tokenPair.accessToken,
+          refresh_token: tokenPair.refreshToken,
+        },
+      };
+    } catch (error) {
+      this._logger.error("Erreur lors du refresh des tokens:", error);
+      throw new UnauthorizedException("Refresh token invalide");
+    }
+  }
+
+  /**
+   * 🚪 Déconnexion sécurisée avec révocation du refresh token
+   */
+  async logout(refreshToken: string): Promise<{ message: string }> {
+    try {
+      await this.refreshTokenService.revokeRefreshToken(
+        refreshToken,
+        "User logout"
+      );
+      this._logger.log("Déconnexion réussie avec révocation du refresh token");
+
+      return { message: "Déconnexion réussie" };
+    } catch (error) {
+      this._logger.error("Erreur lors de la déconnexion:", error);
+      // Ne pas faire échouer la déconnexion même si la révocation échoue
+      return { message: "Déconnexion effectuée" };
+    }
+  }
+
+  /**
+   * 🔒 Déconnexion globale - révoque tous les tokens de l'utilisateur
+   */
+  async logoutAllDevices(userId: string): Promise<{ message: string }> {
+    try {
+      await this.refreshTokenService.revokeAllUserTokens(
+        userId,
+        "Logout all devices"
+      );
+      this._logger.log(
+        `Déconnexion globale effectuée pour l'utilisateur ${userId}`
+      );
+
+      return { message: "Déconnexion effectuée sur tous les appareils" };
+    } catch (error) {
+      this._logger.error("Erreur lors de la déconnexion globale:", error);
+      throw new BadRequestException("Erreur lors de la déconnexion globale");
+    }
   }
 
   /** Méthodes d'authentification sociale */
@@ -408,7 +486,7 @@ export class AuthService {
       // L'utilisateur se connecte via réseau social, son email est donc vérifié
       if (!user.isEmailVerified) {
         user.isEmailVerified = true;
-        user.emailVerificationToken = '';
+        user.emailVerificationToken = "";
         user.emailVerificationTokenExpires = new Date(0);
       }
 
@@ -470,8 +548,8 @@ export class AuthService {
         username: user.username,
         isEmailVerified: user.isEmailVerified,
         role: user.role,
-        nativeLanguage: user.nativeLanguage,
-        learningLanguages: user.learningLanguages,
+        nativeLanguage: user.nativeLanguageId,
+        learningLanguages: user.learningLanguageIds,
         profilePicture: user.profilePicture,
       },
     };
@@ -506,12 +584,12 @@ export class AuthService {
     const tokenData = this._socialAuthTokens.get(token);
 
     if (!tokenData) {
-      throw new UnauthorizedException('Token social invalide ou expiré');
+      throw new UnauthorizedException("Token social invalide ou expiré");
     }
 
     if (tokenData.expiresAt < new Date()) {
       this._socialAuthTokens.delete(token);
-      throw new UnauthorizedException('Token social expiré');
+      throw new UnauthorizedException("Token social expiré");
     }
 
     // Supprimer le token après utilisation
@@ -520,7 +598,7 @@ export class AuthService {
     // Rechercher l'utilisateur
     const user = await this.userModel.findById(tokenData.userId);
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé');
+      throw new UnauthorizedException("Utilisateur non trouvé");
     }
 
     // Créer un nouveau JWT pour l'authentification
@@ -541,8 +619,8 @@ export class AuthService {
         username: user.username,
         isEmailVerified: user.isEmailVerified,
         role: user.role,
-        nativeLanguage: user.nativeLanguage,
-        learningLanguages: user.learningLanguages,
+        nativeLanguage: user.nativeLanguageId,
+        learningLanguages: user.learningLanguageIds,
         profilePicture: user.profilePicture,
       },
     };

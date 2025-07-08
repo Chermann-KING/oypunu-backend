@@ -1,24 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from '../schemas/user.schema';
-import { ActivityFeed, ActivityFeedDocument } from '../../common/schemas/activity-feed.schema';
-import { Word, WordDocument } from '../../dictionary/schemas/word.schema';
-import { WordView, WordViewDocument } from '../schemas/word-view.schema';
-import { FavoriteWord, FavoriteWordDocument } from '../../dictionary/schemas/favorite-word.schema';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { User, UserDocument } from "../schemas/user.schema";
+import {
+  ActivityFeed,
+  ActivityFeedDocument,
+} from "../../common/schemas/activity-feed.schema";
+import { Word, WordDocument } from "../../dictionary/schemas/word.schema";
+import { WordView, WordViewDocument } from "../schemas/word-view.schema";
+import {
+  FavoriteWord,
+  FavoriteWordDocument,
+} from "../../dictionary/schemas/favorite-word.schema";
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(ActivityFeed.name) private activityFeedModel: Model<ActivityFeedDocument>,
+    @InjectModel(ActivityFeed.name)
+    private activityFeedModel: Model<ActivityFeedDocument>,
     @InjectModel(Word.name) private wordModel: Model<WordDocument>,
     @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>,
-    @InjectModel(FavoriteWord.name) private favoriteWordModel: Model<FavoriteWordDocument>
+    @InjectModel(FavoriteWord.name)
+    private favoriteWordModel: Model<FavoriteWordDocument>
   ) {}
 
   async findById(id: string): Promise<User | null> {
     return this.userModel.findById(id).exec();
+  }
+
+  async findByIdWithLanguages(id: string): Promise<User | null> {
+    return this.userModel
+      .findById(id)
+      .populate("nativeLanguageId learningLanguageIds")
+      .exec();
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -31,24 +46,24 @@ export class UsersService {
 
   async updateUser(
     id: string,
-    updateData: Partial<User>,
+    updateData: Partial<User>
   ): Promise<User | null> {
     return this.userModel
       .findByIdAndUpdate(
         id,
         updateData,
-        { new: true }, // Retourne le document mis à jour
+        { new: true } // Retourne le document mis à jour
       )
       .exec();
   }
 
   async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {
     console.log("[UsersService] Recherche d'utilisateurs");
-    console.log('[UsersService] Requête:', query);
-    console.log('[UsersService] Utilisateur à exclure:', excludeUserId);
+    console.log("[UsersService] Requête:", query);
+    console.log("[UsersService] Utilisateur à exclure:", excludeUserId);
 
-    const searchRegex = new RegExp(query, 'i'); // Recherche insensible à la casse
-    console.log('[UsersService] Regex de recherche:', searchRegex);
+    const searchRegex = new RegExp(query, "i"); // Recherche insensible à la casse
+    console.log("[UsersService] Regex de recherche:", searchRegex);
 
     const filter: any = {
       $or: [
@@ -64,28 +79,28 @@ export class UsersService {
     }
 
     console.log(
-      '[UsersService] Filtre de recherche:',
-      JSON.stringify(filter, null, 2),
+      "[UsersService] Filtre de recherche:",
+      JSON.stringify(filter, null, 2)
     );
 
     const users = await this.userModel
       .find(filter)
       .select(
-        '_id username email nativeLanguage learningLanguages profilePicture',
+        "_id username email nativeLanguage learningLanguages profilePicture"
       )
       .limit(10) // Limiter les résultats
       .exec();
 
-    console.log('[UsersService] Utilisateurs trouvés en base:', users.length);
+    console.log("[UsersService] Utilisateurs trouvés en base:", users.length);
     console.log(
-      '[UsersService] Premier utilisateur (si existe):',
+      "[UsersService] Premier utilisateur (si existe):",
       users[0]
         ? {
             id: users[0]._id,
             username: users[0].username,
             email: users[0].email,
           }
-        : 'Aucun',
+        : "Aucun"
     );
 
     return users;
@@ -105,7 +120,7 @@ export class UsersService {
   }> {
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
-      throw new Error('Utilisateur non trouvé');
+      throw new Error("Utilisateur non trouvé");
     }
 
     // Utiliser notre nouvelle méthode intelligente
@@ -120,14 +135,15 @@ export class UsersService {
       totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
       totalCommunityPosts: user.totalCommunityPosts || 0,
       favoriteWordsCount: actualFavoritesCount,
-      joinDate: (user as unknown as { createdAt?: Date }).createdAt || new Date(),
+      joinDate:
+        (user as unknown as { createdAt?: Date }).createdAt || new Date(),
       // Nouvelles stats intelligentes
       streak: personalStats.streak,
       languagesContributed: personalStats.languagesContributed, // NOUVELLE MÉTRIQUE
       languagesExplored: personalStats.languagesExplored,
       contributionScore: personalStats.contributionScore,
       activitiesThisWeek: personalStats.activitiesThisWeek,
-      lastActivityDate: personalStats.lastActivityDate
+      lastActivityDate: personalStats.lastActivityDate,
     };
   }
 
@@ -154,23 +170,28 @@ export class UsersService {
   }
 
   async activateSuperAdmins(): Promise<number> {
-    const result = await this.userModel.updateMany(
-      { role: { $in: ['superadmin', 'admin', 'contributor'] } },
-      { isActive: true }
-    ).exec();
-    
-    console.log('🔧 Activation des utilisateurs avec rôles élevés:', result.modifiedCount);
+    const result = await this.userModel
+      .updateMany(
+        { role: { $in: ["superadmin", "admin", "contributor"] } },
+        { isActive: true }
+      )
+      .exec();
+
+    console.log(
+      "🔧 Activation des utilisateurs avec rôles élevés:",
+      result.modifiedCount
+    );
     return result.modifiedCount;
   }
 
   async getActiveUsersCount(): Promise<number> {
     // Utilisateurs actifs dans les 5 dernières minutes
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
+
     return this.userModel
       .countDocuments({
         lastActive: { $gte: fiveMinutesAgo },
-        isActive: true
+        isActive: true,
       })
       .exec();
   }
@@ -180,23 +201,23 @@ export class UsersService {
     // 1. Ont ajouté au moins un mot OU
     // 2. Ont un rôle contributor, admin ou superadmin
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
-    console.log('🔍 Recherche des contributeurs en ligne...');
-    console.log('⏰ Seuil de temps (5 min ago):', fiveMinutesAgo.toISOString());
-    
+
+    console.log("🔍 Recherche des contributeurs en ligne...");
+    console.log("⏰ Seuil de temps (5 min ago):", fiveMinutesAgo.toISOString());
+
     const count = await this.userModel
       .countDocuments({
         lastActive: { $gte: fiveMinutesAgo },
         isActive: true,
         $or: [
           { totalWordsAdded: { $gt: 0 } },
-          { role: { $in: ['contributor', 'admin', 'superadmin'] } }
-        ]
+          { role: { $in: ["contributor", "admin", "superadmin"] } },
+        ],
       })
       .exec();
-    
-    console.log('📊 Contributeurs en ligne trouvés:', count);
-    
+
+    console.log("📊 Contributeurs en ligne trouvés:", count);
+
     // Debug: afficher les utilisateurs qui matchent
     const users = await this.userModel
       .find({
@@ -204,20 +225,23 @@ export class UsersService {
         isActive: true,
         $or: [
           { totalWordsAdded: { $gt: 0 } },
-          { role: { $in: ['contributor', 'admin', 'superadmin'] } }
-        ]
+          { role: { $in: ["contributor", "admin", "superadmin"] } },
+        ],
       })
-      .select('username role totalWordsAdded lastActive isActive')
+      .select("username role totalWordsAdded lastActive isActive")
       .exec();
-    
-    console.log('👥 Utilisateurs actifs détaillés:', users.map(u => ({
-      username: u.username,
-      role: u.role,
-      totalWords: u.totalWordsAdded,
-      lastActive: u.lastActive,
-      isActive: u.isActive
-    })));
-    
+
+    console.log(
+      "👥 Utilisateurs actifs détaillés:",
+      users.map((u) => ({
+        username: u.username,
+        role: u.role,
+        totalWords: u.totalWordsAdded,
+        lastActive: u.lastActive,
+        isActive: u.isActive,
+      }))
+    );
+
     return count;
   }
 
@@ -231,7 +255,7 @@ export class UsersService {
       const activities = await this.activityFeedModel
         .find({ userId })
         .sort({ createdAt: -1 })
-        .select('createdAt')
+        .select("createdAt")
         .lean()
         .exec();
 
@@ -241,22 +265,22 @@ export class UsersService {
 
       // Organiser les activités par jour
       const activitiesByDay = new Map<string, boolean>();
-      
-      activities.forEach(activity => {
+
+      activities.forEach((activity) => {
         const date = new Date(activity.createdAt);
-        const dayKey = date.toISOString().split('T')[0]; // Format YYYY-MM-DD
+        const dayKey = date.toISOString().split("T")[0]; // Format YYYY-MM-DD
         activitiesByDay.set(dayKey, true);
       });
 
       // Calculer la séquence consécutive à partir d'aujourd'hui
       let streakCount = 0;
       const today = new Date();
-      let currentDate = new Date(today);
+      const currentDate = new Date(today);
 
       // Commencer par aujourd'hui et remonter dans le temps
       while (true) {
-        const dayKey = currentDate.toISOString().split('T')[0];
-        
+        const dayKey = currentDate.toISOString().split("T")[0];
+
         if (activitiesByDay.has(dayKey)) {
           streakCount++;
           // Passer au jour précédent
@@ -267,11 +291,12 @@ export class UsersService {
         }
       }
 
-      console.log(`📊 Streak calculé pour ${userId}: ${streakCount} jours consécutifs`);
+      console.log(
+        `📊 Streak calculé pour ${userId}: ${streakCount} jours consécutifs`
+      );
       return streakCount;
-
     } catch (error) {
-      console.error('❌ Erreur lors du calcul du streak:', error);
+      console.error("❌ Erreur lors du calcul du streak:", error);
       return 0;
     }
   }
@@ -292,7 +317,7 @@ export class UsersService {
     try {
       const user = await this.userModel.findById(userId).exec();
       if (!user) {
-        throw new Error('Utilisateur non trouvé');
+        throw new Error("Utilisateur non trouvé");
       }
 
       // Calculer le streak de manière intelligente
@@ -302,20 +327,22 @@ export class UsersService {
       const actualWordsAdded = await this.wordModel
         .countDocuments({
           createdBy: userId,
-          status: 'approved'
+          status: "approved",
         })
         .exec();
 
-      console.log(`📊 Mots réels pour ${userId}: ${actualWordsAdded} (vs compteur: ${user.totalWordsAdded})`);
+      console.log(
+        `📊 Mots réels pour ${userId}: ${actualWordsAdded} (vs compteur: ${user.totalWordsAdded})`
+      );
 
       // Compter les activités de cette semaine
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      
+
       const activitiesThisWeek = await this.activityFeedModel
         .countDocuments({
           userId,
-          createdAt: { $gte: oneWeekAgo }
+          createdAt: { $gte: oneWeekAgo },
         })
         .exec();
 
@@ -323,50 +350,53 @@ export class UsersService {
       const lastActivity = await this.activityFeedModel
         .findOne({ userId })
         .sort({ createdAt: -1 })
-        .select('createdAt')
+        .select("createdAt")
         .exec();
 
       // === LANGUES CONTRIBUÉES (Option A) ===
       // Langues où l'utilisateur a activement contribué (créé des mots, ajouté des traductions)
       const contributionActivities = await this.activityFeedModel
-        .find({ 
+        .find({
           userId,
-          activityType: { $in: ['word_created', 'translation_added', 'synonym_added'] },
-          'metadata.languageCode': { $exists: true, $ne: null }
+          activityType: {
+            $in: ["word_created", "translation_added", "synonym_added"],
+          },
+          "metadata.languageCode": { $exists: true, $ne: null },
         })
-        .distinct('metadata.languageCode')
+        .distinct("metadata.languageCode")
         .exec();
 
       // === LANGUES EXPLORÉES (Option B) ===
       // Toutes les langues avec lesquelles l'utilisateur a interagi
-      const [allActivityLanguages, wordsLanguages, communityLanguages] = await Promise.all([
-        // 1. Langues des activités de l'utilisateur
-        this.activityFeedModel
-          .find({ 
-            userId,
-            'metadata.languageCode': { $exists: true, $ne: null }
-          })
-          .distinct('metadata.languageCode')
-          .exec(),
+      const [allActivityLanguages, wordsLanguages, communityLanguages] =
+        await Promise.all([
+          // 1. Langues des activités de l'utilisateur
+          this.activityFeedModel
+            .find({
+              userId,
+              "metadata.languageCode": { $exists: true, $ne: null },
+            })
+            .distinct("metadata.languageCode")
+            .exec(),
 
-        // 2. Langues des mots créés par l'utilisateur
-        this.wordModel
-          .find({ 
-            createdBy: userId,
-            status: 'approved'
-          })
-          .distinct('language')
-          .exec(),
+          // 2. Langues des mots créés par l'utilisateur
+          this.wordModel
+            .find({
+              createdBy: userId,
+              status: "approved",
+            })
+            .distinct("language")
+            .exec(),
 
-        // 3. TODO: Langues des communautés rejointes (à implémenter avec CommunityMember)
-        Promise.resolve([])
-      ]);
+          // 3. TODO: Langues des communautés rejointes (à implémenter avec CommunityMember)
+          Promise.resolve([]),
+        ]);
 
       // Combiner toutes les langues uniques
       const allExploredLanguages = new Set([
         ...allActivityLanguages,
         ...wordsLanguages,
-        ...communityLanguages
+        ...communityLanguages,
       ]);
 
       // Compter les vrais favoris de l'utilisateur
@@ -382,14 +412,13 @@ export class UsersService {
         contributionScore: actualWordsAdded * 10 + activitiesThisWeek * 5,
         streak,
         lastActivityDate: lastActivity?.createdAt,
-        activitiesThisWeek
+        activitiesThisWeek,
       };
 
       console.log(`📈 Stats personnelles pour ${user.username}:`, stats);
       return stats;
-
     } catch (error) {
-      console.error('❌ Erreur lors du calcul des stats personnelles:', error);
+      console.error("❌ Erreur lors du calcul des stats personnelles:", error);
       return {
         wordsAdded: 0,
         favoritesCount: 0,
@@ -397,7 +426,7 @@ export class UsersService {
         languagesExplored: 0,
         contributionScore: 0,
         streak: 0,
-        activitiesThisWeek: 0
+        activitiesThisWeek: 0,
       };
     }
   }
@@ -405,30 +434,37 @@ export class UsersService {
   /**
    * Récupère les mots récemment créés par l'utilisateur
    */
-  async getUserRecentContributions(userId: string, limit: number = 5): Promise<any[]> {
+  async getUserRecentContributions(
+    userId: string,
+    limit: number = 5
+  ): Promise<any[]> {
     try {
       const recentWords = await this.wordModel
-        .find({ 
+        .find({
           createdBy: userId,
-          status: 'approved'
+          status: "approved",
         })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('word language meanings.definitions createdAt')
+        .select("word language meanings.definitions createdAt")
         .lean()
         .exec();
 
-      return recentWords.map(word => ({
+      return recentWords.map((word) => ({
         id: word._id,
         word: word.word,
         language: word.language,
-        definition: word.meanings?.[0]?.definitions?.[0]?.definition || 'Définition non disponible',
+        definition:
+          word.meanings?.[0]?.definitions?.[0]?.definition ||
+          "Définition non disponible",
         createdAt: word.createdAt,
-        isOwner: true // Toujours true puisque c'est ses mots
+        isOwner: true, // Toujours true puisque c'est ses mots
       }));
-
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération des contributions récentes:', error);
+      console.error(
+        "❌ Erreur lors de la récupération des contributions récentes:",
+        error
+      );
       return [];
     }
   }
@@ -436,48 +472,62 @@ export class UsersService {
   /**
    * Récupère les mots récemment consultés par l'utilisateur
    */
-  async getUserRecentConsultations(userId: string, limit: number = 5): Promise<any[]> {
+  async getUserRecentConsultations(
+    userId: string,
+    limit: number = 5
+  ): Promise<any[]> {
     try {
-      console.log('🔍 Recherche consultations pour utilisateur:', userId);
-      
+      console.log("🔍 Recherche consultations pour utilisateur:", userId);
+
       const recentConsultations = await this.wordViewModel
         .find({ userId })
         .sort({ lastViewedAt: -1 })
         .limit(limit)
-        .populate('wordId', 'word language meanings.definitions status')
+        .populate("wordId", "word language meanings.definitions status")
         .lean()
         .exec();
 
-      console.log('📊 Consultations trouvées:', recentConsultations.length);
-      console.log('📋 Détails consultations:', recentConsultations.map(c => ({
-        wordId: c.wordId ? (c.wordId as any)._id : 'null',
-        word: c.wordId ? (c.wordId as any).word : 'null',
-        status: c.wordId ? (c.wordId as any).status : 'null',
-        lastViewedAt: c.lastViewedAt
-      })));
+      console.log("📊 Consultations trouvées:", recentConsultations.length);
+      console.log(
+        "📋 Détails consultations:",
+        recentConsultations.map((c) => ({
+          wordId: c.wordId ? (c.wordId as any)._id : "null",
+          word: c.wordId ? (c.wordId as any).word : "null",
+          status: c.wordId ? (c.wordId as any).status : "null",
+          lastViewedAt: c.lastViewedAt,
+        }))
+      );
 
-      const filteredConsultations = recentConsultations
-        .filter(consultation => consultation.wordId && consultation.wordId.status === 'approved');
-      
-      console.log('✅ Consultations après filtrage (approved seulement):', filteredConsultations.length);
+      const filteredConsultations = recentConsultations.filter(
+        (consultation) =>
+          consultation.wordId && consultation.wordId.status === "approved"
+      );
 
-      return filteredConsultations
-        .map(consultation => {
-          const wordData = consultation.wordId as any;
-          return {
-            id: wordData._id?.toString() || wordData.id?.toString() || '',
-            word: wordData.word,
-            language: wordData.language,
-            definition: wordData.meanings?.[0]?.definitions?.[0]?.definition || 'Définition non disponible',
-            lastViewedAt: consultation.lastViewedAt,
-            viewCount: consultation.viewCount,
-            viewType: consultation.viewType,
-            isOwner: false // Ce ne sont pas ses mots, mais des consultations
-          };
-        });
+      console.log(
+        "✅ Consultations après filtrage (approved seulement):",
+        filteredConsultations.length
+      );
 
+      return filteredConsultations.map((consultation) => {
+        const wordData = consultation.wordId as any;
+        return {
+          id: wordData._id?.toString() || wordData.id?.toString() || "",
+          word: wordData.word,
+          language: wordData.language,
+          definition:
+            wordData.meanings?.[0]?.definitions?.[0]?.definition ||
+            "Définition non disponible",
+          lastViewedAt: consultation.lastViewedAt,
+          viewCount: consultation.viewCount,
+          viewType: consultation.viewType,
+          isOwner: false, // Ce ne sont pas ses mots, mais des consultations
+        };
+      });
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération des consultations récentes:', error);
+      console.error(
+        "❌ Erreur lors de la récupération des consultations récentes:",
+        error
+      );
       return [];
     }
   }

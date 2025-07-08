@@ -2,7 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { User } from '../../users/schemas/user.schema';
 
-export type UserRecommendationProfileDocument = UserRecommendationProfile & Document;
+export type UserRecommendationProfileDocument = UserRecommendationProfile &
+  Document;
 
 @Schema()
 export class InteractionPatterns {
@@ -21,7 +22,11 @@ export class RecommendationFeedback {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Word', required: true })
   wordId: string;
 
-  @Prop({ type: String, enum: ['like', 'dislike', 'not_interested', 'view', 'favorite'], required: true })
+  @Prop({
+    type: String,
+    enum: ['like', 'dislike', 'not_interested', 'view', 'favorite'],
+    required: true,
+  })
   feedbackType: string;
 
   @Prop({ default: Date.now })
@@ -33,7 +38,12 @@ export class RecommendationFeedback {
 
 @Schema({ timestamps: true })
 export class UserRecommendationProfile {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true, unique: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true,
+  })
   userId: User;
 
   @Prop({ type: [String], default: [] })
@@ -65,12 +75,15 @@ export class UserRecommendationProfile {
   totalRecommendationsFavorited: number;
 
   // Configuration personnalisée
-  @Prop({ type: Object, default: () => ({
-    behavioralWeight: 0.4,
-    semanticWeight: 0.3,
-    communityWeight: 0.2,
-    linguisticWeight: 0.1
-  }) })
+  @Prop({
+    type: Object,
+    default: () => ({
+      behavioralWeight: 0.4,
+      semanticWeight: 0.3,
+      communityWeight: 0.2,
+      linguisticWeight: 0.1,
+    }),
+  })
   algorithmWeights: {
     behavioralWeight: number;
     semanticWeight: number;
@@ -79,7 +92,9 @@ export class UserRecommendationProfile {
   };
 }
 
-export const UserRecommendationProfileSchema = SchemaFactory.createForClass(UserRecommendationProfile);
+export const UserRecommendationProfileSchema = SchemaFactory.createForClass(
+  UserRecommendationProfile,
+);
 
 // Index pour optimiser les requêtes
 UserRecommendationProfileSchema.index({ userId: 1 });
