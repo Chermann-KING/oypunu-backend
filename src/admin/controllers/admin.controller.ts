@@ -18,6 +18,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { AdminService } from '../services/admin.service';
+import { AnalyticsService } from '../services/analytics.service';
 import { ContributorRequestService } from '../../users/services/contributor-request.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -39,6 +40,7 @@ interface JwtUser {
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly analyticsService: AnalyticsService,
     private readonly contributorRequestService: ContributorRequestService,
   ) {}
 
@@ -267,6 +269,145 @@ export class AdminController {
         memory: process.memoryUsage(),
         nodeVersion: process.version,
       },
+    };
+  }
+
+  // === ANALYTICS ENDPOINTS ===
+
+  @Get('analytics/users')
+  @Roles('admin', 'superadmin')
+  @ApiOperation({ summary: 'Récupérer les analytics des utilisateurs' })
+  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y', 'all'] })
+  async getUserAnalytics(
+    @Request() req: { user: JwtUser },
+    @Query('period') period: '7d' | '30d' | '90d' | '1y' | 'all' = '30d',
+  ) {
+    const timeRange = this.getTimeRangeFromPeriod(period);
+    return this.analyticsService.getUserAnalytics(timeRange);
+  }
+
+  @Get('analytics/content')
+  @Roles('admin', 'superadmin')
+  @ApiOperation({ summary: 'Récupérer les analytics du contenu' })
+  async getContentAnalytics(@Request() req: { user: JwtUser }) {
+    return this.analyticsService.getContentAnalytics();
+  }
+
+  @Get('analytics/communities')
+  @Roles('admin', 'superadmin')
+  @ApiOperation({ summary: 'Récupérer les analytics des communautés' })
+  async getCommunityAnalytics(@Request() req: { user: JwtUser }) {
+    return this.analyticsService.getCommunityAnalytics();
+  }
+
+  @Get('analytics/system')
+  @Roles('admin', 'superadmin')
+  @ApiOperation({ summary: 'Récupérer les métriques système' })
+  async getSystemMetrics(@Request() req: { user: JwtUser }) {
+    return this.analyticsService.getSystemMetrics();
+  }
+
+  @Get('analytics/overview')
+  @Roles('admin', 'superadmin')
+  @ApiOperation({ summary: 'Récupérer vue d\'ensemble complète des analytics' })
+  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y', 'all'] })
+  async getAnalyticsOverview(
+    @Request() req: { user: JwtUser },
+    @Query('period') period: '7d' | '30d' | '90d' | '1y' | 'all' = '30d',
+  ) {
+    const timeRange = this.getTimeRangeFromPeriod(period);
+    
+    const [userAnalytics, contentAnalytics, communityAnalytics, systemMetrics] = 
+      await Promise.all([
+        this.analyticsService.getUserAnalytics(timeRange),
+        this.analyticsService.getContentAnalytics(),
+        this.analyticsService.getCommunityAnalytics(),
+        this.analyticsService.getSystemMetrics(),
+      ]);
+
+    return {
+      users: userAnalytics,
+      content: contentAnalytics,
+      communities: communityAnalytics,
+      system: systemMetrics,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  // === REPORTS ENDPOINTS ===
+
+  @Get('reports/export')
+  @Roles('admin', 'superadmin')
+  @ApiOperation({ summary: 'Exporter un rapport détaillé' })
+  @ApiQuery({ name: 'type', required: true, enum: ['users', 'content', 'communities', 'full'] })
+  @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
+  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y', 'all'] })
+  async exportReport(
+    @Request() req: { user: JwtUser },
+    @Query('type') type: 'users' | 'content' | 'communities' | 'full',
+    @Query('format') format: 'json' | 'csv' = 'json',
+    @Query('period') period: '7d' | '30d' | '90d' | '1y' | 'all' = '30d',
+  ) {
+    const timeRange = this.getTimeRangeFromPeriod(period);
+    
+    let reportData: any;
+    
+    switch (type) {
+      case 'users':
+        reportData = await this.analyticsService.getUserAnalytics(timeRange);
+        break;
+      case 'content':
+        reportData = await this.analyticsService.getContentAnalytics();
+        break;
+      case 'communities':
+        reportData = await this.analyticsService.getCommunityAnalytics();
+        break;
+      case 'full':
+        reportData = await this.getAnalyticsOverview(req, period);
+        break;
+      default:
+        throw new Error('Type de rapport non supporté');
+    }
+
+    return {
+      type,
+      format,
+      period,
+      data: reportData,
+      exportedAt: new Date().toISOString(),
+      exportedBy: req.user.username,
+    };
+  }
+
+  // === MÉTHODES UTILITAIRES ===
+
+  private getTimeRangeFromPeriod(period: string) {
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (period) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+      default:
+        startDate = new Date('2020-01-01');
+        break;
+    }
+    
+    return {
+      startDate,
+      endDate: now,
+      period: period as any,
     };
   }
 }
