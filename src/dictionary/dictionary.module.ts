@@ -26,6 +26,10 @@ import { CategoriesService } from './services/categories.service';
 import { AudioService } from './services/audio.service';
 // import { AudioCacheService } from './services/audio-cache.service';
 
+// PHASE 1 - Services utilitaires pour refactoring
+import { WordValidationService } from './services/word-services/word-validation.service';
+import { WordPermissionService } from './services/word-services/word-permission.service';
+
 // Contrôleurs
 import { WordsController } from './controllers/words.controller';
 import { CategoriesController } from './controllers/categories.controller';
@@ -53,7 +57,20 @@ import { ActivityModule } from '../common/activity.module';
     ActivityModule,
   ],
   controllers: [WordsController, CategoriesController, FavoriteWordsController],
-  providers: [WordsService, CategoriesService, AudioService],
-  exports: [WordsService, CategoriesService],
+  providers: [
+    WordsService, 
+    CategoriesService, 
+    AudioService,
+    // PHASE 1 - Services utilitaires pour refactoring
+    WordValidationService,
+    WordPermissionService,
+  ],
+  exports: [
+    WordsService, 
+    CategoriesService,
+    // PHASE 1 - Export des services utilitaires
+    WordValidationService,
+    WordPermissionService,
+  ],
 })
 export class DictionaryModule {}
