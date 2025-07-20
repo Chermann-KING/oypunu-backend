@@ -12,6 +12,7 @@ import {
   FavoriteWord,
   FavoriteWordDocument,
 } from "../../dictionary/schemas/favorite-word.schema";
+import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
 
 @Injectable()
 export class UsersService {
@@ -26,84 +27,119 @@ export class UsersService {
   ) {}
 
   async findById(id: string): Promise<User | null> {
-    return this.userModel.findById(id).exec();
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.userModel.findById(id).exec();
+      },
+      'User',
+      id
+    );
   }
 
   async findByIdWithLanguages(id: string): Promise<User | null> {
-    return this.userModel
-      .findById(id)
-      .populate("nativeLanguageId learningLanguageIds")
-      .exec();
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.userModel
+          .findById(id)
+          .populate("nativeLanguageId learningLanguageIds")
+          .exec();
+      },
+      'User',
+      id
+    );
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email }).exec();
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.userModel.findOne({ email }).exec();
+      },
+      'User',
+      email
+    );
   }
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.userModel.findOne({ username }).exec();
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.userModel.findOne({ username }).exec();
+      },
+      'User',
+      username
+    );
   }
 
   async updateUser(
     id: string,
     updateData: Partial<User>
   ): Promise<User | null> {
-    return this.userModel
-      .findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true } // Retourne le document mis à jour
-      )
-      .exec();
+    return DatabaseErrorHandler.handleUpdateOperation(
+      async () => {
+        return this.userModel
+          .findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true } // Retourne le document mis à jour
+          )
+          .exec();
+      },
+      'User',
+      id
+    );
   }
 
   async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {
-    console.log("[UsersService] Recherche d'utilisateurs");
-    console.log("[UsersService] Requête:", query);
-    console.log("[UsersService] Utilisateur à exclure:", excludeUserId);
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        console.log("[UsersService] Recherche d'utilisateurs");
+        console.log("[UsersService] Requête:", query);
+        console.log("[UsersService] Utilisateur à exclure:", excludeUserId);
 
-    const searchRegex = new RegExp(query, "i"); // Recherche insensible à la casse
-    console.log("[UsersService] Regex de recherche:", searchRegex);
+        const searchRegex = new RegExp(query, "i"); // Recherche insensible à la casse
+        console.log("[UsersService] Regex de recherche:", searchRegex);
 
-    const filter: any = {
-      $or: [
-        { username: { $regex: searchRegex } },
-        { email: { $regex: searchRegex } },
-      ],
-    };
+        const filter: any = {
+          $or: [
+            { username: { $regex: searchRegex } },
+            { email: { $regex: searchRegex } },
+          ],
+        };
 
-    // Exclure l'utilisateur connecté des résultats
-    if (excludeUserId) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      filter._id = { $ne: excludeUserId };
-    }
+        // Exclure l'utilisateur connecté des résultats
+        if (excludeUserId) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          filter._id = { $ne: excludeUserId };
+        }
 
-    console.log(
-      "[UsersService] Filtre de recherche:",
-      JSON.stringify(filter, null, 2)
+        console.log(
+          "[UsersService] Filtre de recherche:",
+          JSON.stringify(filter, null, 2)
+        );
+
+        const users = await this.userModel
+          .find(filter)
+          .select(
+            "_id username email nativeLanguage learningLanguages profilePicture"
+          )
+          .limit(10) // Limiter les résultats
+          .exec();
+
+        console.log("[UsersService] Utilisateurs trouvés en base:", users.length);
+        console.log(
+          "[UsersService] Premier utilisateur (si existe):",
+          users[0]
+            ? {
+                id: users[0]._id,
+                username: users[0].username,
+                email: users[0].email,
+              }
+            : "Aucun"
+        );
+
+        return users;
+      },
+      'User'
     );
-
-    const users = await this.userModel
-      .find(filter)
-      .select(
-        "_id username email nativeLanguage learningLanguages profilePicture"
-      )
-      .limit(10) // Limiter les résultats
-      .exec();
-
-    console.log("[UsersService] Utilisateurs trouvés en base:", users.length);
-    console.log(
-      "[UsersService] Premier utilisateur (si existe):",
-      users[0]
-        ? {
-            id: users[0]._id,
-            username: users[0].username,
-            email: users[0].email,
-          }
-        : "Aucun"
-    );
-
-    return users;
   }
 
   async getUserStats(userId: string): Promise<{
@@ -118,33 +154,38 @@ export class UsersService {
     activitiesThisWeek: number;
     lastActivityDate?: Date;
   }> {
-    const user = await this.userModel.findById(userId).exec();
-    if (!user) {
-      throw new Error("Utilisateur non trouvé");
-    }
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) {
+          throw new Error("Utilisateur non trouvé");
+        }
 
-    // Utiliser notre nouvelle méthode intelligente
-    const personalStats = await this.getUserPersonalStats(userId);
+        // Utiliser notre nouvelle méthode intelligente
+        const personalStats = await this.getUserPersonalStats(userId);
 
-    // Compter les vrais favoris de l'utilisateur
-    const actualFavoritesCount = await this.favoriteWordModel
-      .countDocuments({ userId })
-      .exec();
+        // Compter les vrais favoris de l'utilisateur
+        const actualFavoritesCount = await this.favoriteWordModel
+          .countDocuments({ userId })
+          .exec();
 
-    return {
-      totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
-      totalCommunityPosts: user.totalCommunityPosts || 0,
-      favoriteWordsCount: actualFavoritesCount,
-      joinDate:
-        (user as unknown as { createdAt?: Date }).createdAt || new Date(),
-      // Nouvelles stats intelligentes
-      streak: personalStats.streak,
-      languagesContributed: personalStats.languagesContributed, // NOUVELLE MÉTRIQUE
-      languagesExplored: personalStats.languagesExplored,
-      contributionScore: personalStats.contributionScore,
-      activitiesThisWeek: personalStats.activitiesThisWeek,
-      lastActivityDate: personalStats.lastActivityDate,
-    };
+        return {
+          totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
+          totalCommunityPosts: user.totalCommunityPosts || 0,
+          favoriteWordsCount: actualFavoritesCount,
+          joinDate:
+            (user as unknown as { createdAt?: Date }).createdAt || new Date(),
+          // Nouvelles stats intelligentes
+          streak: personalStats.streak,
+          languagesContributed: personalStats.languagesContributed, // NOUVELLE MÉTRIQUE
+          languagesExplored: personalStats.languagesExplored,
+          contributionScore: personalStats.contributionScore,
+          activitiesThisWeek: personalStats.activitiesThisWeek,
+          lastActivityDate: personalStats.lastActivityDate,
+        };
+      },
+      'User'
+    );
   }
 
   async incrementWordCount(userId: string): Promise<void> {
