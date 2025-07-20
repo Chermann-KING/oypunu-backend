@@ -11,22 +11,23 @@ import {
   Matches,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { USER_LIMITS, VALIDATION_LIMITS, VALIDATION_MESSAGES } from "../../common/constants/validation-limits.constants";
 
 export class CreateContributorRequestDto {
   @ApiProperty({
     description: "Motivation pour devenir contributeur",
     example:
       "Je suis passionné par les langues africaines et je souhaite contribuer à la préservation du patrimoine linguistique...",
-    minLength: 50,
-    maxLength: 1000,
+    minLength: USER_LIMITS.CONTRIBUTION_REASON.MIN,
+    maxLength: USER_LIMITS.CONTRIBUTION_REASON.MAX,
   })
   @IsString()
   @IsNotEmpty()
-  @MinLength(50, {
-    message: "La motivation doit contenir au moins 50 caractères",
+  @MinLength(USER_LIMITS.CONTRIBUTION_REASON.MIN, {
+    message: VALIDATION_MESSAGES.TOO_SHORT("La motivation", USER_LIMITS.CONTRIBUTION_REASON.MIN),
   })
-  @MaxLength(1000, {
-    message: "La motivation ne peut pas dépasser 1000 caractères",
+  @MaxLength(USER_LIMITS.CONTRIBUTION_REASON.MAX, {
+    message: VALIDATION_MESSAGES.TOO_LONG("La motivation", USER_LIMITS.CONTRIBUTION_REASON.MAX),
   })
   motivation: string;
 
@@ -34,12 +35,12 @@ export class CreateContributorRequestDto {
     description: "Expérience linguistique du candidat",
     example:
       "Diplômé en linguistique, 5 ans d'enseignement du français, traducteur freelance...",
-    maxLength: 500,
+    maxLength: VALIDATION_LIMITS.MEDIUM_TEXT.MAX,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(500, {
-    message: "L'expérience ne peut pas dépasser 500 caractères",
+  @MaxLength(VALIDATION_LIMITS.MEDIUM_TEXT.MAX, {
+    message: VALIDATION_MESSAGES.TOO_LONG("L'expérience", VALIDATION_LIMITS.MEDIUM_TEXT.MAX),
   })
   experience?: string;
 
@@ -47,12 +48,12 @@ export class CreateContributorRequestDto {
     description: "Langues maîtrisées par le candidat",
     example:
       "Ypunu (natif), Français (courant), Anglais (intermédiaire), Arabe (débutant)",
-    maxLength: 200,
+    maxLength: VALIDATION_LIMITS.SHORT_TEXT.MAX,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(200, {
-    message: "Les langues ne peuvent pas dépasser 200 caractères",
+  @MaxLength(VALIDATION_LIMITS.SHORT_TEXT.MAX, {
+    message: VALIDATION_MESSAGES.TOO_LONG("Les langues", VALIDATION_LIMITS.SHORT_TEXT.MAX),
   })
   languages?: string;
 
@@ -67,11 +68,13 @@ export class CreateContributorRequestDto {
   @ApiPropertyOptional({
     description: "Profil LinkedIn du candidat",
     example: "https://linkedin.com/in/username",
-    maxLength: 100,
+    maxLength: VALIDATION_LIMITS.URL.MAX,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(100)
+  @MaxLength(VALIDATION_LIMITS.URL.MAX, {
+    message: VALIDATION_MESSAGES.TOO_LONG("Le lien LinkedIn", VALIDATION_LIMITS.URL.MAX),
+  })
   @Matches(/^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/, {
     message: "Le lien LinkedIn doit être valide",
   })
@@ -80,11 +83,13 @@ export class CreateContributorRequestDto {
   @ApiPropertyOptional({
     description: "Profil GitHub du candidat",
     example: "https://github.com/username",
-    maxLength: 100,
+    maxLength: VALIDATION_LIMITS.URL.MAX,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(100)
+  @MaxLength(VALIDATION_LIMITS.URL.MAX, {
+    message: VALIDATION_MESSAGES.TOO_LONG("Le lien GitHub", VALIDATION_LIMITS.URL.MAX),
+  })
   @Matches(/^https?:\/\/(www\.)?github\.com\/[\w-]+\/?$/, {
     message: "Le lien GitHub doit être valide",
   })
@@ -93,11 +98,13 @@ export class CreateContributorRequestDto {
   @ApiPropertyOptional({
     description: "Portfolio ou site web du candidat",
     example: "https://monportfolio.com",
-    maxLength: 200,
+    maxLength: VALIDATION_LIMITS.URL.MAX,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(200)
+  @MaxLength(VALIDATION_LIMITS.URL.MAX, {
+    message: VALIDATION_MESSAGES.TOO_LONG("Le portfolio", VALIDATION_LIMITS.URL.MAX),
+  })
   @IsUrl({}, { message: "Le portfolio doit être une URL valide" })
   portfolio?: string;
 }
