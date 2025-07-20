@@ -13,15 +13,23 @@ import {
   Matches,
   IsMongoId,
   ValidateIf,
+  MaxLength,
+  MinLength,
+  ArrayMaxSize,
 } from 'class-validator';
+import { DICTIONARY_LIMITS, VALIDATION_LIMITS, ARRAY_LIMITS, createValidationMessage } from '../../common/constants/validation-limits.constants';
 
 class DefinitionDto {
   @ApiProperty({
     description: 'Définition du mot',
     example: 'État de calme, de tranquillité, de confiance sur le plan moral',
+    minLength: DICTIONARY_LIMITS.DEFINITION.MIN,
+    maxLength: DICTIONARY_LIMITS.DEFINITION.MAX,
   })
   @IsString()
   @IsNotEmpty()
+  @MinLength(DICTIONARY_LIMITS.DEFINITION.MIN, createValidationMessage('La définition', DICTIONARY_LIMITS.DEFINITION).minLength)
+  @MaxLength(DICTIONARY_LIMITS.DEFINITION.MAX, createValidationMessage('La définition', DICTIONARY_LIMITS.DEFINITION).maxLength)
   definition: string;
 
   @ApiProperty({
@@ -32,20 +40,25 @@ class DefinitionDto {
     ],
     required: false,
     isArray: true,
+    maxItems: ARRAY_LIMITS.EXAMPLES,
   })
   @IsArray()
-  @IsString({ each: true })
   @IsOptional()
+  @ArrayMaxSize(ARRAY_LIMITS.EXAMPLES, { message: `Maximum ${ARRAY_LIMITS.EXAMPLES} exemples autorisés` })
+  @IsString({ each: true })
+  @MaxLength(DICTIONARY_LIMITS.EXAMPLE.MAX, { each: true, message: `Chaque exemple ne peut dépasser ${DICTIONARY_LIMITS.EXAMPLE.MAX} caractères` })
   examples?: string[];
 
   @ApiProperty({
     description: 'URL de la source de la définition',
     example: 'https://www.larousse.fr/dictionnaires/francais/sérénité/72193',
     required: false,
+    maxLength: VALIDATION_LIMITS.URL.MAX,
   })
   @IsString()
-  @IsUrl()
   @IsOptional()
+  @IsUrl({}, { message: 'URL invalide' })
+  @MaxLength(VALIDATION_LIMITS.URL.MAX, createValidationMessage('L\'URL source', VALIDATION_LIMITS.URL).maxLength)
   sourceUrl?: string;
 }
 
