@@ -29,9 +29,14 @@ import { AudioService } from './services/audio.service';
 // PHASE 1 - Services utilitaires pour refactoring
 import { WordValidationService } from './services/word-services/word-validation.service';
 import { WordPermissionService } from './services/word-services/word-permission.service';
+import { WordNotificationService } from './services/word-services/word-notification.service';
+import { WordTranslationService } from './services/word-services/word-translation.service';
 
-// PHASE 2 - Extraction WordAudioService
+// PHASE 2-5 - Services spécialisés
 import { WordAudioService } from './services/word-services/word-audio.service';
+import { WordFavoriteService } from './services/word-services/word-favorite.service';
+import { WordAnalyticsService } from './services/word-services/word-analytics.service';
+import { WordRevisionService } from './services/word-services/word-revision.service';
 
 // Contrôleurs
 import { WordsController } from './controllers/words.controller';
@@ -67,8 +72,13 @@ import { ActivityModule } from '../common/activity.module';
     // PHASE 1 - Services utilitaires pour refactoring
     WordValidationService,
     WordPermissionService,
-    // PHASE 2 - Services spécialisés
+    WordNotificationService,
+    WordTranslationService,
+    // PHASE 2 - Services spécialisés  
     WordAudioService,
+    WordFavoriteService,
+    WordAnalyticsService,
+    WordRevisionService,
   ],
   exports: [
     WordsService, 
@@ -76,8 +86,13 @@ import { ActivityModule } from '../common/activity.module';
     // PHASE 1 - Export des services utilitaires
     WordValidationService,
     WordPermissionService,
+    WordNotificationService,
+    WordTranslationService,
     // PHASE 2 - Export des services spécialisés
     WordAudioService,
+    WordFavoriteService,
+    WordAnalyticsService,
+    WordRevisionService,
   ],
 })
 export class DictionaryModule {}
