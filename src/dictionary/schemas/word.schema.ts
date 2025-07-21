@@ -210,6 +210,9 @@ export class Word {
 
   @Prop({ type: [String], default: [] })
   availableLanguages: string[]; // Langues pour lesquelles ce mot a des traductions
+
+  @Prop({ type: Number, default: 1 })
+  version: number; // Version du mot (pour le système de révisions)
 }
 
 export const WordSchema = SchemaFactory.createForClass(Word);

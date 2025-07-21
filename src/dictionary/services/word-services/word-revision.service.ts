@@ -118,8 +118,6 @@ export class WordRevisionService {
         return updatedWord;
       },
       'WordRevision',
-      wordId,
-      user._id?.toString(),
     );
   }
 
@@ -160,17 +158,22 @@ export class WordRevisionService {
         revision.adminNotes = notes;
         await revision.save();
 
-        // Mettre à jour le mot avec la nouvelle version
+        // Appliquer les changements de la révision
+        const updateData: any = {
+          status: 'approved',
+          updatedAt: new Date(),
+          version: revision.version,
+        };
+
+        // Appliquer chaque changement approuvé
+        revision.changes.forEach(change => {
+          if (change.changeType !== 'removed') {
+            updateData[change.field] = change.newValue;
+          }
+        });
+
         const updatedWord = await this.wordModel
-          .findByIdAndUpdate(
-            wordId,
-            {
-              ...(revision.newVersion as Partial<Word>),
-              status: 'approved', // Retour au statut approuvé
-              updatedAt: new Date(),
-            },
-            { new: true },
-          )
+          .findByIdAndUpdate(wordId, updateData, { new: true })
           .populate('createdBy', 'username')
           .populate('categoryId', 'name')
           .exec();
@@ -193,8 +196,6 @@ export class WordRevisionService {
         return updatedWord;
       },
       'WordRevision',
-      revisionId,
-      adminUser._id?.toString(),
     );
   }
 
@@ -251,8 +252,6 @@ export class WordRevisionService {
         console.log('✅ Révision rejetée avec succès');
       },
       'WordRevision',
-      revisionId,
-      adminUser._id?.toString(),
     );
   }
 
@@ -486,7 +485,7 @@ export class WordRevisionService {
    */
   async canUserCreateRevision(word: WordDocument, user: User): Promise<boolean> {
     // Seuls les non-admins créent des révisions (les admins modifient directement)
-    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN) {
+    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
       return false;
     }
 

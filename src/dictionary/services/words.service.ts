@@ -42,13 +42,6 @@ import { WordRevisionService } from './word-services/word-revision.service';
 import { WordTranslationService } from './word-services/word-translation.service';
 import { WordCoreService } from './word-services/word-core.service';
 
-interface WordFilter {
-  status: string;
-  $or?: Array<{ [key: string]: { $regex: string; $options: string } }>;
-  language?: { $in: string[] };
-  categoryId?: { $in: Types.ObjectId[] };
-  'meanings.partOfSpeech'?: { $in: string[] };
-}
 
 
 @Injectable()
@@ -299,73 +292,6 @@ export class WordsService {
     return this.wordCoreService.update(id, updateWordDto, user);
   }
 
-  /**
-    id: string,
-    updateWordDto: UpdateWordDto,
-    user: User,
-  ): Promise<Word> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    const word = await this.wordModel.findById(id);
-
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
-    }
-
-    // Vérifier si l'utilisateur a le droit de modifier ce mot
-    if (
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN &&
-      word.createdBy &&
-      typeof word.createdBy === 'object' &&
-      '_id' in word.createdBy &&
-      word.createdBy._id &&
-      Types.ObjectId.isValid(String(word.createdBy._id)) &&
-      Types.ObjectId.isValid(String(user._id)) &&
-      String(word.createdBy._id) !== String(user._id)
-    ) {
-      throw new BadRequestException(
-        "Vous n'avez pas le droit de modifier ce mot",
-      );
-    }
-
-    // Si le statut du mot a été modifié et que l'utilisateur n'est pas admin
-    if (
-      updateWordDto.status &&
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN
-    ) {
-      delete updateWordDto.status;
-    }
-
-    // Vérifier si le mot est approuvé et nécessite une révision
-    const needsRevision =
-      word.status === 'approved' &&
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN;
-
-    if (needsRevision || updateWordDto.forceRevision) {
-      console.log('📝 WordsService.update - Délégation createRevision vers WordRevisionService');
-      return this.wordRevisionService.createRevision(id, updateWordDto, user);
-    }
-
-    // Mise à jour directe pour les admins ou mots non approuvés
-    const updatedWord = await this.wordModel
-      .findByIdAndUpdate(id, updateWordDto, { new: true })
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .exec();
-
-    if (!updatedWord) {
-      throw new NotFoundException(
-        `Mot avec l'ID ${id} non trouvé après mise à jour`,
-      );
-    }
-
-    return updatedWord;
-  }
 
   /**
    * Met à jour un mot avec fichier audio en une seule opération
@@ -571,49 +497,6 @@ export class WordsService {
     return this.wordCoreService.remove(id, user);
   }
 
-  // ANCIEN CODE À SUPPRIMER
-  async removeOLD_TO_DELETE(id: string, user: User): Promise<{ success: boolean }> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    const word = await this.wordModel.findById(id);
-
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
-    }
-
-    // Vérifier si l'utilisateur a le droit de supprimer ce mot
-    const isAdmin =
-      user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN;
-
-    // Fonction pour extraire et comparer les IDs de manière sûre
-    const compareIds = (id1: any, id2: any): boolean => {
-      return String(id1) === String(id2);
-    };
-
-    let isCreator = false;
-    if (
-      word.createdBy &&
-      typeof word.createdBy === 'object' &&
-      'id' in word.createdBy &&
-      user._id
-    ) {
-      isCreator = compareIds(word.createdBy._id, user._id);
-    }
-
-    if (!isAdmin && !isCreator) {
-      throw new BadRequestException(
-        "Vous n'avez pas le droit de supprimer ce mot",
-      );
-    }
-
-    await this.wordModel.findByIdAndDelete(id);
-    // Supprimer également les favoris associés à ce mot
-    await this.favoriteWordModel.deleteMany({ wordId: id });
-
-    return { success: true };
-  }
 
   /**
    * Recherche des mots avec filtres
@@ -629,72 +512,6 @@ export class WordsService {
     return this.wordCoreService.search(searchDto);
   }
 
-  // ANCIEN CODE À SUPPRIMER
-  async searchOLD_TO_DELETE(searchDto: SearchWordsDto): Promise<{
-    words: Word[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }> {
-    const {
-      query,
-      languages,
-      categories,
-      partsOfSpeech,
-      page = 1,
-      limit = 10,
-    } = searchDto;
-    const skip = (page - 1) * limit;
-
-    // Construire les filtres de recherche
-    const filter: WordFilter = {
-      status: 'approved',
-    };
-
-    // Recherche par texte
-    if (query && query.trim() !== '') {
-      filter.$or = [
-        { word: { $regex: query, $options: 'i' } },
-        { 'meanings.definitions.definition': { $regex: query, $options: 'i' } },
-      ];
-    }
-
-    // Filtrer par langue
-    if (languages && languages.length > 0) {
-      filter.language = { $in: languages };
-    }
-
-    // Filtrer par catégorie
-    if (categories && categories.length > 0) {
-      filter.categoryId = {
-        $in: categories.map((id) => new Types.ObjectId(id)),
-      };
-    }
-
-    // Filtrer par partie du discours
-    if (partsOfSpeech && partsOfSpeech.length > 0) {
-      filter['meanings.partOfSpeech'] = { $in: partsOfSpeech };
-    }
-
-    // Exécuter la requête
-    const total = await this.wordModel.countDocuments(filter);
-    const words = await this.wordModel
-      .find(filter)
-      .skip(skip)
-      .limit(limit)
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .exec();
-
-    return {
-      words,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-  }
 
   /**
    * Récupère les mots vedettes
@@ -705,40 +522,6 @@ export class WordsService {
     return this.wordCoreService.getFeaturedWords(limit);
   }
 
-  // ANCIEN CODE À SUPPRIMER
-  async getFeaturedWordsOLD_TO_DELETE(limit = 3): Promise<Word[]> {
-    // Récupérer des mots aléatoires parmi ceux approuvés
-    return this.wordModel
-      .aggregate([
-        { $match: { status: 'approved' } },
-        { $sample: { size: limit } },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'createdBy',
-            foreignField: '_id',
-            as: 'createdBy',
-            pipeline: [{ $project: { username: 1 } }],
-          },
-        },
-        {
-          $lookup: {
-            from: 'categories',
-            localField: 'categoryId',
-            foreignField: '_id',
-            as: 'categoryId',
-            pipeline: [{ $project: { name: 1 } }],
-          },
-        },
-        {
-          $addFields: {
-            createdBy: { $arrayElemAt: ['$createdBy', 0] },
-            categoryId: { $arrayElemAt: ['$categoryId', 0] },
-          },
-        },
-      ])
-      .exec();
-  }
 
   // Récupérer les langues disponibles dans la base de données
   async getAvailableLanguages(): Promise<
