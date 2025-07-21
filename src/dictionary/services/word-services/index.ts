@@ -1,6 +1,6 @@
 /**
  * Index des services pour les mots
- * PHASE 1-4 - Refactoring WordsService
+ * PHASE 1-5 - Refactoring WordsService
  */
 
 // Phase 1 - Services utilitaires
@@ -17,3 +17,6 @@ export { WordFavoriteService } from './word-favorite.service';
 
 // Phase 4 - Service analytics
 export { WordAnalyticsService } from './word-analytics.service';
+
+// Phase 5 - Service révisions
+export { WordRevisionService, ChangeLog } from './word-revision.service';
