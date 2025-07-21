@@ -30,6 +30,9 @@ import { AudioService } from './services/audio.service';
 import { WordValidationService } from './services/word-services/word-validation.service';
 import { WordPermissionService } from './services/word-services/word-permission.service';
 
+// PHASE 2 - Extraction WordAudioService
+import { WordAudioService } from './services/word-services/word-audio.service';
+
 // Contrôleurs
 import { WordsController } from './controllers/words.controller';
 import { CategoriesController } from './controllers/categories.controller';
@@ -64,6 +67,8 @@ import { ActivityModule } from '../common/activity.module';
     // PHASE 1 - Services utilitaires pour refactoring
     WordValidationService,
     WordPermissionService,
+    // PHASE 2 - Services spécialisés
+    WordAudioService,
   ],
   exports: [
     WordsService, 
@@ -71,6 +76,8 @@ import { ActivityModule } from '../common/activity.module';
     // PHASE 1 - Export des services utilitaires
     WordValidationService,
     WordPermissionService,
+    // PHASE 2 - Export des services spécialisés
+    WordAudioService,
   ],
 })
 export class DictionaryModule {}

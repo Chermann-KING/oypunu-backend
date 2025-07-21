@@ -34,6 +34,8 @@ import {
   WordView,
   WordViewDocument,
 } from '../../users/schemas/word-view.schema';
+// PHASE 2 - Import WordAudioService
+import { WordAudioService } from './word-services/word-audio.service';
 
 interface WordFilter {
   status: string;
@@ -73,6 +75,8 @@ export class WordsService {
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
+    // PHASE 2 - Injection WordAudioService
+    private wordAudioService: WordAudioService,
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
@@ -506,6 +510,7 @@ export class WordsService {
 
   /**
    * Met à jour un mot avec fichier audio en une seule opération
+   * PHASE 2 - Délégation vers WordAudioService
    */
   async updateWithAudio(
     id: string,
@@ -531,18 +536,15 @@ export class WordsService {
 
     // Étape 2: Ajouter le fichier audio si présent
     if (audioFile && audioFile.buffer && audioFile.size > 0) {
-      console.log('🎙️ Étape 2: Ajout du fichier audio');
+      console.log('🎙️ Étape 2: Ajout du fichier audio via WordAudioService');
 
       try {
-        // Déterminer l'accent par défaut basé sur la langue du mot
-        const language = updatedWord.language || 'fr'; // Fallback vers français si undefined
-        const defaultAccent = this.getDefaultAccentForLanguage(language);
-
-        // Ajouter le fichier audio
-        const wordWithAudio = await this.addAudioFile(
+        // Déléguer vers WordAudioService
+        const language = updatedWord.language || 'fr';
+        const wordWithAudio = await this.wordAudioService.updateWordWithAudio(
           id,
-          defaultAccent,
           audioFile.buffer,
+          language,
           user,
         );
 
@@ -574,18 +576,10 @@ export class WordsService {
 
   /**
    * Détermine l'accent par défaut basé sur la langue
+   * PHASE 2 - Délégation vers WordAudioService
    */
   private getDefaultAccentForLanguage(language: string): string {
-    const defaultAccents: Record<string, string> = {
-      fr: 'fr-fr',
-      en: 'en-us',
-      es: 'es-es',
-      de: 'de-de',
-      it: 'it-it',
-      pt: 'pt-br',
-    };
-
-    return defaultAccents[language] || 'standard';
+    return this.wordAudioService.getDefaultAccentForLanguage(language);
   }
 
   private async createRevision(
@@ -853,122 +847,18 @@ export class WordsService {
     );
   }
 
+  /**
+   * Ajoute un fichier audio à un mot
+   * PHASE 2 - Délégation vers WordAudioService
+   */
   async addAudioFile(
     wordId: string,
     accent: string,
     fileBuffer: Buffer,
     user: User,
   ): Promise<Word> {
-    console.log('🎵 === DEBUT addAudioFile ===');
-    console.log('📋 Paramètres:', {
-      wordId: wordId,
-      accent: accent,
-      bufferSize: fileBuffer.length,
-      userId: user._id,
-    });
-
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    console.log('📝 Mot trouvé:', {
-      word: word.word,
-      language: word.language,
-      existingAudioFiles: Object.keys(word.audioFiles || {}).length,
-    });
-
-    // Vérifier les permissions
-    const canEdit = await this.canUserEditWord(wordId, user);
-    if (!canEdit) {
-      throw new BadRequestException(
-        "Vous n'avez pas la permission d'ajouter un fichier audio à ce mot",
-      );
-    }
-
-    try {
-      console.log('🚀 Appel uploadPhoneticAudio...');
-
-      // Essayer de détecter le type MIME à partir de la signature
-      let detectedMimeType: string | undefined;
-      const signature = fileBuffer.slice(0, 12).toString('hex').toLowerCase();
-
-      if (
-        signature.startsWith('fffb') ||
-        signature.startsWith('fff3') ||
-        signature.startsWith('494433')
-      ) {
-        detectedMimeType = 'audio/mpeg';
-      } else if (signature.startsWith('52494646')) {
-        detectedMimeType = 'audio/wav';
-      } else if (signature.startsWith('4f676753')) {
-        detectedMimeType = 'audio/ogg';
-      } else if (signature.includes('667479704d344120')) {
-        detectedMimeType = 'audio/mp4';
-      } else if (signature.startsWith('1a45dfa3')) {
-        detectedMimeType = 'audio/webm';
-      }
-
-      console.log('🔍 Type MIME détecté:', detectedMimeType || 'non déterminé');
-
-      const uploadResult = await this.audioService.uploadPhoneticAudio(
-        word.word,
-        word.language || 'fr', // Fallback vers français si undefined
-        fileBuffer,
-        accent,
-        detectedMimeType, // Passer le type MIME détecté
-      );
-
-      console.log('✅ Upload Cloudinary réussi:', {
-        url: uploadResult.url,
-        cloudinaryId: uploadResult.cloudinaryId,
-        duration: uploadResult.duration,
-        fileSize: uploadResult.fileSize,
-      });
-
-      // Mettre à jour le mot avec le fichier audio
-      if (!word.audioFiles) {
-        word.audioFiles = new Map();
-      }
-
-      word.audioFiles.set(accent, {
-        url: uploadResult.url,
-        cloudinaryId: uploadResult.cloudinaryId,
-        language: word.language || 'fr', // Fallback vers français si undefined
-        accent: accent,
-      });
-
-      word.markModified('audioFiles');
-      const updatedWord = await word.save();
-
-      console.log('💾 Mot mis à jour avec nouveau fichier audio');
-      console.log('🎵 === FIN addAudioFile (SUCCÈS) ===');
-
-      return updatedWord;
-    } catch (error: unknown) {
-      console.error('💥 Erreur dans addAudioFile:', {
-        error: error instanceof Error ? error.message : error,
-        wordId: wordId,
-        accent: accent,
-        bufferSize: fileBuffer.length,
-      });
-
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new BadRequestException(
-          `Erreur lors de l'ajout du fichier audio: ${error.message}`,
-        );
-      }
-      throw new BadRequestException(
-        "Erreur inconnue lors de l'ajout du fichier audio",
-      );
-    }
+    console.log('🎵 WordsService.addAudioFile - Délégation vers WordAudioService');
+    return this.wordAudioService.addAudioFile(wordId, accent, fileBuffer, user);
   }
 
   private async notifyUserOfRevisionApproval(
