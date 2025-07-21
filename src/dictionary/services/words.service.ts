@@ -34,12 +34,13 @@ import {
   WordView,
   WordViewDocument,
 } from '../../users/schemas/word-view.schema';
-// PHASE 2-6 - Import services spécialisés
+// PHASE 2-7 - Import services spécialisés
 import { WordAudioService } from './word-services/word-audio.service';
 import { WordFavoriteService } from './word-services/word-favorite.service';
 import { WordAnalyticsService } from './word-services/word-analytics.service';
 import { WordRevisionService } from './word-services/word-revision.service';
 import { WordTranslationService } from './word-services/word-translation.service';
+import { WordCoreService } from './word-services/word-core.service';
 
 interface WordFilter {
   status: string;
@@ -67,12 +68,13 @@ export class WordsService {
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
-    // PHASE 2-6 - Injection services spécialisés
+    // PHASE 2-7 - Injection services spécialisés
     private wordAudioService: WordAudioService,
     private wordFavoriteService: WordFavoriteService,
     private wordAnalyticsService: WordAnalyticsService,
     private wordRevisionService: WordRevisionService,
     private wordTranslationService: WordTranslationService,
+    private wordCoreService: WordCoreService,
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
