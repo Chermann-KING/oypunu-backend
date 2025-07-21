@@ -582,7 +582,7 @@ export class WordsController {
     if (req?.user?._id) {
       // Appel asynchrone sans attendre pour ne pas ralentir la réponse
       this.wordsService
-        .trackWordView(id, String(req.user._id), 'direct')
+        .trackWordView(id, String(req.user._id), 'detail')
         .catch((error) => {
           console.error('❌ Erreur lors du tracking de vue:', error);
         });

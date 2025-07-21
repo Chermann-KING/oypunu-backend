@@ -34,9 +34,10 @@ import {
   WordView,
   WordViewDocument,
 } from '../../users/schemas/word-view.schema';
-// PHASE 2-3 - Import services spécialisés
+// PHASE 2-4 - Import services spécialisés
 import { WordAudioService } from './word-services/word-audio.service';
 import { WordFavoriteService } from './word-services/word-favorite.service';
+import { WordAnalyticsService } from './word-services/word-analytics.service';
 
 interface WordFilter {
   status: string;
@@ -71,9 +72,10 @@ export class WordsService {
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
-    // PHASE 2-3 - Injection services spécialisés
+    // PHASE 2-4 - Injection services spécialisés
     private wordAudioService: WordAudioService,
     private wordFavoriteService: WordFavoriteService,
+    private wordAnalyticsService: WordAnalyticsService,
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
@@ -376,66 +378,14 @@ export class WordsService {
     return word;
   }
 
-  /**
-   * Track qu'un utilisateur a consulté un mot
-   */
+  // PHASE 4 - DÉLÉGATION: Enregistrer une vue sur un mot
   async trackWordView(
     wordId: string,
     userId: string,
-    viewType: 'search' | 'direct' | 'favorite' | 'recommendation' = 'direct',
+    viewType: 'search' | 'detail' | 'favorite' = 'detail',
   ): Promise<void> {
-    try {
-      if (!Types.ObjectId.isValid(wordId) || !Types.ObjectId.isValid(userId)) {
-        console.warn('IDs invalides pour le tracking:', { wordId, userId });
-        return;
-      }
-
-      // Récupérer les informations du mot pour le cache
-      const word = await this.wordModel
-        .findById(wordId)
-        .select('word language')
-        .exec();
-      if (!word) {
-        console.warn('Mot non trouvé pour le tracking:', wordId);
-        return;
-      }
-
-      // Chercher si une entrée existe déjà pour cet utilisateur et ce mot
-      const existingView = await this.wordViewModel
-        .findOne({
-          userId,
-          wordId,
-        })
-        .exec();
-
-      if (existingView) {
-        // Mettre à jour l'entrée existante
-        await this.wordViewModel
-          .findByIdAndUpdate(existingView._id, {
-            $inc: { viewCount: 1 },
-            lastViewedAt: new Date(),
-            viewType, // Mettre à jour le type de vue
-          })
-          .exec();
-      } else {
-        // Créer une nouvelle entrée
-        await this.wordViewModel.create({
-          userId,
-          wordId,
-          word: word.word,
-          language: word.language,
-          viewedAt: new Date(),
-          lastViewedAt: new Date(),
-          viewType,
-          viewCount: 1,
-        });
-      }
-
-      console.log(`📊 Vue trackée: ${word.word} par utilisateur ${userId}`);
-    } catch (error) {
-      console.error('❌ Erreur lors du tracking de vue:', error);
-      // Ne pas faire échouer la requête principale si le tracking échoue
-    }
+    console.log('📊 WordsService.trackWordView - Délégation vers WordAnalyticsService');
+    return this.wordAnalyticsService.trackWordView(wordId, userId, viewType);
   }
 
   async update(
@@ -1630,95 +1580,26 @@ export class WordsService {
     };
   }
 
-  // Méthodes pour les statistiques en temps réel
+  // PHASE 4 - DÉLÉGATION: Nombre de mots approuvés
   async getApprovedWordsCount(): Promise<number> {
-    return this.wordModel
-      .countDocuments({
-        status: 'approved',
-      })
-      .exec();
+    console.log('📊 WordsService.getApprovedWordsCount - Délégation vers WordAnalyticsService');
+    return this.wordAnalyticsService.getApprovedWordsCount();
   }
 
+  // PHASE 4 - DÉLÉGATION: Mots ajoutés aujourd'hui
   async getWordsAddedToday(): Promise<number> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setDate(today.getDate() + 1);
-
-    return this.wordModel
-      .countDocuments({
-        status: 'approved',
-        createdAt: {
-          $gte: today,
-          $lt: todayEnd,
-        },
-      })
-      .exec();
+    console.log('📊 WordsService.getWordsAddedToday - Délégation vers WordAnalyticsService');
+    return this.wordAnalyticsService.getWordsAddedToday();
   }
 
+  // PHASE 4 - DÉLÉGATION: Récupérer les statistiques complètes des mots
   async getWordsStatistics(): Promise<{
     totalApprovedWords: number;
     wordsAddedToday: number;
     wordsAddedThisWeek: number;
     wordsAddedThisMonth: number;
   }> {
-    const now = new Date();
-
-    // Aujourd'hui
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayStart.getDate() + 1);
-
-    // Cette semaine (lundi à aujourd'hui)
-    const weekStart = new Date(now);
-    const dayOfWeek = weekStart.getDay();
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // dimanche = 0, lundi = 1
-    weekStart.setDate(weekStart.getDate() - daysFromMonday);
-    weekStart.setHours(0, 0, 0, 0);
-
-    // Ce mois
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const [
-      totalApprovedWords,
-      wordsAddedToday,
-      wordsAddedThisWeek,
-      wordsAddedThisMonth,
-    ] = await Promise.all([
-      this.wordModel.countDocuments({ status: 'approved' }).exec(),
-      this.wordModel
-        .countDocuments({
-          status: 'approved',
-          createdAt: { $gte: todayStart, $lt: todayEnd },
-        })
-        .exec(),
-      this.wordModel
-        .countDocuments({
-          status: 'approved',
-          createdAt: { $gte: weekStart },
-        })
-        .exec(),
-      this.wordModel
-        .countDocuments({
-          status: 'approved',
-          createdAt: { $gte: monthStart },
-        })
-        .exec(),
-    ]);
-
-    console.log('📊 Statistiques des mots:', {
-      totalApprovedWords,
-      wordsAddedToday,
-      wordsAddedThisWeek,
-      wordsAddedThisMonth,
-    });
-
-    return {
-      totalApprovedWords,
-      wordsAddedToday,
-      wordsAddedThisWeek,
-      wordsAddedThisMonth,
-    };
+    console.log('📊 WordsService.getWordsStatistics - Délégation vers WordAnalyticsService');
+    return this.wordAnalyticsService.getWordsStatistics();
   }
 }
