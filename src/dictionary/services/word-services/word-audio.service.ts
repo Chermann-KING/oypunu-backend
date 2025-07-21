@@ -646,6 +646,7 @@ export class WordAudioService {
    * Ligne 2100-2175 dans WordsService original
    */
   async getAudioStatistics(): Promise<{
+<<<<<<< HEAD
     totalWords: number;
     wordsWithAudio: number;
     totalAudioFiles: number;
