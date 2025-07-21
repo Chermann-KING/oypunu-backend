@@ -34,10 +34,11 @@ import {
   WordView,
   WordViewDocument,
 } from '../../users/schemas/word-view.schema';
-// PHASE 2-4 - Import services spécialisés
+// PHASE 2-5 - Import services spécialisés
 import { WordAudioService } from './word-services/word-audio.service';
 import { WordFavoriteService } from './word-services/word-favorite.service';
 import { WordAnalyticsService } from './word-services/word-analytics.service';
+import { WordRevisionService } from './word-services/word-revision.service';
 
 interface WordFilter {
   status: string;
@@ -45,13 +46,6 @@ interface WordFilter {
   language?: { $in: string[] };
   categoryId?: { $in: Types.ObjectId[] };
   'meanings.partOfSpeech'?: { $in: string[] };
-}
-
-interface ChangeLog {
-  field: string;
-  oldValue: any;
-  newValue: any;
-  changeType: 'added' | 'modified' | 'removed';
 }
 
 
@@ -72,10 +66,11 @@ export class WordsService {
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
-    // PHASE 2-4 - Injection services spécialisés
+    // PHASE 2-5 - Injection services spécialisés
     private wordAudioService: WordAudioService,
     private wordFavoriteService: WordFavoriteService,
     private wordAnalyticsService: WordAnalyticsService,
+    private wordRevisionService: WordRevisionService,
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
@@ -436,7 +431,8 @@ export class WordsService {
       user.role !== UserRole.SUPERADMIN;
 
     if (needsRevision || updateWordDto.forceRevision) {
-      return this.createRevision(id, updateWordDto, user);
+      console.log('📝 WordsService.update - Délégation createRevision vers WordRevisionService');
+      return this.wordRevisionService.createRevision(id, updateWordDto, user);
     }
 
     // Mise à jour directe pour les admins ou mots non approuvés
@@ -529,269 +525,35 @@ export class WordsService {
     return this.wordAudioService.getDefaultAccentForLanguage(language);
   }
 
-  private async createRevision(
-    wordId: string,
-    updateWordDto: UpdateWordDto,
-    user: User,
-  ): Promise<Word> {
-    const word = await this.wordModel.findById(wordId);
 
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
 
-    // Créer l'historique des changements
-    const changes = this.detectChanges(word, updateWordDto);
 
-    if (changes.length === 0) {
-      throw new BadRequestException('Aucun changement détecté');
-    }
-
-    // Obtenir le numéro de version suivant
-    const lastRevision = await this.revisionHistoryModel
-      .findOne({ wordId })
-      .sort({ version: -1 })
-      .exec();
-
-    const nextVersion = (lastRevision?.version || 0) + 1;
-
-    // Créer la révision
-    const revision = new this.revisionHistoryModel({
-      wordId: new Types.ObjectId(wordId),
-      version: nextVersion,
-      previousVersion: word.toObject(),
-      modifiedBy: new Types.ObjectId(user._id),
-      modifiedAt: new Date(),
-      changes,
-      status: 'pending',
-    });
-
-    await revision.save();
-
-    // Mettre à jour le statut du mot
-    const updatedWord = await this.wordModel
-      .findByIdAndUpdate(
-        wordId,
-        {
-          ...updateWordDto,
-          status: 'pending_revision',
-          revisionNotes: updateWordDto.revisionNotes,
-        },
-        { new: true },
-      )
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .exec();
-
-    if (!updatedWord) {
-      throw new NotFoundException(
-        `Mot avec l'ID ${wordId} non trouvé après mise à jour`,
-      );
-    }
-
-    // Notifier les admins
-    await this.notifyAdminsOfRevision(wordId, user, changes);
-
-    return updatedWord;
-  }
-
-  private detectChanges(oldWord: Word, newData: UpdateWordDto): ChangeLog[] {
-    const changes: ChangeLog[] = [];
-
-    // Fonction utilitaire pour comparer les valeurs
-    const compareValues = (oldVal: unknown, newVal: unknown, field: string) => {
-      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-        changes.push({
-          field,
-          oldValue: oldVal,
-          newValue: newVal,
-          changeType:
-            oldVal === undefined
-              ? 'added'
-              : newVal === undefined
-                ? 'removed'
-                : 'modified',
-        });
-      }
-    };
-
-    // Comparer chaque champ
-    if (newData.pronunciation !== undefined) {
-      compareValues(
-        oldWord.pronunciation,
-        newData.pronunciation,
-        'pronunciation',
-      );
-    }
-    if (newData.etymology !== undefined) {
-      compareValues(oldWord.etymology, newData.etymology, 'etymology');
-    }
-    if (newData.meanings !== undefined) {
-      compareValues(oldWord.meanings, newData.meanings, 'meanings');
-    }
-    if (newData.translations !== undefined) {
-      compareValues(oldWord.translations, newData.translations, 'translations');
-    }
-    if (newData.languageVariants !== undefined) {
-      compareValues(
-        oldWord.languageVariants,
-        newData.languageVariants,
-        'languageVariants',
-      );
-    }
-    if (newData.audioFiles !== undefined) {
-      compareValues(oldWord.audioFiles, newData.audioFiles, 'audioFiles');
-    }
-
-    return changes;
-  }
-
-  private async notifyAdminsOfRevision(
-    wordId: string,
-    user: User,
-    changes: ChangeLog[],
-  ): Promise<void> {
-    // Trouver tous les admins
-    const admins = await this.userModel
-      .find({
-        role: { $in: ['admin', 'superadmin'] },
-      })
-      .exec();
-
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    const changeFields = changes.map((c) => c.field).join(', ');
-
-    // Créer des notifications pour chaque admin
-    const notifications = admins.map((admin) => ({
-      type: 'word_revision' as const,
-      wordId: new Types.ObjectId(wordId),
-      targetUserId: new Types.ObjectId(admin._id),
-      triggeredBy: new Types.ObjectId(user._id),
-      message: `Le mot "${word.word}" a été modifié par ${user.username}. Champs modifiés: ${changeFields}`,
-      metadata: {
-        wordName: word.word,
-        revisionVersion: 1, // Sera mis à jour
-        changes: changes.map((c) => c.field),
-      },
-    }));
-
-    await this.wordNotificationModel.insertMany(notifications);
-  }
-
+  // PHASE 5 - DÉLÉGATION: Récupérer l'historique des révisions
   async getRevisionHistory(wordId: string): Promise<RevisionHistory[]> {
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    return this.revisionHistoryModel
-      .find({ wordId: new Types.ObjectId(wordId) })
-      .populate('modifiedBy', 'username')
-      .populate('adminApprovedBy', 'username')
-      .sort({ version: -1 })
-      .exec();
+    console.log('📝 WordsService.getRevisionHistory - Délégation vers WordRevisionService');
+    return this.wordRevisionService.getRevisionHistory(wordId);
   }
 
+  // PHASE 5 - DÉLÉGATION: Approuver une révision
   async approveRevision(
     wordId: string,
     revisionId: string,
     adminUser: User,
     notes?: string,
   ): Promise<Word> {
-    if (
-      !Types.ObjectId.isValid(wordId) ||
-      !Types.ObjectId.isValid(revisionId)
-    ) {
-      throw new BadRequestException('ID invalide');
-    }
-
-    const revision = await this.revisionHistoryModel.findById(revisionId);
-    if (!revision) {
-      throw new NotFoundException('Révision non trouvée');
-    }
-
-    if (revision.wordId.toString() !== wordId) {
-      throw new BadRequestException('Révision ne correspond pas au mot');
-    }
-
-    // Mettre à jour la révision
-    revision.status = 'approved';
-    revision.adminApprovedBy = adminUser;
-    revision.adminApprovedAt = new Date();
-    revision.adminNotes = notes;
-    await revision.save();
-
-    // Mettre à jour le mot avec la nouvelle version
-    const updatedWord = await this.wordModel
-      .findByIdAndUpdate(
-        wordId,
-        {
-          ...(revision.previousVersion as Partial<Word>),
-          status: 'revision_approved',
-          updatedAt: new Date(),
-        },
-        { new: true },
-      )
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .exec();
-
-    if (!updatedWord) {
-      throw new NotFoundException(
-        `Mot avec l'ID ${wordId} non trouvé après mise à jour`,
-      );
-    }
-
-    // Notifier l'utilisateur qui a créé la révision
-    await this.notifyUserOfRevisionApproval(
-      wordId,
-      revision.modifiedBy as unknown as Types.ObjectId,
-      adminUser,
-    );
-
-    return updatedWord;
+    console.log('📝 WordsService.approveRevision - Délégation vers WordRevisionService');
+    return this.wordRevisionService.approveRevision(wordId, revisionId, adminUser, notes);
   }
 
+  // PHASE 5 - DÉLÉGATION: Rejeter une révision
   async rejectRevision(
     wordId: string,
     revisionId: string,
     adminUser: User,
     reason: string,
   ): Promise<void> {
-    if (
-      !Types.ObjectId.isValid(wordId) ||
-      !Types.ObjectId.isValid(revisionId)
-    ) {
-      throw new BadRequestException('ID invalide');
-    }
-
-    const revision = await this.revisionHistoryModel.findById(revisionId);
-    if (!revision) {
-      throw new NotFoundException('Révision non trouvée');
-    }
-
-    // Mettre à jour la révision
-    revision.status = 'rejected';
-    revision.adminApprovedBy = adminUser;
-    revision.adminApprovedAt = new Date();
-    revision.rejectionReason = reason;
-    await revision.save();
-
-    // Remettre le mot en statut approuvé
-    await this.wordModel.findByIdAndUpdate(wordId, {
-      status: 'approved',
-    });
-
-    // Notifier l'utilisateur
-    await this.notifyUserOfRevisionRejection(
-      wordId,
-      revision.modifiedBy as unknown as Types.ObjectId,
-      adminUser,
-      reason,
-    );
+    console.log('📝 WordsService.rejectRevision - Délégation vers WordRevisionService');
+    return this.wordRevisionService.rejectRevision(wordId, revisionId, adminUser, reason);
   }
 
   /**
@@ -808,50 +570,7 @@ export class WordsService {
     return this.wordAudioService.addAudioFile(wordId, accent, fileBuffer, user);
   }
 
-  private async notifyUserOfRevisionApproval(
-    wordId: string,
-    userId: Types.ObjectId,
-    adminUser: User,
-  ): Promise<void> {
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
 
-    await this.wordNotificationModel.create({
-      type: 'revision_approved',
-      wordId: new Types.ObjectId(wordId),
-      targetUserId: userId,
-      triggeredBy: new Types.ObjectId(adminUser._id),
-      message: `Votre modification du mot "${word.word}" a été approuvée par ${adminUser.username}`,
-      metadata: {
-        wordName: word.word,
-      },
-    });
-  }
-
-  private async notifyUserOfRevisionRejection(
-    wordId: string,
-    userId: Types.ObjectId,
-    adminUser: User,
-    reason: string,
-  ): Promise<void> {
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    await this.wordNotificationModel.create({
-      type: 'revision_rejected',
-      wordId: new Types.ObjectId(wordId),
-      targetUserId: userId,
-      triggeredBy: new Types.ObjectId(adminUser._id),
-      message: `Votre modification du mot "${word.word}" a été rejetée par ${adminUser.username}. Raison: ${reason}`,
-      metadata: {
-        wordName: word.word,
-      },
-    });
-  }
 
   async canUserEditWord(wordId: string, user: User): Promise<boolean> {
     console.log('=== DEBUG canUserEditWord ===');
@@ -912,6 +631,7 @@ export class WordsService {
     return canEdit;
   }
 
+  // PHASE 5 - DÉLÉGATION: Récupérer les révisions en attente avec pagination
   async getPendingRevisions(
     page = 1,
     limit = 10,
@@ -922,27 +642,8 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    const skip = (page - 1) * limit;
-
-    const [revisions, total] = await Promise.all([
-      this.revisionHistoryModel
-        .find({ status: 'pending' })
-        .populate('wordId')
-        .populate('modifiedBy', 'username')
-        .sort({ modifiedAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.revisionHistoryModel.countDocuments({ status: 'pending' }),
-    ]);
-
-    return {
-      revisions,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    console.log('📝 WordsService.getPendingRevisions - Délégation vers WordRevisionService');
+    return this.wordRevisionService.getPendingRevisions(page, limit);
   }
 
   async remove(id: string, user: User): Promise<{ success: boolean }> {
