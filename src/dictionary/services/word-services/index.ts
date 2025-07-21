@@ -1,6 +1,6 @@
 /**
  * Index des services pour les mots
- * PHASE 1-5 - Refactoring WordsService
+ * PHASE 1-7 - Refactoring WordsService
  */
 
 // Phase 1 - Services utilitaires
@@ -20,3 +20,6 @@ export { WordAnalyticsService } from './word-analytics.service';
 
 // Phase 5 - Service révisions
 export { WordRevisionService, ChangeLog } from './word-revision.service';
+
+// Phase 7 - Service core CRUD
+export { WordCoreService } from './word-core.service';

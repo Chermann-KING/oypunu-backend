@@ -32,11 +32,12 @@ import { WordPermissionService } from './services/word-services/word-permission.
 import { WordNotificationService } from './services/word-services/word-notification.service';
 import { WordTranslationService } from './services/word-services/word-translation.service';
 
-// PHASE 2-5 - Services spécialisés
+// PHASE 2-7 - Services spécialisés
 import { WordAudioService } from './services/word-services/word-audio.service';
 import { WordFavoriteService } from './services/word-services/word-favorite.service';
 import { WordAnalyticsService } from './services/word-services/word-analytics.service';
 import { WordRevisionService } from './services/word-services/word-revision.service';
+import { WordCoreService } from './services/word-services/word-core.service';
 
 // Contrôleurs
 import { WordsController } from './controllers/words.controller';
@@ -74,11 +75,12 @@ import { ActivityModule } from '../common/activity.module';
     WordPermissionService,
     WordNotificationService,
     WordTranslationService,
-    // PHASE 2 - Services spécialisés  
+    // PHASE 2-7 - Services spécialisés  
     WordAudioService,
     WordFavoriteService,
     WordAnalyticsService,
     WordRevisionService,
+    WordCoreService,
   ],
   exports: [
     WordsService, 
@@ -88,11 +90,12 @@ import { ActivityModule } from '../common/activity.module';
     WordPermissionService,
     WordNotificationService,
     WordTranslationService,
-    // PHASE 2 - Export des services spécialisés
+    // PHASE 2-7 - Export des services spécialisés
     WordAudioService,
     WordFavoriteService,
     WordAnalyticsService,
     WordRevisionService,
+    WordCoreService,
   ],
 })
 export class DictionaryModule {}
