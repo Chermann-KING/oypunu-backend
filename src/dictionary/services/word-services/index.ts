@@ -6,6 +6,8 @@
 // Phase 1 - Services utilitaires
 export { WordValidationService } from './word-validation.service';
 export { WordPermissionService } from './word-permission.service';
+export { WordNotificationService } from './word-notification.service';
+export { WordTranslationService, Translation } from './word-translation.service';
 
 // Phase 2 - Services spécialisés
 export { WordAudioService } from './word-audio.service';
