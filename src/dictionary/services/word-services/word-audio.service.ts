@@ -580,13 +580,8 @@ export class WordAudioService {
    * Ligne 2045-2095 dans WordsService original
    */
   async cleanupOrphanedAudioFiles(wordId?: string): Promise<{
-    cleanedCount: number;
+    cleaned: number;
     errors: string[];
-    details: Array<{
-      wordId: string;
-      accent: string;
-      action: string;
-    }>;
   }> {
     return DatabaseErrorHandler.handleUpdateOperation(
       async () => {
@@ -637,9 +632,8 @@ export class WordAudioService {
         }
 
         return {
-          cleanedCount,
+          cleaned: cleanedCount,
           errors,
-          details,
         };
       },
       'WordAudio',
@@ -652,50 +646,80 @@ export class WordAudioService {
    * Ligne 2100-2175 dans WordsService original
    */
   async getAudioStatistics(): Promise<{
+    totalWords: number;
+    wordsWithAudio: number;
     totalAudioFiles: number;
-    languageStats: Array<{ language: string; count: number }>;
-    accentStats: Array<{ accent: string; count: number }>;
-    topContributors: Array<{ userId: string; username: string; audioCount: number }>;
+    audioByLanguage: Record<string, number>;
+    audioByAccent: Record<string, number>;
+    averageAudioPerWord: number;
   }> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
-        const words = await this.wordModel.find({}).exec();
-        
-        let totalAudioFiles = 0;
-        const languageMap = new Map<string, number>();
-        const accentMap = new Map<string, number>();
+        const totalWords = await this.wordModel.countDocuments();
+        const wordsWithAudio = await this.wordModel.countDocuments({
+          audioFiles: { $exists: true, $ne: {} },
+        });
 
-        for (const word of words) {
-          const audioFiles = word.audioFiles || new Map();
-          const audioCount = audioFiles.size;
-          totalAudioFiles += audioCount;
+        // Agrégation pour obtenir les statistiques détaillées
+        const audioStats = await this.wordModel.aggregate([
+          { $match: { audioFiles: { $exists: true, $ne: {} } } },
+          {
+            $project: {
+              language: 1,
+              audioCount: { $size: { $objectToArray: '$audioFiles' } },
+              audioAccents: {
+                $map: {
+                  input: { $objectToArray: '$audioFiles' },
+                  as: 'audio',
+                  in: '$$audio.k',
+                },
+              },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalAudioFiles: { $sum: '$audioCount' },
+              languageStats: {
+                $push: {
+                  language: '$language',
+                  count: '$audioCount',
+                },
+              },
+              allAccents: { $push: '$audioAccents' },
+            },
+          },
+        ]);
 
-          if (audioCount > 0) {
-            const language = word.language || 'unknown';
-            languageMap.set(language, (languageMap.get(language) || 0) + audioCount);
+        const stats = (audioStats[0] as any) || {
+          totalAudioFiles: 0,
+          languageStats: [],
+          allAccents: [],
+        };
 
-            for (const [accent] of audioFiles) {
-              accentMap.set(accent, (accentMap.get(accent) || 0) + 1);
-            }
+        // Traitement des statistiques par langue
+        const audioByLanguage: Record<string, number> = {};
+        for (const langStat of stats.languageStats) {
+          audioByLanguage[langStat.language] =
+            (audioByLanguage[langStat.language] || 0) + langStat.count;
+        }
+
+        // Traitement des statistiques par accent
+        const audioByAccent: Record<string, number> = {};
+        for (const accents of stats.allAccents) {
+          for (const accent of accents) {
+            audioByAccent[accent] = (audioByAccent[accent] || 0) + 1;
           }
         }
 
-        const languageStats = Array.from(languageMap.entries())
-          .map(([language, count]) => ({ language, count }))
-          .sort((a, b) => b.count - a.count);
-
-        const accentStats = Array.from(accentMap.entries())
-          .map(([accent, count]) => ({ accent, count }))
-          .sort((a, b) => b.count - a.count);
-
-        // TODO: Implémenter les statistiques des contributeurs
-        const topContributors: Array<{ userId: string; username: string; audioCount: number }> = [];
-
         return {
-          totalAudioFiles,
-          languageStats,
-          accentStats,
-          topContributors,
+          totalWords,
+          wordsWithAudio,
+          totalAudioFiles: stats.totalAudioFiles,
+          audioByLanguage,
+          audioByAccent,
+          averageAudioPerWord:
+            wordsWithAudio > 0 ? stats.totalAudioFiles / wordsWithAudio : 0,
         };
       },
       'WordAudio',

@@ -52,11 +52,6 @@ interface ChangeLog {
   changeType: 'added' | 'modified' | 'removed';
 }
 
-type AudioStats = {
-  totalAudioFiles: number;
-  languageStats: { language: string; count: number }[];
-  allAccents: string[][];
-};
 
 @Injectable()
 export class WordsService {
@@ -1688,6 +1683,7 @@ export class WordsService {
 
   /**
    * Met à jour en masse les fichiers audio d'un mot
+   * PHASE 2 - ÉTAPE 4 : Délégation vers WordAudioService
    */
   async bulkUpdateAudioFiles(
     wordId: string,
@@ -1698,100 +1694,20 @@ export class WordsService {
     }>,
     user: User,
   ): Promise<Word> {
-    // 1. Validation
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
+    // Adapter les données vers le format WordAudioService
+    const adaptedUpdates = audioUpdates.map(update => ({
+      accent: update.accent,
+      fileBuffer: update.audioBuffer,
+      action: update.replaceExisting ? 'update' as const : 'add' as const,
+    }));
 
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    // 2. Vérifier les permissions
-    const canEdit = await this.canUserEditWord(wordId, user);
-    if (!canEdit) {
-      throw new BadRequestException(
-        "Vous n'avez pas le droit de modifier ce mot.",
-      );
-    }
-
-    // 3. Traiter chaque mise à jour
-    const results: string[] = [];
-    const errors: string[] = [];
-
-    for (const update of audioUpdates) {
-      try {
-        // Vérifier si le fichier existe déjà
-        const existingAudio = word.audioFiles?.get(update.accent);
-
-        if (existingAudio && !update.replaceExisting) {
-          errors.push(`Audio pour l'accent '${update.accent}' existe déjà`);
-          continue;
-        }
-
-        // Supprimer l'ancien fichier si nécessaire
-        if (existingAudio && update.replaceExisting) {
-          try {
-            await this.audioService.deletePhoneticAudio(
-              existingAudio.cloudinaryId,
-            );
-          } catch (deleteError) {
-            console.warn(
-              `Avertissement: Impossible de supprimer l'ancien fichier pour ${update.accent}:`,
-              deleteError,
-            );
-          }
-        }
-
-        // Uploader le nouveau fichier
-        const audioData = await this.audioService.uploadPhoneticAudio(
-          word.word,
-          word.language || 'fr', // Fallback vers français si undefined
-          update.audioBuffer,
-          update.accent,
-        );
-
-        // Mettre à jour la map
-        if (!word.audioFiles) {
-          word.audioFiles = new Map();
-        }
-
-        word.audioFiles.set(update.accent, {
-          url: audioData.url,
-          cloudinaryId: audioData.cloudinaryId,
-          language: word.language || 'fr', // Fallback vers français si undefined
-          accent: update.accent,
-        });
-
-        results.push(`Audio mis à jour pour l'accent '${update.accent}'`);
-      } catch (error) {
-        errors.push(
-          `Erreur pour l'accent '${update.accent}': ${error instanceof Error ? error.message : ''}`,
-        );
-      }
-    }
-
-    // 4. Sauvegarder si au moins une mise à jour a réussi
-    if (results.length > 0) {
-      await word.save();
-    }
-
-    // 5. Retourner le résultat avec les erreurs éventuelles
-    if (errors.length > 0) {
-      console.warn('Erreurs lors de la mise à jour en masse:', errors);
-      if (results.length === 0) {
-        throw new BadRequestException(
-          `Toutes les mises à jour ont échoué: ${errors.join(', ')}`,
-        );
-      }
-    }
-
-    return word;
+    console.log('🎵 WordsService.bulkUpdateAudioFiles - Délégation vers WordAudioService');
+    return this.wordAudioService.bulkUpdateAudioFiles(wordId, adaptedUpdates, user);
   }
 
   /**
    * Génère une URL optimisée pour un fichier audio
+   * PHASE 2 - ÉTAPE 4 : Délégation vers WordAudioService
    */
   async getOptimizedAudioUrl(
     wordId: string,
@@ -1799,53 +1715,24 @@ export class WordsService {
     options: {
       quality?: 'auto:low' | 'auto:good' | 'auto:best';
       format?: 'mp3' | 'ogg' | 'webm';
-      volume?: number; // -100 à 400
-      speed?: number; // 0.5 à 2.0
+      volume?: number;
+      speed?: number;
     } = {},
   ): Promise<string> {
-    // 1. Récupérer le mot
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
+    // Adapter les options vers le format WordAudioService
+    const adaptedOptions = {
+      quality: options.quality?.replace('auto:', '') as 'auto' | 'good' | 'best' || 'auto',
+      format: options.format || 'mp3',
+    };
 
-    // 2. Vérifier si le fichier audio existe
-    if (!word.audioFiles || !word.audioFiles.has(accent)) {
-      throw new NotFoundException(
-        `Aucun fichier audio trouvé pour l'accent '${accent}'`,
-      );
-    }
-
-    const audioInfo = word.audioFiles.get(accent);
-    if (!audioInfo || !audioInfo.cloudinaryId) {
-      throw new BadRequestException('Informations du fichier audio manquantes');
-    }
-
-    // 3. Générer l'URL optimisée
-    let audioUrl: string;
-
-    if (options.volume !== undefined || options.speed !== undefined) {
-      // URL avec transformations
-      audioUrl = this.audioService.getTransformedAudioUrl(
-        audioInfo.cloudinaryId,
-        {
-          volume: options.volume,
-          speed: options.speed,
-        },
-      );
-    } else {
-      // URL simple optimisée
-      audioUrl = this.audioService.getAudioUrl(audioInfo.cloudinaryId, {
-        quality: options.quality || 'auto:good',
-        format: options.format || 'mp3',
-      });
-    }
-
-    return audioUrl;
+    console.log('🎵 WordsService.getOptimizedAudioUrl - Délégation vers WordAudioService');
+    const result = await this.wordAudioService.getOptimizedAudioUrl(wordId, accent, adaptedOptions);
+    return result.optimizedUrl;
   }
 
   /**
    * Vérifie la validité des fichiers audio d'un mot
+   * PHASE 2 - ÉTAPE 4 : Délégation vers WordAudioService
    */
   async validateWordAudioFiles(wordId: string): Promise<{
     valid: boolean;
@@ -1856,75 +1743,31 @@ export class WordsService {
       error?: string;
     }>;
   }> {
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    const issues: string[] = [];
-    const audioFiles: Array<{
-      accent: string;
-      status: 'valid' | 'invalid' | 'missing';
-      error?: string;
-    }> = [];
-
-    if (!word.audioFiles || word.audioFiles.size === 0) {
-      issues.push('Aucun fichier audio pour ce mot');
-      return {
-        valid: false,
-        issues,
-        audioFiles,
-      };
-    }
-
-    // Vérifier chaque fichier audio
-    for (const [accent, audioInfo] of word.audioFiles) {
-      try {
-        // Vérifier la structure des données
-        if (!audioInfo.cloudinaryId || !audioInfo.url) {
-          audioFiles.push({
-            accent,
-            status: 'invalid',
-            error: 'Données manquantes (cloudinaryId ou URL)',
-          });
-          issues.push(`Fichier ${accent}: données manquantes`);
-          continue;
-        }
-
-        // Vérifier la validité de l'URL
-        try {
-          const response = await fetch(audioInfo.url, { method: 'HEAD' });
-          if (!response.ok) {
-            throw new Error(`Status ${response.status}`);
-          }
-
-          audioFiles.push({
-            accent,
-            status: 'valid',
-          });
-        } catch (urlError) {
-          audioFiles.push({
-            accent,
-            status: 'invalid',
-            error: `URL inaccessible: ${urlError instanceof Error ? urlError.message : ''}`,
-          });
-          issues.push(`Fichier ${accent}: URL inaccessible`);
-        }
-      } catch (error) {
-        audioFiles.push({
-          accent,
-          status: 'invalid',
-          error: error instanceof Error ? error.message : '',
-        });
-        issues.push(
-          `Fichier ${accent}: ${error instanceof Error ? error.message : ''}`,
-        );
-      }
+    console.log('🎵 WordsService.validateWordAudioFiles - Délégation vers WordAudioService');
+    const result = await this.wordAudioService.validateWordAudioFiles(wordId);
+    
+    // Adapter la réponse vers le format attendu par WordsService
+    const audioFiles = result.invalidFiles.map(invalid => ({
+      accent: invalid.accent,
+      status: 'invalid' as const,
+      error: invalid.issues.join(', '),
+    }));
+    
+    // Ajouter les fichiers valides
+    const totalFiles = result.totalFiles;
+    const invalidCount = result.invalidFiles.length;
+    const validCount = totalFiles - invalidCount;
+    
+    for (let i = 0; i < validCount; i++) {
+      audioFiles.push({
+        accent: `valid-${i}`, // Placeholder car WordAudioService ne retourne pas les détails des valides
+        status: 'valid' as const,
+      });
     }
 
     return {
-      valid: issues.length === 0,
-      issues,
+      valid: result.invalidFiles.length === 0,
+      issues: result.recommendations,
       audioFiles,
     };
   }
@@ -1932,61 +1775,15 @@ export class WordsService {
   /**
    * Nettoie les fichiers audio orphelins (qui n'existent plus sur Cloudinary)
    */
+  // PHASE 2 - DÉLÉGATION: Nettoyage des fichiers audio orphelins
   async cleanupOrphanedAudioFiles(wordId?: string): Promise<{
     cleaned: number;
     errors: string[];
   }> {
-    const filter = wordId ? { _id: new Types.ObjectId(wordId) } : {};
-    const words = await this.wordModel.find(filter);
-
-    let cleaned = 0;
-    const errors: string[] = [];
-
-    for (const word of words) {
-      if (!word.audioFiles || word.audioFiles.size === 0) {
-        continue;
-      }
-
-      const accentsToRemove: string[] = [];
-
-      for (const [accent, audioInfo] of word.audioFiles) {
-        try {
-          // Vérifier si le fichier existe sur Cloudinary
-          // const metadata = await this.audioService.getAudioMetadata();
-          // (audioInfo n'est pas utilisé, donc on ne fait rien ici)
-        } catch (error) {
-          // En cas d'erreur, considérer comme orphelin
-          accentsToRemove.push(accent);
-          errors.push(
-            `Erreur lors de la vérification de ${word.word}/${accent}: ${error instanceof Error ? error.message : ''}`,
-          );
-        }
-      }
-
-      // Supprimer les entrées orphelines
-      for (const accent of accentsToRemove) {
-        word.audioFiles.delete(accent);
-        cleaned++;
-      }
-
-      // Sauvegarder si des modifications ont été apportées
-      if (accentsToRemove.length > 0) {
-        await word.save();
-        console.log(
-          `Nettoyé ${accentsToRemove.length} fichiers orphelins pour le mot: ${word.word}`,
-        );
-      }
-    }
-
-    return {
-      cleaned,
-      errors,
-    };
+    return this.wordAudioService.cleanupOrphanedAudioFiles(wordId);
   }
 
-  /**
-   * Obtient les statistiques des fichiers audio
-   */
+  // PHASE 2 - DÉLÉGATION: Statistiques des fichiers audio
   async getAudioStatistics(): Promise<{
     totalWords: number;
     wordsWithAudio: number;
@@ -1995,73 +1792,7 @@ export class WordsService {
     audioByAccent: Record<string, number>;
     averageAudioPerWord: number;
   }> {
-    const totalWords = await this.wordModel.countDocuments();
-
-    const wordsWithAudio = await this.wordModel.countDocuments({
-      audioFiles: { $exists: true, $ne: {} },
-    });
-
-    // Agrégation pour obtenir les statistiques détaillées
-    const audioStats = await this.wordModel.aggregate([
-      { $match: { audioFiles: { $exists: true, $ne: {} } } },
-      {
-        $project: {
-          language: 1,
-          audioCount: { $size: { $objectToArray: '$audioFiles' } },
-          audioAccents: {
-            $map: {
-              input: { $objectToArray: '$audioFiles' },
-              as: 'audio',
-              in: '$$audio.k',
-            },
-          },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalAudioFiles: { $sum: '$audioCount' },
-          languageStats: {
-            $push: {
-              language: '$language',
-              count: '$audioCount',
-            },
-          },
-          allAccents: { $push: '$audioAccents' },
-        },
-      },
-    ]);
-
-    const stats: AudioStats = (audioStats[0] as AudioStats) || {
-      totalAudioFiles: 0,
-      languageStats: [],
-      allAccents: [],
-    };
-
-    // Traitement des statistiques par langue
-    const audioByLanguage: Record<string, number> = {};
-    for (const langStat of stats.languageStats) {
-      audioByLanguage[langStat.language] =
-        (audioByLanguage[langStat.language] || 0) + langStat.count;
-    }
-
-    // Traitement des statistiques par accent
-    const audioByAccent: Record<string, number> = {};
-    for (const accents of stats.allAccents) {
-      for (const accent of accents) {
-        audioByAccent[accent] = (audioByAccent[accent] || 0) + 1;
-      }
-    }
-
-    return {
-      totalWords,
-      wordsWithAudio,
-      totalAudioFiles: stats.totalAudioFiles,
-      audioByLanguage,
-      audioByAccent,
-      averageAudioPerWord:
-        wordsWithAudio > 0 ? stats.totalAudioFiles / wordsWithAudio : 0,
-    };
+    return this.wordAudioService.getAudioStatistics();
   }
 
   /**
