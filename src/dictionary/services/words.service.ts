@@ -34,8 +34,9 @@ import {
   WordView,
   WordViewDocument,
 } from '../../users/schemas/word-view.schema';
-// PHASE 2 - Import WordAudioService
+// PHASE 2-3 - Import services spécialisés
 import { WordAudioService } from './word-services/word-audio.service';
+import { WordFavoriteService } from './word-services/word-favorite.service';
 
 interface WordFilter {
   status: string;
@@ -70,8 +71,9 @@ export class WordsService {
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
-    // PHASE 2 - Injection WordAudioService
+    // PHASE 2-3 - Injection services spécialisés
     private wordAudioService: WordAudioService,
+    private wordFavoriteService: WordFavoriteService,
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
@@ -1203,141 +1205,25 @@ export class WordsService {
     return sortedLanguages;
   }
 
+  // PHASE 3 - DÉLÉGATION: Ajouter un mot aux favoris
   async addToFavorites(
     wordId: string,
     userId: string,
   ): Promise<{ success: boolean }> {
-    console.log('🔥 addToFavorites - wordId:', wordId);
-    console.log('🔥 addToFavorites - userId:', userId);
-    console.log('🔥 addToFavorites - userId type:', typeof userId);
-
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    // Vérifier si userId est valide
-    if (!userId || !Types.ObjectId.isValid(userId)) {
-      console.error('UserId invalide ou non fourni:', userId);
-      throw new BadRequestException('ID utilisateur invalide');
-    }
-
-    // Vérifier si le mot existe
-    console.log('🔥 Vérification existence du mot...');
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      console.log('❌ Mot non trouvé:', wordId);
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-    console.log('✅ Mot trouvé:', word.word);
-
-    // Convertir les IDs en ObjectIds pour la requête MongoDB
-    const wordObjectId = new Types.ObjectId(wordId);
-    const userObjectId = new Types.ObjectId(userId);
-
-    console.log(
-      '🔥 ObjectIds convertis - wordObjectId:',
-      wordObjectId,
-      'userObjectId:',
-      userObjectId,
-    );
-
-    // Vérifier si le mot est déjà dans les favoris
-    console.log('🔥 Vérification favoris existants...');
-    const existingFavorite = await this.favoriteWordModel.findOne({
-      wordId: wordObjectId,
-      userId: userObjectId,
-    });
-
-    if (existingFavorite) {
-      console.log('✅ Mot déjà dans les favoris');
-      return { success: true }; // Déjà dans les favoris
-    }
-    console.log('🔥 Mot pas encore dans les favoris, ajout en cours...');
-
-    // Ajouter aux favoris
-    const newFavorite = new this.favoriteWordModel({
-      wordId: wordObjectId,
-      userId: userObjectId,
-      addedAt: new Date(),
-    });
-
-    console.log('🔥 Sauvegarde du favori...');
-    try {
-      await newFavorite.save();
-      console.log('✅ Favori sauvegardé avec succès!');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde:', error);
-      throw error;
-    }
+    console.log('⭐ WordsService.addToFavorites - Délégation vers WordFavoriteService');
+    return this.wordFavoriteService.addToFavorites(wordId, userId);
   }
 
+  // PHASE 3 - DÉLÉGATION: Retirer un mot des favoris
   async removeFromFavorites(
     wordId: string,
     userId: string,
   ): Promise<{ success: boolean }> {
-    console.log('🔥 removeFromFavorites - wordId:', wordId);
-    console.log('🔥 removeFromFavorites - userId:', userId);
-    console.log('🔥 removeFromFavorites - userId type:', typeof userId);
-
-    try {
-      if (!Types.ObjectId.isValid(wordId)) {
-        console.error('❌ ID de mot invalide:', wordId);
-        return { success: false };
-      }
-
-      // Vérifier si userId est valide
-      if (!userId || !Types.ObjectId.isValid(userId)) {
-        console.error('❌ UserId invalide ou non fourni:', userId);
-        return { success: false };
-      }
-
-      // Convertir les IDs en ObjectIds pour la requête MongoDB
-      const wordObjectId = new Types.ObjectId(wordId);
-      const userObjectId = new Types.ObjectId(userId);
-
-      console.log(
-        '🔥 ObjectIds convertis - wordObjectId:',
-        wordObjectId,
-        'userObjectId:',
-        userObjectId,
-      );
-
-      // Vérifier si le favori existe avant suppression
-      console.log('🔥 Vérification existence du favori...');
-      const existingFavorite = await this.favoriteWordModel.findOne({
-        wordId: wordObjectId,
-        userId: userObjectId,
-      });
-
-      if (!existingFavorite) {
-        console.log('⚠️ Favori non trouvé, mais on retourne success:true');
-        return { success: true }; // Pas dans les favoris, mais on considère ça comme un succès
-      }
-
-      console.log('✅ Favori trouvé, suppression en cours...');
-
-      // Supprimer des favoris
-      const result = await this.favoriteWordModel.deleteOne({
-        wordId: wordObjectId,
-        userId: userObjectId,
-      });
-
-      console.log('🔥 Résultat suppression:', result);
-      console.log('🔥 Nombre supprimé:', result.deletedCount);
-
-      const success = result.deletedCount > 0;
-      console.log(
-        success ? '✅ Suppression réussie!' : '❌ Échec de suppression',
-      );
-
-      return { success };
-    } catch (error) {
-      console.error('❌ Erreur dans removeFromFavorites:', error);
-      return { success: false };
-    }
+    console.log('⭐ WordsService.removeFromFavorites - Délégation vers WordFavoriteService');
+    return this.wordFavoriteService.removeFromFavorites(wordId, userId);
   }
 
+  // PHASE 3 - DÉLÉGATION: Récupérer les mots favoris d'un utilisateur
   async getFavoriteWords(
     userId: string,
     page = 1,
@@ -1349,171 +1235,24 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    console.log(
-      '🔥 getFavoriteWords - userId:',
-      userId,
-      'page:',
-      page,
-      'limit:',
-      limit,
-    );
-    const skip = (page - 1) * limit;
-
-    // Trouver tous les IDs des mots favoris de l'utilisateur
-    const favorites = await this.favoriteWordModel
-      .find({ userId })
-      .skip(skip)
-      .limit(limit)
-      .sort({ addedAt: -1 })
-      .exec();
-
-    console.log('🔥 Favoris trouvés en base:', favorites.length);
-    console.log('🔥 Détails favoris:', favorites);
-
-    const wordIds = favorites.map((fav) => fav.wordId);
-    const total = await this.favoriteWordModel.countDocuments({ userId });
-
-    console.log('🔥 Total favoris:', total);
-    console.log('🔥 WordIds:', wordIds);
-
-    // Si aucun favori, retourner un tableau vide
-    if (wordIds.length === 0) {
-      return {
-        words: [],
-        total: 0,
-        page,
-        limit,
-        totalPages: 0,
-      };
-    }
-
-    // Récupérer les mots correspondants
-    const words = await this.wordModel
-      .find({ _id: { $in: wordIds } })
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .exec();
-
-    // Fonction pour comparer les IDs MongoDB de manière sûre
-    const compareIds = (id1: any, id2: any): boolean => {
-      return String(id1) === String(id2);
-    };
-
-    // Réordonner les mots dans le même ordre que les favoris
-    const orderedWords = [] as Word[];
-
-    for (const id of wordIds) {
-      let found = false;
-      for (const word of words) {
-        if (!found && word && word._id && compareIds(word._id, id)) {
-          orderedWords.push(word as unknown as Word);
-          found = true;
-        }
-      }
-    }
-
-    return {
-      words: orderedWords,
-      total,
-      limit,
-      page,
-      totalPages: Math.ceil(total / limit),
-    };
+    console.log('⭐ WordsService.getFavoriteWords - Délégation vers WordFavoriteService');
+    return this.wordFavoriteService.getFavoriteWords(userId, page, limit);
   }
 
+  // PHASE 3 - DÉLÉGATION: Vérifier si un mot est dans les favoris
   async checkIfFavorite(wordId: string, userId: string): Promise<boolean> {
-    console.log(
-      '🔥 Backend: checkIfFavorite - wordId:',
-      wordId,
-      'userId:',
-      userId,
-    );
-
-    if (!Types.ObjectId.isValid(wordId)) {
-      console.log('🔥 Backend: wordId invalide');
-      return false;
-    }
-
-    // Vérifier si userId est valide
-    if (!userId || !Types.ObjectId.isValid(userId)) {
-      console.log('🔥 Backend: userId invalide ou non fourni:', userId);
-      return false;
-    }
-
-    // Convertir les IDs en ObjectIds pour la requête MongoDB
-    const wordObjectId = new Types.ObjectId(wordId);
-    const userObjectId = new Types.ObjectId(userId);
-
-    console.log(
-      '🔥 ObjectIds convertis - wordObjectId:',
-      wordObjectId,
-      'userObjectId:',
-      userObjectId,
-    );
-
-    const favorite = await this.favoriteWordModel.findOne({
-      wordId: wordObjectId,
-      userId: userObjectId,
-    });
-
-    const result = !!favorite;
-    console.log('🔥 Backend: checkIfFavorite résultat:', result);
-    return result;
+    console.log('⭐ WordsService.checkIfFavorite - Délégation vers WordFavoriteService');
+    return this.wordFavoriteService.checkIfFavorite(wordId, userId);
   }
 
+  // PHASE 3 - DÉLÉGATION: Partager un mot avec un autre utilisateur
   async shareWordWithUser(
     wordId: string,
     fromUserId: string,
     toUsername: string,
   ): Promise<{ success: boolean; message: string }> {
-    // Vérifier si le mot existe
-    if (!Types.ObjectId.isValid(wordId)) {
-      return { success: false, message: 'ID de mot invalide' };
-    }
-
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      return { success: false, message: `Mot avec l'ID ${wordId} non trouvé` };
-    }
-
-    // Trouver l'utilisateur de destination par son nom d'utilisateur
-    const toUser = await this.userModel.findOne({ username: toUsername });
-    if (!toUser) {
-      return {
-        success: false,
-        message: `Utilisateur '${toUsername}' non trouvé`,
-      };
-    }
-
-    // Vérifier si le mot est déjà dans les favoris de l'utilisateur de destination
-    const existingFavorite = await this.favoriteWordModel.findOne({
-      wordId,
-      userId: toUser._id,
-    });
-
-    if (existingFavorite) {
-      return {
-        success: true,
-        message: `Le mot est déjà dans les favoris de ${toUsername}`,
-      };
-    }
-
-    // Ajouter aux favoris de l'utilisateur de destination
-    const newFavorite = new this.favoriteWordModel({
-      wordId,
-      userId: toUser._id,
-      addedAt: new Date(),
-      sharedBy: fromUserId, // Optionnel: enregistrer qui a partagé le mot
-    });
-
-    await newFavorite.save();
-
-    // TODO: Optionnel: Envoyer une notification à l'utilisateur de destination
-
-    return {
-      success: true,
-      message: `Mot partagé avec succès avec ${toUsername}`,
-    };
+    console.log('⭐ WordsService.shareWordWithUser - Délégation vers WordFavoriteService');
+    return this.wordFavoriteService.shareWordWithUser(wordId, fromUserId, toUsername);
   }
 
   async getAdminPendingWords(
