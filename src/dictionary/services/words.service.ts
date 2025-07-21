@@ -34,11 +34,12 @@ import {
   WordView,
   WordViewDocument,
 } from '../../users/schemas/word-view.schema';
-// PHASE 2-5 - Import services spécialisés
+// PHASE 2-6 - Import services spécialisés
 import { WordAudioService } from './word-services/word-audio.service';
 import { WordFavoriteService } from './word-services/word-favorite.service';
 import { WordAnalyticsService } from './word-services/word-analytics.service';
 import { WordRevisionService } from './word-services/word-revision.service';
+import { WordTranslationService } from './word-services/word-translation.service';
 
 interface WordFilter {
   status: string;
@@ -66,11 +67,12 @@ export class WordsService {
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
-    // PHASE 2-5 - Injection services spécialisés
+    // PHASE 2-6 - Injection services spécialisés
     private wordAudioService: WordAudioService,
     private wordFavoriteService: WordFavoriteService,
     private wordAnalyticsService: WordAnalyticsService,
     private wordRevisionService: WordRevisionService,
+    private wordTranslationService: WordTranslationService,
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
@@ -222,106 +224,14 @@ export class WordsService {
 
   /**
    * Crée des traductions bidirectionnelles pour un mot nouvellement créé
+   * PHASE 6B - DÉLÉGATION: Délégation vers WordTranslationService
    */
   private async createBidirectionalTranslations(
     sourceWord: WordDocument,
     userId: string,
   ): Promise<void> {
-    console.log(
-      '🔄 Création de traductions bidirectionnelles pour:',
-      sourceWord.word,
-    );
-
-    for (const translation of sourceWord.translations) {
-      try {
-        // Chercher le mot cible par nom dans la langue de traduction
-        const targetWordFilter = translation.languageId
-          ? {
-              languageId: translation.languageId,
-              word: translation.translatedWord,
-            }
-          : {
-              language: translation.language,
-              word: translation.translatedWord,
-            };
-
-        const targetWord = await this.wordModel.findOne(targetWordFilter);
-
-        if (targetWord) {
-          console.log(
-            `✅ Mot cible trouvé: ${targetWord.word} (${translation.language || translation.languageId})`,
-          );
-
-          // Vérifier si la traduction inverse existe déjà
-          const sourceLanguageId = sourceWord.languageId || null;
-          const sourceLanguage = sourceWord.language || null;
-
-          const reverseTranslationExists = targetWord.translations.some((t) => {
-            // Vérifier par languageId ou par language selon ce qui est disponible
-            const languageMatches = sourceLanguageId
-              ? t.languageId?.toString() === sourceLanguageId.toString()
-              : t.language === sourceLanguage;
-
-            return languageMatches && t.translatedWord === sourceWord.word;
-          });
-
-          if (!reverseTranslationExists) {
-            console.log(
-              `➕ Ajout de la traduction inverse: ${targetWord.word} -> ${sourceWord.word}`,
-            );
-
-            // Créer la traduction inverse
-            const reverseTranslation = {
-              languageId: sourceLanguageId,
-              language: sourceLanguage,
-              translatedWord: sourceWord.word,
-              context: translation.context || [],
-              confidence: translation.confidence || 0.8,
-              verifiedBy: [],
-              targetWordId: sourceWord._id,
-              createdBy: new Types.ObjectId(userId),
-              validatedBy: null,
-            };
-
-            targetWord.translations.push(reverseTranslation as any);
-            targetWord.translationCount = targetWord.translations.length;
-
-            await targetWord.save();
-            console.log(`✅ Traduction inverse sauvegardée`);
-          } else {
-            console.log(`ℹ️ Traduction inverse existe déjà`);
-          }
-
-          // Mettre à jour le targetWordId dans la traduction source
-          const sourceTranslation = sourceWord.translations.find(
-            (t) =>
-              t.translatedWord === translation.translatedWord &&
-              (t.languageId?.toString() ===
-                translation.languageId?.toString() ||
-                t.language === translation.language),
-          );
-
-          if (sourceTranslation && !sourceTranslation.targetWordId) {
-            sourceTranslation.targetWordId = targetWord._id as any;
-            await sourceWord.save();
-            console.log(`🔗 Lien targetWordId mis à jour`);
-          }
-        } else {
-          console.log(
-            `⚠️ Mot cible non trouvé: ${translation.translatedWord} en ${translation.language || translation.languageId}`,
-          );
-        }
-      } catch (error) {
-        console.error(
-          `❌ Erreur lors du traitement de la traduction ${translation.translatedWord}:`,
-          error,
-        );
-      }
-    }
-
-    // Mettre à jour le compteur de traductions du mot source
-    sourceWord.translationCount = sourceWord.translations.length;
-    await sourceWord.save();
+    console.log('🔄 WordsService.createBidirectionalTranslations - Délégation vers WordTranslationService');
+    return this.wordTranslationService.createBidirectionalTranslations(sourceWord, userId);
   }
 
   async findAll(
@@ -1108,98 +1018,15 @@ export class WordsService {
 
   /**
    * Récupère toutes les traductions d'un mot (directes + inverses)
+   * PHASE 6B - DÉLÉGATION: Délégation vers WordTranslationService
    */
   async getAllTranslations(wordId: string): Promise<{
     directTranslations: any[];
     reverseTranslations: any[];
     allTranslations: any[];
   }> {
-    console.log(
-      '🔍 Récupération de toutes les traductions pour le mot:',
-      wordId,
-    );
-
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException('Mot non trouvé');
-    }
-
-    // 1. Traductions directes (stockées dans le mot)
-    const directTranslations = word.translations.map((translation) => ({
-      id:
-        (translation as any)._id ||
-        `${(word as any)._id}_${translation.translatedWord}`,
-      sourceWord: word.word,
-      sourceLanguageId: word.languageId,
-      sourceLanguage: word.language,
-      targetWord: translation.translatedWord,
-      targetLanguageId: translation.languageId,
-      targetLanguage: translation.language,
-      context: translation.context,
-      confidence: translation.confidence,
-      verifiedBy: translation.verifiedBy,
-      targetWordId: translation.targetWordId,
-      direction: 'direct' as const,
-    }));
-
-    // 2. Traductions inverses (chercher dans les autres mots qui nous référencent)
-    const reverseTranslationsQuery = word.languageId
-      ? {
-          'translations.targetWordId': (word as any)._id,
-          $or: [
-            { 'translations.languageId': word.languageId },
-            { 'translations.language': word.language },
-          ],
-        }
-      : {
-          'translations.targetWordId': (word as any)._id,
-          'translations.language': word.language,
-        };
-
-    const wordsWithReverseTranslations = await this.wordModel.find(
-      reverseTranslationsQuery,
-    );
-
-    const reverseTranslations: any[] = [];
-    for (const sourceWord of wordsWithReverseTranslations) {
-      const relevantTranslations = sourceWord.translations.filter(
-        (t) =>
-          t.targetWordId?.toString() === (word as any)._id.toString() &&
-          t.translatedWord === word.word,
-      );
-
-      for (const translation of relevantTranslations) {
-        reverseTranslations.push({
-          id:
-            (translation as any)._id ||
-            `${(sourceWord as any)._id}_${translation.translatedWord}`,
-          sourceWord: sourceWord.word,
-          sourceLanguageId: sourceWord.languageId,
-          sourceLanguage: sourceWord.language,
-          targetWord: word.word,
-          targetLanguageId: word.languageId,
-          targetLanguage: word.language,
-          context: translation.context,
-          confidence: translation.confidence,
-          verifiedBy: translation.verifiedBy,
-          targetWordId: word._id,
-          direction: 'reverse' as const,
-        });
-      }
-    }
-
-    // 3. Combiner toutes les traductions
-    const allTranslations = [...directTranslations, ...reverseTranslations];
-
-    console.log(
-      `📊 Trouvé ${directTranslations.length} traductions directes et ${reverseTranslations.length} traductions inverses`,
-    );
-
-    return {
-      directTranslations,
-      reverseTranslations,
-      allTranslations,
-    };
+    console.log('🔍 WordsService.getAllTranslations - Délégation vers WordTranslationService');
+    return this.wordTranslationService.getAllTranslations(wordId);
   }
 
   // PHASE 4 - DÉLÉGATION: Nombre de mots approuvés
