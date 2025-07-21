@@ -235,18 +235,38 @@ describe('WordAudioService', () => {
         exec: jest.fn().mockResolvedValue(wordsWithAudio),
       });
 
+      // Mock the countDocuments and aggregate methods
+      mockWordModel.countDocuments
+        .mockResolvedValueOnce(100) // totalWords
+        .mockResolvedValueOnce(3);  // wordsWithAudio
+      
+      mockWordModel.aggregate.mockResolvedValue([{
+        totalAudioFiles: 3,
+        languageStats: [
+          { language: 'fr', count: 2 },
+          { language: 'en', count: 1 },
+        ],
+        allAccents: [
+          ['fr-fr', 'fr-ca'],
+          ['en-us']
+        ]
+      }]);
+
       const result = await service.getAudioStatistics();
 
+      expect(result.totalWords).toBe(100);
+      expect(result.wordsWithAudio).toBe(3);
       expect(result.totalAudioFiles).toBe(3);
-      expect(result.languageStats).toEqual([
-        { language: 'fr', count: 2 },
-        { language: 'en', count: 1 },
-      ]);
-      expect(result.accentStats).toEqual([
-        { accent: 'fr-fr', count: 1 },
-        { accent: 'fr-ca', count: 1 },
-        { accent: 'en-us', count: 1 },
-      ]);
+      expect(result.audioByLanguage).toEqual({
+        fr: 2,
+        en: 1,
+      });
+      expect(result.audioByAccent).toEqual({
+        'fr-fr': 1,
+        'fr-ca': 1,
+        'en-us': 1,
+      });
+      expect(result.averageAudioPerWord).toBe(1);
     });
   });
 

@@ -9,3 +9,6 @@ export { WordPermissionService } from './word-permission.service';
 
 // Phase 2 - Services spécialisés
 export { WordAudioService } from './word-audio.service';
+
+// Phase 3 - Service favoris (en cours)
+export { WordFavoriteService } from './word-favorite.service';
