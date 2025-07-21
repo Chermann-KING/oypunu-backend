@@ -956,75 +956,17 @@ export class WordsService {
   /**
    * Supprime un fichier audio pour un accent spécifique
    */
+  // PHASE 6A - DÉLÉGATION: Supprimer un fichier audio d'un mot
   async deleteAudioFile(
     wordId: string,
     accent: string,
     user: User,
   ): Promise<Word> {
-    // 1. Validation des paramètres
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    if (!accent || accent.trim() === '') {
-      throw new BadRequestException("L'accent est requis");
-    }
-
-    // 2. Récupérer le mot
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    // 3. Vérifier les permissions
-    const canEdit = await this.canUserEditWord(wordId, user);
-    if (!canEdit) {
-      throw new BadRequestException(
-        "Vous n'avez pas le droit de modifier ce mot.",
-      );
-    }
-
-    // 4. Vérifier si le fichier audio existe
-    if (!word.audioFiles || !word.audioFiles.has(accent)) {
-      throw new NotFoundException(
-        `Aucun fichier audio trouvé pour l'accent '${accent}'`,
-      );
-    }
-
-    // 5. Récupérer les informations du fichier à supprimer
-    const audioFileInfo = word.audioFiles.get(accent);
-    if (!audioFileInfo || !audioFileInfo.cloudinaryId) {
-      throw new BadRequestException(
-        `Informations du fichier audio manquantes pour l'accent '${accent}'`,
-      );
-    }
-
-    try {
-      // 6. Supprimer le fichier de Cloudinary
-      await this.audioService.deletePhoneticAudio(audioFileInfo.cloudinaryId);
-
-      // 7. Supprimer l'entrée de la Map
-      word.audioFiles.delete(accent);
-
-      // 8. Sauvegarder et retourner le mot mis à jour
-      const updatedWord = await word.save();
-
-      console.log(
-        `✅ Fichier audio supprimé avec succès pour le mot ${wordId}, accent ${accent}`,
-      );
-
-      return updatedWord;
-    } catch (error) {
-      console.error(`Erreur lors de la suppression du fichier audio:`, error);
-      throw new BadRequestException(
-        `Erreur lors de la suppression du fichier audio: ${error instanceof Error ? error.message : ''}`,
-      );
-    }
+    console.log('🎵 WordsService.deleteAudioFile - Délégation vers WordAudioService');
+    return this.wordAudioService.deleteAudioFile(wordId, accent, user);
   }
 
-  /**
-   * Récupère tous les fichiers audio d'un mot
-   */
+  // PHASE 6A - DÉLÉGATION: Récupérer tous les fichiers audio d'un mot
   async getWordAudioFiles(wordId: string): Promise<{
     wordId: string;
     word: string;
@@ -1035,40 +977,10 @@ export class WordsService {
       cloudinaryId: string;
       language: string;
     }>;
+    totalCount: number;
   }> {
-    if (!Types.ObjectId.isValid(wordId)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
-    }
-
-    const audioFiles: Array<{
-      accent: string;
-      url: string;
-      cloudinaryId: string;
-      language: string;
-    }> = [];
-
-    if (word.audioFiles) {
-      for (const [accent, audioInfo] of word.audioFiles) {
-        audioFiles.push({
-          accent,
-          url: audioInfo.url,
-          cloudinaryId: audioInfo.cloudinaryId,
-          language: audioInfo.language,
-        });
-      }
-    }
-
-    return {
-      wordId: (word._id as Types.ObjectId).toString(),
-      word: word.word,
-      language: word.language || 'fr', // Fallback vers français si undefined
-      audioFiles,
-    };
+    console.log('🎵 WordsService.getWordAudioFiles - Délégation vers WordAudioService');
+    return this.wordAudioService.getWordAudioFiles(wordId);
   }
 
   /**
@@ -1104,7 +1016,7 @@ export class WordsService {
     accent: string,
     options: {
       quality?: 'auto:low' | 'auto:good' | 'auto:best';
-      format?: 'mp3' | 'ogg' | 'webm';
+      format?: 'mp3' | 'ogg' | 'wav';
       volume?: number;
       speed?: number;
     } = {},
@@ -1137,11 +1049,20 @@ export class WordsService {
     const result = await this.wordAudioService.validateWordAudioFiles(wordId);
     
     // Adapter la réponse vers le format attendu par WordsService
-    const audioFiles = result.invalidFiles.map(invalid => ({
-      accent: invalid.accent,
-      status: 'invalid' as const,
-      error: invalid.issues.join(', '),
-    }));
+    const audioFiles: Array<{
+      accent: string;
+      status: 'valid' | 'invalid' | 'missing';
+      error?: string;
+    }> = [];
+    
+    // Ajouter les fichiers invalides
+    result.invalidFiles.forEach(invalid => {
+      audioFiles.push({
+        accent: invalid.accent,
+        status: 'invalid',
+        error: invalid.issues.join(', '),
+      });
+    });
     
     // Ajouter les fichiers valides
     const totalFiles = result.totalFiles;
@@ -1151,7 +1072,7 @@ export class WordsService {
     for (let i = 0; i < validCount; i++) {
       audioFiles.push({
         accent: `valid-${i}`, // Placeholder car WordAudioService ne retourne pas les détails des valides
-        status: 'valid' as const,
+        status: 'valid',
       });
     }
 
