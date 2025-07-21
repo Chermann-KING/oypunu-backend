@@ -267,22 +267,13 @@ export class WordsService {
     };
   }
 
+  /**
+   * Récupère un mot par ID
+   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async findOne(id: string): Promise<Word> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de mot invalide');
-    }
-
-    const word = await this.wordModel
-      .findById(id)
-      .populate('createdBy', 'username')
-      .populate('categoryId', 'name')
-      .exec();
-
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
-    }
-
-    return word;
+    console.log('🎭 WordsService.findOne - Délégation vers WordCoreService');
+    return this.wordCoreService.findOne(id);
   }
 
   // PHASE 4 - DÉLÉGATION: Enregistrer une vue sur un mot
@@ -295,7 +286,20 @@ export class WordsService {
     return this.wordAnalyticsService.trackWordView(wordId, userId, viewType);
   }
 
+  /**
+   * Met à jour un mot existant
+   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async update(
+    id: string,
+    updateWordDto: UpdateWordDto,
+    user: User,
+  ): Promise<Word> {
+    console.log('🎭 WordsService.update - Délégation vers WordCoreService');
+    return this.wordCoreService.update(id, updateWordDto, user);
+  }
+
+  /**
     id: string,
     updateWordDto: UpdateWordDto,
     user: User,
@@ -558,7 +562,17 @@ export class WordsService {
     return this.wordRevisionService.getPendingRevisions(page, limit);
   }
 
+  /**
+   * Supprime un mot
+   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async remove(id: string, user: User): Promise<{ success: boolean }> {
+    console.log('🎭 WordsService.remove - Délégation vers WordCoreService');
+    return this.wordCoreService.remove(id, user);
+  }
+
+  // ANCIEN CODE À SUPPRIMER
+  async removeOLD_TO_DELETE(id: string, user: User): Promise<{ success: boolean }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID de mot invalide');
     }
@@ -601,7 +615,22 @@ export class WordsService {
     return { success: true };
   }
 
+  /**
+   * Recherche des mots avec filtres
+   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async search(searchDto: SearchWordsDto): Promise<{
+    words: Word[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    console.log('🎭 WordsService.search - Délégation vers WordCoreService');
+    return this.wordCoreService.search(searchDto);
+  }
+
+  // ANCIEN CODE À SUPPRIMER
+  async searchOLD_TO_DELETE(searchDto: SearchWordsDto): Promise<{
     words: Word[];
     total: number;
     page: number;
@@ -667,7 +696,17 @@ export class WordsService {
     };
   }
 
+  /**
+   * Récupère les mots vedettes
+   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async getFeaturedWords(limit = 3): Promise<Word[]> {
+    console.log('🎭 WordsService.getFeaturedWords - Délégation vers WordCoreService');
+    return this.wordCoreService.getFeaturedWords(limit);
+  }
+
+  // ANCIEN CODE À SUPPRIMER
+  async getFeaturedWordsOLD_TO_DELETE(limit = 3): Promise<Word[]> {
     // Récupérer des mots aléatoires parmi ceux approuvés
     return this.wordModel
       .aggregate([
