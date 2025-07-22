@@ -47,6 +47,7 @@ import { UsersModule } from 'src/users/users.module';
 // ✨ NOUVEL IMPORT pour l'intégration de la détection automatique
 import { TranslationModule } from '../translation/translation.module';
 import { ActivityModule } from '../common/activity.module';
+import { RepositoriesModule } from '../repositories/repositories.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { ActivityModule } from '../common/activity.module';
     // ✨ NOUVEAU: Import du module de traduction pour la détection automatique
     TranslationModule,
     ActivityModule,
+    RepositoriesModule,
   ],
   controllers: [WordsController, CategoriesController, FavoriteWordsController],
   providers: [

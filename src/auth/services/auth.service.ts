@@ -29,19 +29,9 @@ interface SocialUser {
   profilePicture: string | null;
 }
 
-// Interface pour le token social stocké en mémoire temporairement
-interface SocialAuthTokenData {
-  token: string;
-  userId: string;
-  expiresAt: Date;
-}
-
 @Injectable()
 export class AuthService {
   private readonly _logger = new Logger(AuthService.name);
-  // Stockage temporaire pour les tokens d'authentification sociale
-  private readonly _socialAuthTokens: Map<string, SocialAuthTokenData> =
-    new Map();
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
@@ -537,10 +527,17 @@ export class AuthService {
       role: user.role,
     };
 
-    // Retourner les données utilisateur et le token
+    // 🔐 Générer une paire de tokens (access + refresh) COMME le système standard
+    const tokenPair = await this.refreshTokenService.generateTokenPair(
+      user._id.toString(),
+      payload
+    );
+
+    // Retourner les données utilisateur et les tokens STANDARD
     return {
       tokens: {
-        access_token: this._jwtService.sign(payload),
+        access_token: tokenPair.accessToken,
+        refresh_token: tokenPair.refreshToken,
       },
       user: {
         id: user._id,
@@ -556,52 +553,17 @@ export class AuthService {
   }
 
   /**
-   * Génère un token temporaire pour l'authentification sociale
+   * Génère un token STANDARD pour l'authentification sociale
+   * PHASE 1 - STANDARDISATION: Utilise le même système que login/register
    */
-  generateSocialAuthToken(userData: { user: { id: string } }): string {
-    const token = uuidv4();
-
-    // Stockage du token avec une expiration de 5 minutes
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 5);
-
-    this._socialAuthTokens.set(token, {
-      token,
-      userId: userData.user.id,
-      expiresAt,
-    });
-
-    // Nettoyer les tokens expirés toutes les 5 minutes
-    this._cleanupExpiredTokens();
-
-    return token;
-  }
-
-  /**
-   * Valide un token d'authentification sociale et retourne les données utilisateur
-   */
-  async validateSocialAuthToken(token: string) {
-    const tokenData = this._socialAuthTokens.get(token);
-
-    if (!tokenData) {
-      throw new UnauthorizedException("Token social invalide ou expiré");
-    }
-
-    if (tokenData.expiresAt < new Date()) {
-      this._socialAuthTokens.delete(token);
-      throw new UnauthorizedException("Token social expiré");
-    }
-
-    // Supprimer le token après utilisation
-    this._socialAuthTokens.delete(token);
-
-    // Rechercher l'utilisateur
-    const user = await this.userModel.findById(tokenData.userId);
+  async generateSocialAuthToken(userData: { user: { id: string } }): Promise<string> {
+    // 🔍 Rechercher l'utilisateur pour obtenir les infos complètes
+    const user = await this.userModel.findById(userData.user.id);
     if (!user) {
-      throw new UnauthorizedException("Utilisateur non trouvé");
+      throw new UnauthorizedException('Utilisateur non trouvé');
     }
 
-    // Créer un nouveau JWT pour l'authentification
+    // 🔐 Créer payload JWT standard
     const payload = {
       sub: user._id,
       email: user.email,
@@ -609,32 +571,69 @@ export class AuthService {
       role: user.role,
     };
 
-    return {
-      tokens: {
-        access_token: this._jwtService.sign(payload),
-      },
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username,
-        isEmailVerified: user.isEmailVerified,
-        role: user.role,
-        nativeLanguage: user.nativeLanguageId,
-        learningLanguages: user.learningLanguageIds,
-        profilePicture: user.profilePicture,
-      },
-    };
+    // 🔑 Générer une paire de tokens STANDARD (access + refresh)
+    const tokenPair = await this.refreshTokenService.generateTokenPair(
+      user._id.toString(),
+      payload
+    );
+
+    // ⚙️ Retourner seulement l'access_token pour l'URL (plus court)
+    // Le refresh_token sera fourni lors de la validation
+    return tokenPair.accessToken;
   }
 
   /**
-   * Nettoie les tokens d'authentification sociale expirés
+   * Valide un token d'authentification sociale et retourne les données utilisateur
+   * PHASE 1 - STANDARDISATION: Utilise le système JWT standard au lieu du Map temporaire
    */
-  private _cleanupExpiredTokens() {
-    const now = new Date();
-    for (const [token, data] of this._socialAuthTokens.entries()) {
-      if (data.expiresAt < now) {
-        this._socialAuthTokens.delete(token);
+  async validateSocialAuthToken(token: string): Promise<{
+    tokens: { access_token: string; refresh_token: string };
+    user: any;
+  }> {
+    try {
+      // 🔐 Décoder le token JWT STANDARD (access_token)
+      const decoded = this._jwtService.verify(token);
+      const userId = decoded.sub;
+
+      // 🔍 Rechercher l'utilisateur
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new UnauthorizedException('Utilisateur non trouvé');
       }
+
+      // 🔑 Créer payload JWT standard
+      const payload = {
+        sub: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      };
+
+      // 🔄 Générer une NOUVELLE paire de tokens (access + refresh) pour la session
+      const tokenPair = await this.refreshTokenService.generateTokenPair(
+        user._id.toString(),
+        payload
+      );
+
+      return {
+        tokens: {
+          access_token: tokenPair.accessToken,
+          refresh_token: tokenPair.refreshToken,
+        },
+        user: {
+          id: user._id,
+          email: user.email,
+          username: user.username,
+          isEmailVerified: user.isEmailVerified,
+          role: user.role,
+          nativeLanguage: user.nativeLanguageId,
+          learningLanguages: user.learningLanguageIds,
+          profilePicture: user.profilePicture,
+      },
+    };
+    } catch (error) {
+      this._logger.error('Erreur validation token social:', error);
+      throw new UnauthorizedException('Token social invalide ou expiré');
     }
   }
 }

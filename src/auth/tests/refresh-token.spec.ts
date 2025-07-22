@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
 import { RefreshTokenService } from "../services/refresh-token.service";
 import { RefreshToken } from "../schemas/refresh-token.schema";
 import { UnauthorizedException } from "@nestjs/common";
@@ -66,6 +67,12 @@ describe("RefreshTokenService", () => {
         {
           provide: getModelToken(RefreshToken.name),
           useValue: mockRefreshTokenModel,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('test-secret'),
+          },
         },
       ],
     }).compile();
