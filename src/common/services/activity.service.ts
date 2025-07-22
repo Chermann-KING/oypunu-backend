@@ -471,4 +471,61 @@ export class ActivityService {
       },
     });
   }
+
+  /**
+   * Méthode de compatibilité pour les services refactorisés
+   * Adapte l'ancienne interface vers la nouvelle interface createActivity
+   */
+  async recordActivity(data: {
+    userId: string;
+    activityType: string;
+    targetType: string;
+    targetId: string;
+    metadata?: Record<string, any>;
+  }): Promise<ActivityFeed> {
+    // Obtenir le username depuis le userId
+    // Pour l'instant, on utilise une valeur par défaut car l'interface originale ne fournit pas le username
+    const username = 'Unknown User'; // TODO: Améliorer en récupérant depuis UserService
+
+    // Mapper les types vers les enums ActivityType et EntityType
+    const mappedActivityType = this.mapActivityType(data.activityType);
+    const mappedEntityType = this.mapEntityType(data.targetType);
+
+    return this.createActivity({
+      userId: data.userId,
+      username,
+      activityType: mappedActivityType,
+      entityType: mappedEntityType,
+      entityId: data.targetId,
+      metadata: data.metadata,
+    });
+  }
+
+  private mapActivityType(activityType: string): ActivityType {
+    const typeMap: Record<string, ActivityType> = {
+      'word_favorited': ActivityType.WORD_FAVORITED,
+      'word_unfavorited': ActivityType.WORD_UNFAVORITED,
+      'word_shared': ActivityType.WORD_SHARED,
+      'word_received': ActivityType.WORD_RECEIVED,
+      'favorites_cleared': ActivityType.FAVORITES_CLEARED,
+      'word_created': ActivityType.WORD_CREATED,
+      'word_updated': ActivityType.WORD_UPDATED,
+      'word_deleted': ActivityType.WORD_DELETED,
+      'audio_added': ActivityType.AUDIO_ADDED,
+      'audio_deleted': ActivityType.AUDIO_DELETED,
+      'audio_bulk_updated': ActivityType.AUDIO_UPDATED,
+    };
+
+    return typeMap[activityType] || ActivityType.WORD_CREATED; // Fallback par défaut
+  }
+
+  private mapEntityType(targetType: string): EntityType {
+    const typeMap: Record<string, EntityType> = {
+      'word': EntityType.WORD,
+      'user': EntityType.USER,
+      'audio': EntityType.AUDIO,
+    };
+
+    return typeMap[targetType] || EntityType.WORD; // Fallback par défaut
+  }
 }
