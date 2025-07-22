@@ -14,6 +14,15 @@ export enum ActivityType {
   COMMUNITY_POST = 'community_post_created',
   COMMENT_ADDED = 'comment_added',
   WORD_FAVORITED = 'word_favorited',
+  WORD_UNFAVORITED = 'word_unfavorited',
+  WORD_SHARED = 'word_shared',
+  WORD_RECEIVED = 'word_received',
+  FAVORITES_CLEARED = 'favorites_cleared',
+  WORD_UPDATED = 'word_updated',
+  WORD_DELETED = 'word_deleted',
+  AUDIO_ADDED = 'audio_added',
+  AUDIO_DELETED = 'audio_deleted',
+  AUDIO_UPDATED = 'audio_updated',
   USER_REGISTERED = 'user_registered',
   USER_LOGGED_IN = 'user_logged_in',
   COMMUNITY_JOINED = 'community_joined',
@@ -27,6 +36,7 @@ export enum EntityType {
   COMMENT = 'comment',
   USER = 'user',
   COMMUNITY = 'community',
+  AUDIO = 'audio',
 }
 
 @Schema({ timestamps: true })

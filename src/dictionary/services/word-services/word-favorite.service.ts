@@ -603,7 +603,7 @@ export class WordFavoriteService {
           matchStage.language = language;
         }
 
-        const pipeline = [
+        const pipeline: any[] = [
           {
             $lookup: {
               from: 'words',

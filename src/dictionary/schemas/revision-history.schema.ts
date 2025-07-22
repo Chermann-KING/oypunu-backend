@@ -39,6 +39,9 @@ export class RevisionHistory {
   @Prop({ type: [ChangeLog], default: [] })
   changes: ChangeLog[];
 
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  newVersion: any;
+
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
   adminApprovedBy?: User;
 

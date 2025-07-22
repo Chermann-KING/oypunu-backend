@@ -196,6 +196,7 @@ export class WordRevisionService {
         return updatedWord;
       },
       'WordRevision',
+      revisionId,
     );
   }
 
@@ -252,6 +253,7 @@ export class WordRevisionService {
         console.log('✅ Révision rejetée avec succès');
       },
       'WordRevision',
+      revisionId,
     );
   }
 
