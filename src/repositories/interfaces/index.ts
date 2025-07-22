@@ -7,3 +7,5 @@
 
 export { IUserRepository } from './user.repository.interface';
 export { IWordRepository } from './word.repository.interface';
+export { IRefreshTokenRepository } from './refresh-token.repository.interface';
+export { IActivityFeedRepository } from './activity-feed.repository.interface';

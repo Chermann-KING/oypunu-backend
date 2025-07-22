@@ -20,6 +20,7 @@ import { RefreshTokenService } from './services/refresh-token.service';
 import { AuditService } from './services/audit.service';
 import { MailService } from '../common/services/mail.service';
 import { ActivityModule } from '../common/activity.module';
+import { RepositoriesModule } from '../repositories/repositories.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ActivityModule } from '../common/activity.module';
       { name: AuditLog.name, schema: AuditLogSchema },
     ]),
     ActivityModule,
+    RepositoriesModule,
   ],
   controllers: [AuthController],
   providers: [
