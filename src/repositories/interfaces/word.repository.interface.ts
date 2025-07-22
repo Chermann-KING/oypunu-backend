@@ -168,27 +168,4 @@ export interface IWordRepository {
     limit?: number;
     offset?: number;
   }): Promise<Word[]>;
-
-  // ========== MÉTHODES POUR USERSSERVICE ==========
-
-  /**
-   * Compter les mots créés par un utilisateur avec un statut donné
-   */
-  countByCreatorAndStatus(userId: string, status: string): Promise<number>;
-
-  /**
-   * Récupérer mots créés par un utilisateur avec options
-   */
-  findByCreator(userId: string, options?: {
-    status?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    limit?: number;
-    offset?: number;
-  }): Promise<Word[]>;
-
-  /**
-   * Obtenir les langues distinctes pour un créateur
-   */
-  getDistinctLanguagesByCreator(userId: string): Promise<string[]>;
 }

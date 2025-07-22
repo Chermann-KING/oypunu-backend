@@ -67,61 +67,6 @@ export interface IUserRepository {
    */
   markEmailAsVerified(id: string): Promise<boolean>;
   
-  /**
-   * Mettre à jour le token de vérification d'email
-   */
-  updateEmailVerificationToken(id: string, token: string): Promise<boolean>;
-  
-  /**
-   * Trouver utilisateur par token de vérification
-   */
-  findByEmailVerificationToken(token: string): Promise<User | null>;
-  
-  /**
-   * Mettre à jour le token de reset de mot de passe
-   */
-  updatePasswordResetToken(id: string, token: string, expiresAt: Date): Promise<boolean>;
-  
-  /**
-   * Trouver utilisateur par token de reset de mot de passe
-   */
-  findByPasswordResetToken(token: string): Promise<User | null>;
-  
-  /**
-   * Mettre à jour la dernière activité
-   */
-  updateLastActive(id: string, timestamp?: Date): Promise<boolean>;
-  
-  /**
-   * Créer un utilisateur avec données sociales
-   */
-  createSocialUser(userData: {
-    email: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    profilePicture?: string;
-    provider: string;
-    providerId: string;
-    isEmailVerified?: boolean;
-  }): Promise<User>;
-  
-  /**
-   * Incrémenter le compteur de mots ajoutés
-   */
-  incrementWordCount(id: string): Promise<boolean>;
-  
-  /**
-   * Mettre à jour les statistiques utilisateur
-   */
-  updateUserStats(id: string, stats: {
-    wordsAdded?: number;
-    wordsViewed?: number;
-    favoriteWords?: number;
-    streakDays?: number;
-    lastStreakDate?: Date;
-  }): Promise<boolean>;
-  
   // ========== PROFIL ET PRÉFÉRENCES ==========
   
   /**
