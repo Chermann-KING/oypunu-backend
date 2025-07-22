@@ -2,42 +2,47 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Category, CategoryDocument } from '../schemas/category.schema';
+import { Types } from 'mongoose';
+import { Category } from '../schemas/category.schema';
 import { CreateCategoryDto } from '../dto/create-category.dto';
 import { UpdateCategoryDto } from '../dto/update-category.dto';
+import { ICategoryRepository } from '../../repositories/interfaces/category.repository.interface';
 
 @Injectable()
 export class CategoriesService {
   constructor(
-    @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
+    @Inject('ICategoryRepository') private categoryRepository: ICategoryRepository,
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     // Vérifier si la catégorie existe déjà dans la même langue
-    const existingCategory = await this.categoryModel.findOne({
-      name: createCategoryDto.name,
-      language: createCategoryDto.language,
-    });
+    const existsAlready = await this.categoryRepository.existsByName(createCategoryDto.name);
 
-    if (existingCategory) {
+    if (existsAlready) {
       throw new BadRequestException(
-        `La catégorie "${createCategoryDto.name}" existe déjà dans la langue ${createCategoryDto.language}`,
+        `La catégorie "${createCategoryDto.name}" existe déjà`,
       );
     }
 
     // Créer la nouvelle catégorie
-    const createdCategory = new this.categoryModel(createCategoryDto);
-    return createdCategory.save();
+    return this.categoryRepository.create(createCategoryDto, 'system');
   }
 
   async findAll(language?: string): Promise<Category[]> {
+    const result = await this.categoryRepository.findAll({
+      includeInactive: false,
+      sortBy: 'name',
+      sortOrder: 'asc',
+    });
+    
     if (language) {
-      return this.categoryModel.find({ language }).exec();
+      // Filtrer par langue si spécifiée
+      return result.categories.filter((cat: any) => cat.language === language);
     }
-    return this.categoryModel.find().exec();
+    
+    return result.categories;
   }
 
   async findOne(id: string): Promise<Category> {
@@ -45,7 +50,7 @@ export class CategoriesService {
       throw new BadRequestException('ID de catégorie invalide');
     }
 
-    const category = await this.categoryModel.findById(id);
+    const category = await this.categoryRepository.findById(id);
 
     if (!category) {
       throw new NotFoundException(`Catégorie avec l'ID ${id} non trouvée`);
@@ -63,15 +68,13 @@ export class CategoriesService {
     }
 
     // Vérifier si la catégorie existe
-    const category = await this.categoryModel.findById(id);
+    const category = await this.categoryRepository.findById(id);
     if (!category) {
       throw new NotFoundException(`Catégorie avec l'ID ${id} non trouvée`);
     }
 
     // Mettre à jour la catégorie
-    const updatedCategory = await this.categoryModel
-      .findByIdAndUpdate(id, updateCategoryDto, { new: true })
-      .exec();
+    const updatedCategory = await this.categoryRepository.update(id, updateCategoryDto);
 
     if (!updatedCategory) {
       throw new NotFoundException(`Catégorie avec l'ID ${id} non trouvée`);
@@ -86,14 +89,14 @@ export class CategoriesService {
     }
 
     // Vérifier si la catégorie existe
-    const category = await this.categoryModel.findById(id);
+    const category = await this.categoryRepository.findById(id);
     if (!category) {
       throw new NotFoundException(`Catégorie avec l'ID ${id} non trouvée`);
     }
 
     // Supprimer la catégorie
-    await this.categoryModel.findByIdAndDelete(id);
+    const deleted = await this.categoryRepository.delete(id);
 
-    return { success: true };
+    return { success: deleted };
   }
 }

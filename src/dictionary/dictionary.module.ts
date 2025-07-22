@@ -65,7 +65,7 @@ import { RepositoriesModule } from '../repositories/repositories.module';
     // ✨ NOUVEAU: Import du module de traduction pour la détection automatique
     TranslationModule,
     ActivityModule,
-    RepositoriesModule,
+    RepositoriesModule, // Already imported - Repository Pattern support
   ],
   controllers: [WordsController, CategoriesController, FavoriteWordsController],
   providers: [

@@ -9,3 +9,5 @@ export { UserRepository } from './user.repository';
 export { WordRepository } from './word.repository';
 export { RefreshTokenRepository } from './refresh-token.repository';
 export { ActivityFeedRepository } from './activity-feed.repository';
+export { LanguageRepository } from './language.repository';
+export { CategoryRepository } from './category.repository';

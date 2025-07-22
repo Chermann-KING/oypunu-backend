@@ -6,6 +6,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { LanguagesService } from './services/languages.service';
 import { LanguagesController } from './controllers/languages.controller';
 import { LanguageMigrationService } from './migration/language-migration.service';
+import { RepositoriesModule } from '../repositories/repositories.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { LanguageMigrationService } from './migration/language-migration.service
       { name: Word.name, schema: WordSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    RepositoriesModule,
   ],
   controllers: [LanguagesController],
   providers: [LanguagesService, LanguageMigrationService],
