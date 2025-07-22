@@ -4,19 +4,19 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
+  Inject,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import * as bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
-import { User, UserDocument } from "../../users/schemas/user.schema";
+import { User } from "../../users/schemas/user.schema";
 import { RegisterDto } from "../../users/dto/register.dto";
 import { LoginDto } from "../../users/dto/login.dto";
 import { ConfigService } from "@nestjs/config";
 import { MailService } from "../../common/services/mail.service";
 import { ActivityService } from "../../common/services/activity.service";
 import { RefreshTokenService, TokenMetadata } from "./refresh-token.service";
+import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 
 // Type pour l'utilisateur social
 interface SocialUser {
@@ -34,7 +34,7 @@ export class AuthService {
   private readonly _logger = new Logger(AuthService.name);
 
   constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @Inject('IUserRepository') private userRepository: IUserRepository,
     private _jwtService: JwtService,
     private configService: ConfigService,
     private _mailService: MailService,
@@ -54,18 +54,17 @@ export class AuthService {
       hasAcceptedPrivacyPolicy,
     } = registerDto;
 
-    // Vérifier si l'email existe déjà
-    const existingUser = await this.userModel.findOne({
-      $or: [{ email }, { username }],
-    });
+    // Vérifier si l'email et le nom d'utilisateur existent déjà
+    const [emailExists, usernameExists] = await Promise.all([
+      this.userRepository.existsByEmail(email),
+      this.userRepository.existsByUsername(username),
+    ]);
 
-    if (existingUser) {
-      if (existingUser.email === email) {
-        throw new BadRequestException("Cet email est déjà utilisé");
-      }
-      if (existingUser.username === username) {
-        throw new BadRequestException("Ce nom d'utilisateur est déjà pris");
-      }
+    if (emailExists) {
+      throw new BadRequestException("Cet email est déjà utilisé");
+    }
+    if (usernameExists) {
+      throw new BadRequestException("Ce nom d'utilisateur est déjà pris");
     }
 
     // Vérifier que l'utilisateur a accepté les conditions
@@ -89,7 +88,7 @@ export class AuthService {
     const privacyPolicyVersion = "v1.0"; // Version actuelle de la politique
 
     // Création de l'utilisateur avec informations de consentement
-    const newUser = new this.userModel({
+    const newUser = await this.userRepository.create({
       ...registerDto,
       password: hashedPassword,
       emailVerificationToken: verificationToken,
@@ -105,14 +104,12 @@ export class AuthService {
       consentIP: requestInfo?.ip || "unknown",
       consentUserAgent: requestInfo?.userAgent || "unknown",
       registrationIP: requestInfo?.ip || "unknown",
-    });
-
-    await newUser.save();
+    } as any); // Cast temporaire pour compatibilité RegisterDto
 
     // 📊 Logger l'activité d'inscription
     try {
       await this.activityService.logUserRegistered(
-        newUser._id.toString(),
+        (newUser as any)._id.toString(),
         newUser.username
       );
       console.log(
@@ -149,20 +146,15 @@ export class AuthService {
   }
 
   async verifyEmail(token: string): Promise<{ message: string }> {
-    const user = await this.userModel.findOne({
-      emailVerificationToken: token,
-      emailVerificationTokenExpires: { $gt: new Date() },
-    });
+    const user = await this.userRepository.findByEmailVerificationToken(token);
 
     if (!user) {
       throw new BadRequestException("Token invalide ou expiré");
     }
 
-    user.isEmailVerified = true;
-    user.emailVerificationToken = "";
-    user.emailVerificationTokenExpires = new Date(0);
-
-    await user.save();
+    // Marquer l'email comme vérifié et vider le token
+    await this.userRepository.markEmailAsVerified((user as any)._id);
+    await this.userRepository.updateEmailVerificationToken((user as any)._id, '');
 
     return {
       message:
@@ -171,7 +163,7 @@ export class AuthService {
   }
 
   async resendVerificationEmail(email: string): Promise<{ message: string }> {
-    const user = await this.userModel.findOne({ email });
+    const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
       throw new BadRequestException("Utilisateur non trouvé");
@@ -183,13 +175,9 @@ export class AuthService {
 
     // Générer un nouveau token
     const verificationToken = uuidv4();
-    const tokenExpiration = new Date();
-    tokenExpiration.setHours(tokenExpiration.getHours() + 24);
 
-    user.emailVerificationToken = verificationToken;
-    user.emailVerificationTokenExpires = tokenExpiration;
-
-    await user.save();
+    // Mettre à jour le token de vérification
+    await this.userRepository.updateEmailVerificationToken((user as any)._id, verificationToken);
 
     try {
       // Envoi de l'email
@@ -221,7 +209,7 @@ export class AuthService {
   }> {
     const { email, password } = loginDto;
 
-    const user = await this.userModel.findOne({ email });
+    const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException("Email ou mot de passe incorrect");
@@ -240,7 +228,7 @@ export class AuthService {
     }
 
     // ✅ AUTOMATIQUEMENT activer l'utilisateur et mettre à jour sa dernière activité lors du login
-    await this.userModel.findByIdAndUpdate(user._id, {
+    await this.userRepository.update((user as any)._id, {
       isActive: true,
       lastActive: new Date(),
       lastLogin: new Date(),
@@ -298,7 +286,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const user = await this.userModel.findOne({ email });
+    const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
       throw new BadRequestException("Aucun compte associé à cet email");
@@ -308,10 +296,12 @@ export class AuthService {
     const tokenExpiration = new Date();
     tokenExpiration.setHours(tokenExpiration.getHours() + 1); // 1h de validité
 
-    user.passwordResetToken = resetToken;
-    user.passwordResetTokenExpires = tokenExpiration;
-
-    await user.save();
+    // Mise à jour du token de reset via le repository
+    await this.userRepository.updatePasswordResetToken(
+      (user as any)._id,
+      resetToken,
+      tokenExpiration
+    );
 
     try {
       // Envoi de l'email de réinitialisation
@@ -338,10 +328,7 @@ export class AuthService {
     token: string,
     newPassword: string
   ): Promise<{ message: string }> {
-    const user = await this.userModel.findOne({
-      passwordResetToken: token,
-      passwordResetTokenExpires: { $gt: new Date() },
-    });
+    const user = await this.userRepository.findByPasswordResetToken(token);
 
     if (!user) {
       throw new BadRequestException("Token invalide ou expiré");
@@ -349,27 +336,21 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    user.password = hashedPassword;
-    user.passwordResetToken = "";
-    user.passwordResetTokenExpires = new Date(0);
-
-    await user.save();
+    // Mise à jour du mot de passe et réinitialisation du token
+    await this.userRepository.updatePassword((user as any)._id, hashedPassword);
+    await this.userRepository.updatePasswordResetToken((user as any)._id, "", new Date(0));
 
     return { message: "Mot de passe réinitialisé avec succès" };
   }
 
   async validateUser(userId: string): Promise<User> {
-    const user = await this.userModel.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new UnauthorizedException("Utilisateur non trouvé");
     }
 
     // ✅ Mettre à jour lastActive à chaque validation JWT (requête authentifiée)
-    await this.userModel
-      .findByIdAndUpdate(userId, {
-        lastActive: new Date(),
-      })
-      .exec();
+    await this.userRepository.updateLastActive(userId);
 
     console.log(
       "🔄 JWT validation - lastActive mis à jour pour:",
@@ -450,14 +431,12 @@ export class AuthService {
    */
   async validateSocialLogin(socialUser: SocialUser) {
     // Recherche d'un utilisateur existant avec le même email ou la même combinaison provider/providerId
-    let user = await this.userModel.findOne({
-      $or: [
-        { email: socialUser.email },
-        {
-          [`socialProviders.${socialUser.provider}`]: socialUser.providerId,
-        },
-      ],
-    });
+    let user = await this.userRepository.findByEmail(socialUser.email);
+    
+    // Si pas trouvé par email, chercher par social provider
+    if (!user) {
+      user = await this.userRepository.findBySocialProvider(socialUser.provider, socialUser.providerId);
+    }
 
     if (user) {
       // Si l'utilisateur existe, mettre à jour les informations sociales
@@ -480,7 +459,14 @@ export class AuthService {
         user.emailVerificationTokenExpires = new Date(0);
       }
 
-      await user.save();
+      // Mettre à jour l'utilisateur via le repository
+      await this.userRepository.update((user as any)._id, {
+        socialProviders: user.socialProviders,
+        profilePicture: user.profilePicture,
+        isEmailVerified: user.isEmailVerified,
+        emailVerificationToken: user.emailVerificationToken,
+        emailVerificationTokenExpires: user.emailVerificationTokenExpires,
+      });
     } else {
       // Si l'utilisateur n'existe pas, le créer
       // Générer un nom d'utilisateur unique si nécessaire
@@ -489,7 +475,7 @@ export class AuthService {
       let count = 0;
 
       while (isUsernameTaken) {
-        const existingUser = await this.userModel.findOne({ username });
+        const existingUser = await this.userRepository.findByUsername(username);
         if (!existingUser) {
           isUsernameTaken = false;
         } else {
@@ -506,17 +492,17 @@ export class AuthService {
       const socialProviders = {};
       socialProviders[socialUser.provider] = socialUser.providerId;
 
-      const newUser = new this.userModel({
+      // Créer l'utilisateur social via le repository
+      user = await this.userRepository.createSocialUser({
         email: socialUser.email,
         username,
-        password: hashedPassword,
-        isEmailVerified: true, // L'authentification sociale vérifie l'email
+        firstName: socialUser.firstName,
+        lastName: socialUser.lastName,
         profilePicture: socialUser.profilePicture,
-        socialProviders,
-        // ? ajouter d'autres champs pertinents ici si nécessaire
+        provider: socialUser.provider,
+        providerId: socialUser.providerId,
+        isEmailVerified: true, // L'authentification sociale vérifie l'email
       });
-
-      user = await newUser.save();
     }
 
     // Créer un payload pour le JWT
@@ -558,7 +544,7 @@ export class AuthService {
    */
   async generateSocialAuthToken(userData: { user: { id: string } }): Promise<string> {
     // 🔍 Rechercher l'utilisateur pour obtenir les infos complètes
-    const user = await this.userModel.findById(userData.user.id);
+    const user = await this.userRepository.findById(userData.user.id);
     if (!user) {
       throw new UnauthorizedException('Utilisateur non trouvé');
     }
@@ -596,7 +582,7 @@ export class AuthService {
       const userId = decoded.sub;
 
       // 🔍 Rechercher l'utilisateur
-      const user = await this.userModel.findById(userId);
+      const user = await this.userRepository.findById(userId);
       if (!user) {
         throw new UnauthorizedException('Utilisateur non trouvé');
       }

@@ -6,6 +6,7 @@ import { CreateWordDto } from '../../dictionary/dto/create-word.dto';
 import { UpdateWordDto } from '../../dictionary/dto/update-word.dto';
 import { SearchWordsDto } from '../../dictionary/dto/search-words.dto';
 import { IWordRepository } from '../interfaces/word.repository.interface';
+import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
 
 /**
  * 📚 REPOSITORY WORD - IMPLÉMENTATION MONGOOSE
@@ -498,5 +499,71 @@ export class WordRepository implements IWordRepository {
     }
 
     return mongoQuery.sort({ viewCount: -1, createdAt: -1 }).exec();
+  }
+
+  // ========== MÉTHODES POUR USERSSERVICE ==========
+
+  async countByCreatorAndStatus(userId: string, status: string): Promise<number> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.wordModel.countDocuments({
+          createdBy: userId,
+          status: status
+        }).exec();
+      },
+      'Word',
+      `countByCreatorAndStatus(${userId}, ${status})`
+    );
+  }
+
+  async findByCreator(userId: string, options?: {
+    status?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
+  }): Promise<Word[]> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        const filter: any = { createdBy: userId };
+        
+        if (options?.status) {
+          filter.status = options.status;
+        }
+
+        let query = this.wordModel.find(filter);
+
+        // Sorting
+        if (options?.sortBy) {
+          const sortDirection = options.sortOrder === 'desc' ? -1 : 1;
+          query = query.sort({ [options.sortBy]: sortDirection });
+        }
+
+        // Pagination
+        if (options?.offset) {
+          query = query.skip(options.offset);
+        }
+        if (options?.limit) {
+          query = query.limit(options.limit);
+        }
+
+        return query.exec();
+      },
+      'Word',
+      `findByCreator(${userId})`
+    );
+  }
+
+  async getDistinctLanguagesByCreator(userId: string): Promise<string[]> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.wordModel.distinct('language', {
+          createdBy: userId,
+          status: 'approved'
+        }).exec();
+      },
+      'Word',
+      `getDistinctLanguagesByCreator(${userId})`
+    );
   }
 }

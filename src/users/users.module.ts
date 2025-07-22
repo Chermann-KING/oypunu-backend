@@ -21,6 +21,7 @@ import { UsersService } from './services/users.service';
 import { ContributorRequestService } from './services/contributor-request.service';
 import { ContributorRequestListener } from './listeners/contributor-request.listener';
 import { MailService } from '../common/services/mail.service';
+import { RepositoriesModule } from '../repositories/repositories.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MailService } from '../common/services/mail.service';
       { name: ContributorRequest.name, schema: ContributorRequestSchema },
       { name: FavoriteWord.name, schema: FavoriteWordSchema },
     ]),
+    RepositoriesModule,
   ],
   controllers: [UsersController, ContributorRequestController],
   providers: [
