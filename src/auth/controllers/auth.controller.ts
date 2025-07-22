@@ -233,7 +233,7 @@ export class AuthController {
     description: 'Redirection vers le frontend avec token',
   })
   @UseGuards(AuthGuard('google'))
-  googleAuthCallback(@Request() req: SocialAuthRequest, @Res() res: Response) {
+  async googleAuthCallback(@Request() req: SocialAuthRequest, @Res() res: Response) {
     if (!this.isGoogleConfigured()) {
       return res.redirect(
         `${this.configService.get('FRONTEND_URL') || 'http://localhost:4200'}/auth/login?error=google_not_configured`,
@@ -242,7 +242,7 @@ export class AuthController {
 
     try {
       const { user } = req;
-      const socialAuthToken = this.authService.generateSocialAuthToken(user);
+      const socialAuthToken = await this.authService.generateSocialAuthToken(user);
       return res.redirect(
         `${this.configService.get('FRONTEND_URL') || 'http://localhost:4200'}/social-auth-success?token=${socialAuthToken}`,
       );
@@ -287,7 +287,7 @@ export class AuthController {
     description: 'Redirection vers le frontend avec token',
   })
   @UseGuards(AuthGuard('facebook'))
-  facebookAuthCallback(
+  async facebookAuthCallback(
     @Request() req: SocialAuthRequest,
     @Res() res: Response,
   ) {
@@ -299,7 +299,7 @@ export class AuthController {
 
     try {
       const { user } = req;
-      const socialAuthToken = this.authService.generateSocialAuthToken(user);
+      const socialAuthToken = await this.authService.generateSocialAuthToken(user);
       return res.redirect(
         `${this.configService.get('FRONTEND_URL') || 'http://localhost:4200'}/social-auth-success?token=${socialAuthToken}`,
       );
@@ -344,7 +344,7 @@ export class AuthController {
     description: 'Redirection vers le frontend avec token',
   })
   @UseGuards(AuthGuard('twitter'))
-  twitterAuthCallback(@Request() req: SocialAuthRequest, @Res() res: Response) {
+  async twitterAuthCallback(@Request() req: SocialAuthRequest, @Res() res: Response) {
     if (!this.isTwitterConfigured()) {
       return res.redirect(
         `${this.configService.get('FRONTEND_URL') || 'http://localhost:4200'}/auth/login?error=twitter_not_configured`,
@@ -353,7 +353,7 @@ export class AuthController {
 
     try {
       const { user } = req;
-      const socialAuthToken = this.authService.generateSocialAuthToken(user);
+      const socialAuthToken = await this.authService.generateSocialAuthToken(user);
       return res.redirect(
         `${this.configService.get('FRONTEND_URL') || 'http://localhost:4200'}/social-auth-success?token=${socialAuthToken}`,
       );

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/mongoose';
 import { RoleGuard, UserRole } from '../guards/role.guard';
 import { AuditService } from '../services/audit.service';
@@ -94,6 +95,12 @@ describe('Security Guards', () => {
         {
           provide: getModelToken(AuditLog.name),
           useValue: mockAuditLogModel,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('test-secret'),
+          },
         },
       ],
     }).compile();

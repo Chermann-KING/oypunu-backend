@@ -3,37 +3,18 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
 import { Word, WordDocument } from "../schemas/word.schema";
 import {
-  FavoriteWord,
-  FavoriteWordDocument,
-} from "../schemas/favorite-word.schema";
-import {
   RevisionHistory,
-  RevisionHistoryDocument,
 } from "../schemas/revision-history.schema";
-import {
-  WordNotification,
-  WordNotificationDocument,
-} from "../schemas/word-notification.schema";
-import {
-  Language,
-  LanguageDocument,
-} from "../../languages/schemas/language.schema";
 import { CreateWordDto } from "../dto/create-word.dto";
 import { UpdateWordDto } from "../dto/update-word.dto";
 import { SearchWordsDto } from "../dto/search-words.dto";
-import { User, UserDocument, UserRole } from "../../users/schemas/user.schema";
+import { User, UserRole } from "../../users/schemas/user.schema";
 import { CategoriesService } from "../services/categories.service";
 import { UsersService } from "../../users/services/users.service";
 import { AudioService } from "./audio.service";
 import { ActivityService } from "../../common/services/activity.service";
-import {
-  WordView,
-  WordViewDocument,
-} from "../../users/schemas/word-view.schema";
 // PHASE 2-7 - Import services spécialisés
 import { WordAudioService } from "./word-services/word-audio.service";
 import { WordFavoriteService } from "./word-services/word-favorite.service";
@@ -45,16 +26,6 @@ import { WordCoreService } from "./word-services/word-core.service";
 @Injectable()
 export class WordsService {
   constructor(
-    @InjectModel(Word.name) private wordModel: Model<WordDocument>,
-    @InjectModel(FavoriteWord.name)
-    private favoriteWordModel: Model<FavoriteWordDocument>,
-    @InjectModel(RevisionHistory.name)
-    private revisionHistoryModel: Model<RevisionHistoryDocument>,
-    @InjectModel(WordNotification.name)
-    private wordNotificationModel: Model<WordNotificationDocument>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Language.name) private languageModel: Model<LanguageDocument>,
-    @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>,
     private categoriesService: CategoriesService,
     private usersService: UsersService,
     private audioService: AudioService,
@@ -89,130 +60,10 @@ export class WordsService {
     // Utiliser l'ID approprié selon ce qui est disponible
     const userIdLocal: string = user._id || user.userId || "";
 
-    // Vérifier si le mot existe déjà dans la même langue
-    // Utilise le nouveau languageId en priorité, sinon utilise l'ancien champ language pour compatibilité
-    const languageFilter = createWordDto.languageId
-      ? { languageId: createWordDto.languageId }
-      : { language: createWordDto.language };
+    // PHASE 5 - DÉLÉGATION: Vérifier si le mot existe déjà (délégation vers WordCoreService)
+    console.log('🔍 WordsService.create - Vérification existence via WordCoreService');
+    return this.wordCoreService.create(createWordDto, user);
 
-    const existingWord = await this.wordModel.findOne({
-      word: createWordDto.word,
-      ...languageFilter,
-    });
-
-    if (existingWord) {
-      const languageRef = createWordDto.languageId || createWordDto.language;
-      throw new BadRequestException(
-        `Le mot "${createWordDto.word}" existe déjà dans cette langue`
-      );
-    }
-
-    // Créer une copie du DTO pour éviter de modifier l'objet original
-    const wordData = { ...createWordDto };
-
-    // Supprimer categoryId s'il est vide ou undefined
-    if (
-      !wordData.categoryId ||
-      wordData.categoryId === "" ||
-      wordData.categoryId === "undefined"
-    ) {
-      delete wordData.categoryId;
-    }
-
-    if (wordData.categoryId && (wordData.languageId || wordData.language)) {
-      try {
-        const category = await this.categoriesService.findOne(
-          wordData.categoryId
-        );
-        // Vérifie la compatibilité de langue (nouveau système ou ancien)
-        const languageMatches = wordData.languageId
-          ? category.languageId?.toString() === wordData.languageId
-          : category.language === wordData.language;
-
-        if (!category || !languageMatches) {
-          delete wordData.categoryId;
-        }
-      } catch {
-        delete wordData.categoryId;
-      }
-    }
-
-    // Créer le nouveau mot
-    const createdWord = new this.wordModel({
-      ...wordData,
-      createdBy: Types.ObjectId.isValid(String(userIdLocal))
-        ? new Types.ObjectId(String(userIdLocal))
-        : new Types.ObjectId(),
-      status: ["admin", "superadmin"].includes(user.role)
-        ? "approved"
-        : "pending",
-    });
-
-    const savedWord = await createdWord.save();
-
-    // 📊 Logger l'activité de création de mot
-    try {
-      console.log(
-        "🔄 Début du logging d'activité pour:",
-        savedWord.word,
-        "Status:",
-        savedWord.status
-      );
-      const userDoc = await this.userModel
-        .findById(userIdLocal)
-        .select("username")
-        .exec();
-      console.log("👤 User trouvé:", userDoc?.username, "UserID:", userIdLocal);
-
-      if (userDoc && savedWord.status === "approved") {
-        console.log("🎯 Conditions remplies, création d'activité...");
-        // Only log approved words to avoid spam from pending words
-        await this.activityService.logWordCreated(
-          userIdLocal,
-          userDoc.username,
-          String(savedWord._id),
-          savedWord.word,
-          savedWord.language || savedWord.languageId?.toString() || "unknown"
-        );
-        console.log('✅ Activité "word_created" enregistrée');
-      } else {
-        console.log(
-          "❌ Conditions non remplies - User:",
-          !!userDoc,
-          "Status:",
-          savedWord.status
-        );
-      }
-    } catch (error) {
-      console.error("❌ Erreur lors du logging d'activité:", error);
-      // Ne pas faire échouer la création du mot si le logging échoue
-    }
-
-    // Créer les traductions bidirectionnelles si des traductions sont fournies
-    if (wordData.translations && wordData.translations.length > 0) {
-      try {
-        await this.createBidirectionalTranslations(savedWord, userIdLocal);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la création des traductions bidirectionnelles:",
-          error
-        );
-        // Ne pas faire échouer la création du mot si les traductions bidirectionnelles échouent
-      }
-    }
-
-    // Incrémenter le compteur de mots ajoutés pour l'utilisateur
-    try {
-      await this.usersService.incrementWordCount(userIdLocal);
-    } catch (error) {
-      console.error(
-        "Erreur lors de l'incrémentation du compteur de mots:",
-        error
-      );
-      // Ne pas faire échouer la création du mot si l'incrémentation échoue
-    }
-
-    return savedWord;
   }
 
   /**
@@ -243,23 +94,12 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    const skip = (page - 1) * limit;
-    const total = await this.wordModel.countDocuments({ status });
-    const words = await this.wordModel
-      .find({ status })
-      .skip(skip)
-      .limit(limit)
-      .populate("createdBy", "username")
-      .populate("categoryId", "name")
-      .sort({ createdAt: -1 })
-      .exec();
-
+    console.log("🎭 WordsService.findAll - Délégation vers WordCoreService");
+    const result = await this.wordCoreService.findAll(page, limit, status);
+    
     return {
-      words,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      ...result,
+      totalPages: Math.ceil(result.total / result.limit),
     };
   }
 
@@ -309,14 +149,8 @@ export class WordsService {
   ): Promise<Word> {
     console.log("🎵 WordsService.updateWithAudio - Début");
 
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException("ID de mot invalide");
-    }
-
-    const word = await this.wordModel.findById(id);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
-    }
+    // PHASE 5 - DÉLÉGATION: Vérification mot via WordCoreService
+    const word = await this.wordCoreService.findOne(id);
 
     console.log("📝 Étape 1: Mise à jour des données textuelles du mot");
 
@@ -445,11 +279,13 @@ export class WordsService {
       return true;
     }
 
-    const word = await this.wordModel.findById(wordId);
-    if (!word) {
-      console.log("❌ Word not found");
-      return false;
-    }
+    // PHASE 5 - DÉLÉGATION: Vérification mot via WordCoreService  
+    try {
+      const word = await this.wordCoreService.findOne(wordId);
+      if (!word) {
+        console.log("❌ Word not found");
+        return false;
+      }
 
     console.log("Word found:", {
       word: word.word,
@@ -483,11 +319,15 @@ export class WordsService {
       areEqual: createdByIdToCompare === userIdToCompare,
     });
 
-    const canEdit = createdByIdToCompare === userIdToCompare;
-    console.log("✅ Can edit result:", canEdit);
-    console.log("=== END DEBUG canUserEditWord ===");
+      const canEdit = createdByIdToCompare === userIdToCompare;
+      console.log("✅ Can edit result:", canEdit);
+      console.log("=== END DEBUG canUserEditWord ===");
 
-    return canEdit;
+      return canEdit;
+    } catch (error) {
+      console.log("❌ Error checking word:", error);
+      return false;
+    }
   }
 
   // PHASE 5 - DÉLÉGATION: Récupérer les révisions en attente avec pagination
@@ -541,71 +381,17 @@ export class WordsService {
     return this.wordCoreService.getFeaturedWords(limit);
   }
 
-  // Récupérer les langues disponibles dans la base de données
+  /**
+   * Récupère les langues disponibles dans la base de données
+   * PHASE 5 - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async getAvailableLanguages(): Promise<
-    {
-      id: string;
-      code: string;
-      name: string;
-      nativeName: string;
-      wordCount: number;
-    }[]
+    Array<{ language: string; count: number; languageId?: string }>
   > {
     console.log(
-      "🔄 Récupération des langues depuis la collection Languages..."
+      "🎭 WordsService.getAvailableLanguages - Délégation vers WordCoreService"
     );
-
-    // Récupérer les langues actives depuis la collection Languages
-    const activeLanguages = await this.languageModel
-      .find({
-        systemStatus: "active",
-        isVisible: true,
-      })
-      .exec();
-
-    console.log("📋 Langues actives trouvées:", activeLanguages.length);
-
-    // Pour chaque langue active, compter les mots approuvés
-    const languagesWithWordCount = await Promise.all(
-      activeLanguages.map(async (language) => {
-        // Compter les mots par languageId (nouveau système)
-        const wordCountByLanguageId = await this.wordModel.countDocuments({
-          status: "approved",
-          languageId: (language as any)._id,
-        });
-
-        // Compter les mots par ancien code language (système de transition)
-        let wordCountByCode = 0;
-        if (language.iso639_1) {
-          wordCountByCode = await this.wordModel.countDocuments({
-            status: "approved",
-            language: language.iso639_1,
-          });
-        }
-
-        const totalWordCount = wordCountByLanguageId + wordCountByCode;
-
-        console.log(
-          `📊 Langue ${language.name}: ${totalWordCount} mots (${wordCountByLanguageId} par ID + ${wordCountByCode} par code)`
-        );
-
-        return {
-          id: (language as any)._id.toString(),
-          code: language.iso639_1 || language.name.toLowerCase().slice(0, 2),
-          name: language.name,
-          nativeName: language.nativeName,
-          wordCount: totalWordCount,
-        };
-      })
-    );
-
-    // Trier par nombre de mots décroissant
-    const sortedLanguages = languagesWithWordCount.sort(
-      (a, b) => b.wordCount - a.wordCount
-    );
-
-    console.log("✅ Langues disponibles formatées:", sortedLanguages.length);
-    return sortedLanguages;
+    return this.wordCoreService.getAvailableLanguages();
   }
 
   // PHASE 3 - DÉLÉGATION: Ajouter un mot aux favoris
@@ -672,6 +458,10 @@ export class WordsService {
     );
   }
 
+  /**
+   * Récupère les mots en attente pour les admins
+   * PHASE 5 - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async getAdminPendingWords(
     page = 1,
     limit = 10
@@ -682,41 +472,29 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    const skip = (page - 1) * limit;
-    const total = await this.wordModel.countDocuments({ status: "pending" });
-    const words = await this.wordModel
-      .find({ status: "pending" })
-      .skip(skip)
-      .limit(limit)
-      .populate("createdBy", "username")
-      .populate("categoryId", "name")
-      .sort({ createdAt: -1 })
-      .exec();
-
+    console.log(
+      "🎭 WordsService.getAdminPendingWords - Délégation vers WordCoreService"
+    );
+    const result = await this.wordCoreService.findAll(page, limit, "pending");
     return {
-      words,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      ...result,
+      totalPages: Math.ceil(result.total / result.limit),
     };
   }
 
+  /**
+   * Met à jour le statut d'un mot
+   * PHASE 5 - DÉLÉGATION: Délégation vers WordCoreService
+   */
   async updateWordStatus(
     id: string,
-    status: "approved" | "rejected"
+    status: "approved" | "rejected",
+    adminId?: string
   ): Promise<Word> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException("ID de mot invalide");
-    }
-
-    const word = await this.wordModel.findById(id);
-    if (!word) {
-      throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
-    }
-
-    word.status = status;
-    return word.save();
+    console.log(
+      "🎭 WordsService.updateWordStatus - Délégation vers WordCoreService"
+    );
+    return this.wordCoreService.updateWordStatus(id, status, adminId || "system");
   }
 
   /**

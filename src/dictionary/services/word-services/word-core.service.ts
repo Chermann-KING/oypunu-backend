@@ -3,10 +3,11 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Word, WordDocument } from '../../schemas/word.schema';
+import { Word } from '../../schemas/word.schema';
 import {
   Language,
   LanguageDocument,
@@ -23,6 +24,8 @@ import { CategoriesService } from '../categories.service';
 import { UsersService } from '../../../users/services/users.service';
 import { ActivityService } from '../../../common/services/activity.service';
 import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { IWordRepository } from '../../../repositories/interfaces/word.repository.interface';
+import { IUserRepository } from '../../../repositories/interfaces/user.repository.interface';
 
 interface WordFilter {
   status: string;
@@ -41,7 +44,8 @@ export class WordCoreService {
   private readonly logger = new Logger(WordCoreService.name);
 
   constructor(
-    @InjectModel(Word.name) private wordModel: Model<WordDocument>,
+    @Inject('IWordRepository') private wordRepository: IWordRepository,
+    @Inject('IUserRepository') private userRepository: IUserRepository,
     @InjectModel(Language.name) private languageModel: Model<LanguageDocument>,
     @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>,
     private categoriesService: CategoriesService,
@@ -72,16 +76,13 @@ export class WordCoreService {
         const userIdLocal: string = user._id || user.userId || '';
 
         // Vérifier si le mot existe déjà dans la même langue
-        const languageFilter = createWordDto.languageId
-          ? { languageId: createWordDto.languageId }
-          : { language: createWordDto.language };
+        const wordExists = await this.wordRepository.existsByWordAndLanguage(
+          createWordDto.word,
+          createWordDto.language,
+          createWordDto.languageId,
+        );
 
-        const existingWord = await this.wordModel.findOne({
-          word: createWordDto.word,
-          ...languageFilter,
-        });
-
-        if (existingWord) {
+        if (wordExists) {
           throw new BadRequestException(
             `Le mot "${createWordDto.word}" existe déjà dans cette langue`,
           );
@@ -106,26 +107,10 @@ export class WordCoreService {
         console.log(`📊 Status déterminé: ${status} (rôle: ${user.role})`);
 
         // Créer le mot
-        const wordData = {
-          ...createWordDto,
-          createdBy: new Types.ObjectId(userIdLocal),
-          status,
-          createdAt: new Date(),
-          translationCount: createWordDto.translations?.length || 0,
-          version: 1,
-        };
-
-        const word = new this.wordModel(wordData);
-        const savedWord = await word.save();
-
-        // Peupler les références
-        const populatedWord = await savedWord.populate([
-          { path: 'createdBy', select: 'username' },
-          { path: 'categoryId', select: 'name' }
-        ]);
+        const savedWord = await this.wordRepository.create(createWordDto, userIdLocal, status);
 
         console.log('✅ Mot créé avec succès:', {
-          id: savedWord._id,
+          id: (savedWord as any)._id,
           word: savedWord.word,
           status: savedWord.status,
           translationCount: savedWord.translationCount,
@@ -135,15 +120,13 @@ export class WordCoreService {
         if (this.activityService && savedWord.status === 'approved') {
           try {
             // Récupérer les infos utilisateur pour l'activité
-            const userData = await this.wordModel.findById(savedWord._id).populate('createdBy', 'username').exec();
-            const username = userData?.createdBy && typeof userData.createdBy === 'object' && 'username' in userData.createdBy 
-              ? userData.createdBy.username 
-              : 'Unknown';
+            const userData = await this.userRepository.findById(userIdLocal);
+            const username = userData?.username || 'Unknown';
             
             await this.activityService.logWordCreated(
               userIdLocal,
               username,
-              savedWord._id.toString(),
+              (savedWord as any)._id.toString(),
               savedWord.word,
               savedWord.language || savedWord.languageId?.toString() || 'unknown'
             );
@@ -153,7 +136,7 @@ export class WordCoreService {
         }
 
         console.log('✅ === FIN CREATION MOT ===');
-        return populatedWord;
+        return savedWord;
       },
       'WordCore',
     );
@@ -172,30 +155,13 @@ export class WordCoreService {
   ): Promise<{ words: Word[]; total: number; page: number; limit: number }> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        const skip = (page - 1) * limit;
-        const filter: any = { status };
-
-        if (language) {
-          filter.language = language;
-        }
-
-        if (categoryId) {
-          filter.categoryId = categoryId;
-        }
-
-        const [words, total] = await Promise.all([
-          this.wordModel
-            .find(filter)
-            .populate('createdBy', 'username')
-            .populate('categoryId', 'name')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .exec(),
-          this.wordModel.countDocuments(filter),
-        ]);
-
-        return { words, total, page, limit };
+        return this.wordRepository.findAll({
+          page,
+          limit,
+          status,
+          language,
+          categoryId,
+        });
       },
       'WordCore',
     );
@@ -208,15 +174,7 @@ export class WordCoreService {
   async findOne(id: string): Promise<Word> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        if (!Types.ObjectId.isValid(id)) {
-          throw new BadRequestException('ID de mot invalide');
-        }
-
-        const word = await this.wordModel
-          .findById(id)
-          .populate('createdBy', 'username')
-          .populate('categoryId', 'name')
-          .exec();
+        const word = await this.wordRepository.findById(id);
 
         if (!word) {
           throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
@@ -246,6 +204,9 @@ export class WordCoreService {
           metadata,
         });
         await view.save();
+
+        // Incrémenter le compteur de vues du mot
+        await this.wordRepository.incrementViewCount(wordId);
       },
       'WordCore',
     );
@@ -266,7 +227,7 @@ export class WordCoreService {
           throw new BadRequestException('ID de mot invalide');
         }
 
-        const existingWord = await this.wordModel.findById(id);
+        const existingWord = await this.wordRepository.findById(id);
         if (!existingWord) {
           throw new NotFoundException('Mot non trouvé');
         }
@@ -305,11 +266,7 @@ export class WordCoreService {
           translationCount: updateWordDto.translations?.length || existingWord.translationCount,
         };
 
-        const updatedWord = await this.wordModel
-          .findByIdAndUpdate(id, updateData, { new: true })
-          .populate('createdBy', 'username')
-          .populate('categoryId', 'name')
-          .exec();
+        const updatedWord = await this.wordRepository.update(id, updateData);
 
         if (!updatedWord) {
           throw new NotFoundException(`Mot avec l'ID ${id} non trouvé après mise à jour`);
@@ -336,7 +293,7 @@ export class WordCoreService {
           throw new BadRequestException('ID de mot invalide');
         }
 
-        const word = await this.wordModel.findById(id);
+        const word = await this.wordRepository.findById(id);
         if (!word) {
           throw new NotFoundException(`Mot avec l'ID ${id} non trouvé`);
         }
@@ -351,7 +308,7 @@ export class WordCoreService {
           );
         }
 
-        await this.wordModel.findByIdAndDelete(id);
+        await this.wordRepository.delete(id);
 
         // Enregistrer l'activité - Note: pas de méthode logWordDeleted, on skip pour maintenant
         // Les suppressions d'activité pourront être ajoutées plus tard si nécessaire
@@ -375,61 +332,7 @@ export class WordCoreService {
   }> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        const {
-          query,
-          languages,
-          categories,
-          partsOfSpeech,
-          page = 1,
-          limit = 10,
-        } = searchDto;
-
-        const skip = (page - 1) * limit;
-        const filter: WordFilter = { status: 'approved' };
-
-        // Recherche textuelle
-        if (query && query.trim()) {
-          filter.$or = [
-            { word: { $regex: query, $options: 'i' } },
-            { 'meanings.definition': { $regex: query, $options: 'i' } },
-            { 'meanings.example': { $regex: query, $options: 'i' } },
-            { 'translations.translatedWord': { $regex: query, $options: 'i' } },
-          ];
-        }
-
-        // Filtrer par langues
-        if (languages && languages.length > 0) {
-          filter.language = { $in: languages };
-        }
-
-        // Filtrer par catégories
-        if (categories && categories.length > 0) {
-          const categoryIds = categories
-            .filter(Types.ObjectId.isValid)
-            .map((id) => new Types.ObjectId(id));
-          if (categoryIds.length > 0) {
-            filter.categoryId = { $in: categoryIds };
-          }
-        }
-
-        // Filtrer par classes grammaticales
-        if (partsOfSpeech && partsOfSpeech.length > 0) {
-          filter['meanings.partOfSpeech'] = { $in: partsOfSpeech };
-        }
-
-        const [words, total] = await Promise.all([
-          this.wordModel
-            .find(filter)
-            .populate('createdBy', 'username')
-            .populate('categoryId', 'name')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .exec(),
-          this.wordModel.countDocuments(filter),
-        ]);
-
-        return { words, total, page, limit };
+        return this.wordRepository.search(searchDto);
       },
       'WordCore',
       `search-${searchDto.query}`,
@@ -443,19 +346,7 @@ export class WordCoreService {
   async getFeaturedWords(limit = 3): Promise<Word[]> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        return this.wordModel
-          .find({
-            status: 'approved',
-            $or: [
-              { 'audioFiles': { $exists: true, $ne: {} } },
-              { translationCount: { $gte: 2 } },
-            ],
-          })
-          .populate('createdBy', 'username')
-          .populate('categoryId', 'name')
-          .sort({ createdAt: -1, translationCount: -1 })
-          .limit(limit)
-          .exec();
+        return this.wordRepository.findFeatured(limit);
       },
       'WordCore',
       'featured',
@@ -471,71 +362,7 @@ export class WordCoreService {
   > {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
-        // Récupération des langues via languageId
-        const languageIdStats = await this.wordModel.aggregate([
-          { $match: { status: 'approved', languageId: { $exists: true } } },
-          {
-            $group: {
-              _id: '$languageId',
-              count: { $sum: 1 },
-            },
-          },
-          { $sort: { count: -1 } },
-        ]);
-
-        const languageIds = languageIdStats.map((stat) => stat._id);
-        const languageDetails = await this.languageModel
-          .find({ _id: { $in: languageIds } })
-          .exec();
-
-        const languageIdMap = languageDetails.reduce(
-          (map, lang) => {
-            map[lang._id.toString()] = lang.name;
-            return map;
-          },
-          {} as Record<string, string>,
-        );
-
-        const languageIdResults = languageIdStats.map((stat) => ({
-          language: languageIdMap[stat._id.toString()] || 'Unknown',
-          count: stat.count,
-          languageId: stat._id.toString(),
-        }));
-
-        // Récupération des langues via champ language direct (legacy)
-        const languageStats = await this.wordModel.aggregate([
-          { $match: { status: 'approved', language: { $exists: true } } },
-          {
-            $group: {
-              _id: '$language',
-              count: { $sum: 1 },
-            },
-          },
-          { $sort: { count: -1 } },
-        ]);
-
-        const languageResults = languageStats.map((stat) => ({
-          language: stat._id,
-          count: stat.count,
-        }));
-
-        // Combiner et dédupl iquer
-        const combined = [...languageIdResults, ...languageResults];
-        const languageMap = new Map<string, { language: string; count: number; languageId?: string }>();
-
-        combined.forEach((item) => {
-          const existing = languageMap.get(item.language);
-          if (existing) {
-            existing.count += item.count;
-            if ('languageId' in item && item.languageId && !existing.languageId) {
-              existing.languageId = item.languageId as string;
-            }
-          } else {
-            languageMap.set(item.language, { ...item });
-          }
-        });
-
-        return Array.from(languageMap.values()).sort((a, b) => b.count - a.count);
+        return this.wordRepository.getAvailableLanguages();
       },
       'WordCore',
       'languages',
@@ -557,15 +384,7 @@ export class WordCoreService {
           throw new BadRequestException('ID de mot invalide');
         }
 
-        const updatedWord = await this.wordModel
-          .findByIdAndUpdate(
-            wordId,
-            { status, updatedAt: new Date() },
-            { new: true },
-          )
-          .populate('createdBy', 'username')
-          .populate('categoryId', 'name')
-          .exec();
+        const updatedWord = await this.wordRepository.updateStatus(wordId, status, adminId);
 
         if (!updatedWord) {
           throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
