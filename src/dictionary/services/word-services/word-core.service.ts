@@ -119,9 +119,10 @@ export class WordCoreService {
         const savedWord = await word.save();
 
         // Peupler les références
-        const populatedWord = await savedWord
-          .populate('createdBy', 'username')
-          .populate('categoryId', 'name');
+        const populatedWord = await savedWord.populate([
+          { path: 'createdBy', select: 'username' },
+          { path: 'categoryId', select: 'name' }
+        ]);
 
         console.log('✅ Mot créé avec succès:', {
           id: savedWord._id,
@@ -131,19 +132,21 @@ export class WordCoreService {
         });
 
         // Enregistrer l'activité
-        if (this.activityService) {
+        if (this.activityService && savedWord.status === 'approved') {
           try {
-            await this.activityService.recordActivity({
-              userId: userIdLocal,
-              activityType: 'word_created',
-              targetType: 'word',
-              targetId: savedWord._id.toString(),
-              metadata: {
-                wordText: savedWord.word,
-                language: savedWord.language || savedWord.languageId,
-                status: savedWord.status,
-              },
-            });
+            // Récupérer les infos utilisateur pour l'activité
+            const userData = await this.wordModel.findById(savedWord._id).populate('createdBy', 'username').exec();
+            const username = userData?.createdBy && typeof userData.createdBy === 'object' && 'username' in userData.createdBy 
+              ? userData.createdBy.username 
+              : 'Unknown';
+            
+            await this.activityService.logWordCreated(
+              userIdLocal,
+              username,
+              savedWord._id.toString(),
+              savedWord.word,
+              savedWord.language || savedWord.languageId?.toString() || 'unknown'
+            );
           } catch (activityError) {
             console.warn('❌ Impossible d\'enregistrer l\'activité:', activityError);
           }
@@ -153,7 +156,6 @@ export class WordCoreService {
         return populatedWord;
       },
       'WordCore',
-      user._id?.toString() || user.userId,
     );
   }
 
@@ -196,7 +198,6 @@ export class WordCoreService {
         return { words, total, page, limit };
       },
       'WordCore',
-      `page-${page}`,
     );
   }
 
@@ -224,7 +225,6 @@ export class WordCoreService {
         return word;
       },
       'WordCore',
-      id,
     );
   }
 
@@ -248,8 +248,6 @@ export class WordCoreService {
         await view.save();
       },
       'WordCore',
-      wordId,
-      userId,
     );
   }
 
@@ -317,29 +315,12 @@ export class WordCoreService {
           throw new NotFoundException(`Mot avec l'ID ${id} non trouvé après mise à jour`);
         }
 
-        // Enregistrer l'activité
-        if (this.activityService) {
-          try {
-            await this.activityService.recordActivity({
-              userId: user._id.toString(),
-              activityType: 'word_updated',
-              targetType: 'word',
-              targetId: id,
-              metadata: {
-                wordText: updatedWord.word,
-                language: updatedWord.language,
-                changes: Object.keys(updateWordDto),
-              },
-            });
-          } catch (activityError) {
-            console.warn('❌ Impossible d\'enregistrer l\'activité:', activityError);
-          }
-        }
+        // Enregistrer l'activité - Note: pas de méthode logWordUpdated, on skip pour maintenant
+        // Les updates d'activité pourront être ajoutées plus tard si nécessaire
 
         return updatedWord;
       },
       'WordCore',
-      id,
       user._id?.toString(),
     );
   }
@@ -372,28 +353,12 @@ export class WordCoreService {
 
         await this.wordModel.findByIdAndDelete(id);
 
-        // Enregistrer l'activité
-        if (this.activityService) {
-          try {
-            await this.activityService.recordActivity({
-              userId: user._id.toString(),
-              activityType: 'word_deleted',
-              targetType: 'word',
-              targetId: id,
-              metadata: {
-                wordText: word.word,
-                language: word.language,
-              },
-            });
-          } catch (activityError) {
-            console.warn('❌ Impossible d\'enregistrer l\'activité:', activityError);
-          }
-        }
+        // Enregistrer l'activité - Note: pas de méthode logWordDeleted, on skip pour maintenant
+        // Les suppressions d'activité pourront être ajoutées plus tard si nécessaire
 
         return { success: true };
       },
       'WordCore',
-      id,
       user._id?.toString(),
     );
   }
@@ -562,8 +527,8 @@ export class WordCoreService {
           const existing = languageMap.get(item.language);
           if (existing) {
             existing.count += item.count;
-            if (item.languageId && !existing.languageId) {
-              existing.languageId = item.languageId;
+            if ('languageId' in item && item.languageId && !existing.languageId) {
+              existing.languageId = item.languageId as string;
             }
           } else {
             languageMap.set(item.language, { ...item });

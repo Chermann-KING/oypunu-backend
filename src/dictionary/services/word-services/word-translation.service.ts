@@ -174,15 +174,15 @@ export class WordTranslationService {
             (translation as any)._id ||
             `${(word as any)._id}_${translation.translatedWord}`,
           sourceWord: word.word,
-          sourceLanguageId: word.languageId,
+          sourceLanguageId: word.languageId ? new Types.ObjectId(word.languageId as string) : undefined,
           sourceLanguage: word.language,
           targetWord: translation.translatedWord,
-          targetLanguageId: translation.languageId,
+          targetLanguageId: translation.languageId ? new Types.ObjectId(translation.languageId as string) : undefined,
           targetLanguage: translation.language,
           context: translation.context,
           confidence: translation.confidence,
-          verifiedBy: translation.verifiedBy,
-          targetWordId: translation.targetWordId,
+          verifiedBy: translation.verifiedBy?.map(id => new Types.ObjectId(id as string)) || [],
+          targetWordId: translation.targetWordId ? new Types.ObjectId(translation.targetWordId as string) : undefined,
           direction: 'direct' as const,
         }));
 
@@ -218,15 +218,15 @@ export class WordTranslationService {
                 (translation as any)._id ||
                 `${(sourceWord as any)._id}_${translation.translatedWord}`,
               sourceWord: sourceWord.word,
-              sourceLanguageId: sourceWord.languageId,
+              sourceLanguageId: sourceWord.languageId ? new Types.ObjectId(sourceWord.languageId as string) : undefined,
               sourceLanguage: sourceWord.language,
               targetWord: word.word,
-              targetLanguageId: word.languageId,
+              targetLanguageId: word.languageId ? new Types.ObjectId(word.languageId as string) : undefined,
               targetLanguage: word.language,
               context: translation.context,
               confidence: translation.confidence,
-              verifiedBy: translation.verifiedBy,
-              targetWordId: word._id,
+              verifiedBy: translation.verifiedBy?.map(id => new Types.ObjectId(id as string)) || [],
+              targetWordId: new Types.ObjectId((word as any)._id),
               direction: 'reverse' as const,
             });
           }
