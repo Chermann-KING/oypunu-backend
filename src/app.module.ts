@@ -17,6 +17,12 @@ import { TranslationModule } from "./translation/translation.module";
 import { LanguagesModule } from "./languages/languages.module";
 import { ActivityModule } from "./common/activity.module";
 import { RecommendationsModule } from "./recommendations/recommendations.module";
+// ✨ NOUVEAUX MODULES - Endpoints manquants ajoutés
+import { AnalyticsModule } from "./analytics/analytics.module";
+import { ModerationModule } from "./moderation/moderation.module";
+import { SearchModule } from "./search/search.module";
+import { AchievementsModule } from "./achievements/achievements.module";
+import { SocialModule } from "./social/social.module";
 import { CommunityPostsController } from "./communities/controllers/community-posts.controller";
 import { CommunitiesService } from "./communities/services/communities.service";
 import {
@@ -100,6 +106,12 @@ import { ActivityTrackingMiddleware } from "./common/middleware/activity-trackin
     LanguagesModule,
     ActivityModule,
     RecommendationsModule,
+    // ✨ NOUVEAUX MODULES - Fonctionnalités avancées
+    AnalyticsModule,      // 📊 Dashboard et métriques admin
+    ModerationModule,     // 🛡️ Signalements et modération
+    SearchModule,         // 🔍 Recherche avancée avec suggestions
+    AchievementsModule,   // 🏆 Système de badges et gamification
+    SocialModule,         // 👥 Fonctionnalités sociales (likes, partages, commentaires)
     // LessonsModule,
   ],
   controllers: [AppController, CommunityPostsController],
