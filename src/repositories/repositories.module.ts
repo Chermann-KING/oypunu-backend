@@ -14,6 +14,7 @@ import { CommunityMember, CommunityMemberSchema } from '../communities/schemas/c
 import { CommunityPost, CommunityPostSchema } from '../communities/schemas/community-post.schema';
 import { PostComment, PostCommentSchema } from '../communities/schemas/post-comment.schema';
 import { Vote, VoteSchema } from '../communities/schemas/vote.schema';
+import { WordVote, WordVoteSchema } from '../social/schemas/word-vote.schema';
 import { UserRepository } from './implementations/user.repository';
 import { WordViewRepository } from './implementations/word-view.repository';
 import { WordRepository } from './implementations/word.repository';
@@ -28,6 +29,7 @@ import { CommunityMemberRepository } from './implementations/community-member.re
 import { CommunityPostRepository } from './implementations/community-post.repository';
 import { PostCommentRepository } from './implementations/post-comment.repository';
 import { VoteRepository } from './implementations/vote.repository';
+import { WordVoteRepository } from './implementations/word-vote.repository';
 import { IUserRepository } from './interfaces/user.repository.interface';
 import { IWordViewRepository } from './interfaces/word-view.repository.interface';
 import { IWordRepository } from './interfaces/word.repository.interface';
@@ -42,6 +44,7 @@ import { ICommunityMemberRepository } from './interfaces/community-member.reposi
 import { ICommunityPostRepository } from './interfaces/community-post.repository.interface';
 import { IPostCommentRepository } from './interfaces/post-comment.repository.interface';
 import { IVoteRepository } from './interfaces/vote.repository.interface';
+import { IWordVoteRepository } from './interfaces/word-vote.repository.interface';
 
 /**
  * 🏭 MODULE DES REPOSITORIES
@@ -72,6 +75,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
       { name: CommunityPost.name, schema: CommunityPostSchema },
       { name: PostComment.name, schema: PostCommentSchema },
       { name: Vote.name, schema: VoteSchema },
+      { name: WordVote.name, schema: WordVoteSchema },
     ]),
   ],
   providers: [
@@ -145,6 +149,11 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
       provide: 'IVoteRepository',
       useClass: VoteRepository,
     },
+    // Liaison interface -> implémentation pour WordVoteRepository
+    {
+      provide: 'IWordVoteRepository',
+      useClass: WordVoteRepository,
+    },
     // Export direct des classes pour compatibilité
     UserRepository,
     WordViewRepository,
@@ -160,6 +169,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     CommunityPostRepository,
     PostCommentRepository,
     VoteRepository,
+    WordVoteRepository,
   ],
   exports: [
     'IUserRepository',
@@ -176,6 +186,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     'ICommunityPostRepository',
     'IPostCommentRepository',
     'IVoteRepository',
+    'IWordVoteRepository',
     UserRepository,
     WordViewRepository,
     WordRepository,
@@ -190,6 +201,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     CommunityPostRepository,
     PostCommentRepository,
     VoteRepository,
+    WordVoteRepository,
   ],
 })
 export class RepositoriesModule {}
