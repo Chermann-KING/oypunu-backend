@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User } from '../../users/schemas/user.schema';
 import { RegisterDto } from '../../users/dto/register.dto';
 import { IUserRepository } from '../interfaces/user.repository.interface';
@@ -258,5 +258,47 @@ export class UserRepository implements IUserRepository {
       })
       .sort({ role: -1, createdAt: 1 })
       .exec();
+  }
+
+  async getUserStats(userId: string): Promise<{
+    wordsCount: number;
+    postsCount: number;
+  }> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return { wordsCount: 0, postsCount: 0 };
+    }
+
+    const [wordsCount, postsCount] = await Promise.all([
+      this.userModel.aggregate([
+        { $match: { _id: new Types.ObjectId(userId) } },
+        { $project: { totalWordsAdded: { $ifNull: ["$totalWordsAdded", 0] } } },
+      ]).exec(),
+      this.userModel.aggregate([
+        { $match: { _id: new Types.ObjectId(userId) } },
+        {
+          $project: {
+            totalCommunityPosts: { $ifNull: ["$totalCommunityPosts", 0] },
+          },
+        },
+      ]).exec(),
+    ]);
+
+    return {
+      wordsCount: wordsCount[0]?.totalWordsAdded || 0,
+      postsCount: postsCount[0]?.totalCommunityPosts || 0,
+    };
+  }
+
+  async count(): Promise<number> {
+    // Compter seulement les utilisateurs vraiment actifs :
+    // - Email vérifié OU connexion sociale
+    // - ET compte actif
+    return this.userModel.countDocuments({
+      isActive: true,
+      $or: [
+        { isEmailVerified: true },
+        { socialProviders: { $ne: {}, $exists: true } }
+      ]
+    }).exec();
   }
 }

@@ -1,14 +1,11 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Injectable, UnauthorizedException, Logger, Inject } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
-import {
-  RefreshToken,
-  RefreshTokenDocument,
-} from '../schemas/refresh-token.schema';
+import { RefreshToken } from '../schemas/refresh-token.schema';
+import { IRefreshTokenRepository } from '../../repositories/interfaces/refresh-token.repository.interface';
 
 export interface TokenPair {
   accessToken: string;
@@ -27,8 +24,8 @@ export class RefreshTokenService {
   private readonly ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
 
   constructor(
-    @InjectModel(RefreshToken.name)
-    private refreshTokenModel: Model<RefreshTokenDocument>,
+    @Inject('IRefreshTokenRepository')
+    private refreshTokenRepository: IRefreshTokenRepository,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -65,22 +62,22 @@ export class RefreshTokenService {
   private async createRefreshToken(
     userId: string,
     metadata?: TokenMetadata,
-  ): Promise<RefreshTokenDocument> {
+  ): Promise<RefreshToken> {
     // Générer un token cryptographiquement sécurisé
     const token = this.generateSecureToken();
+    const hashedToken = this.hashToken(token);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);
 
-    const refreshToken = new this.refreshTokenModel({
-      userId: new Types.ObjectId(userId),
+    const refreshToken = await this.refreshTokenRepository.create({
+      userId,
       token,
+      hashedToken,
       expiresAt,
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,
     });
-
-    await refreshToken.save();
 
     this.logger.log(`Refresh token créé pour l'utilisateur ${userId}`);
     return refreshToken;
@@ -162,12 +159,8 @@ export class RefreshTokenService {
    */
   private async validateRefreshToken(
     token: string,
-  ): Promise<RefreshTokenDocument | null> {
-    const refreshToken = await this.refreshTokenModel.findOne({
-      token,
-      isRevoked: false,
-      expiresAt: { $gt: new Date() },
-    });
+  ): Promise<RefreshToken | null> {
+    const refreshToken = await this.refreshTokenRepository.findValidToken(token);
 
     if (!refreshToken) {
       this.logger.warn(`Tentative d'utilisation d'un refresh token invalide`);
@@ -184,17 +177,10 @@ export class RefreshTokenService {
     token: string,
     reason: string = 'Manual revocation',
   ): Promise<void> {
-    const refreshToken = await this.refreshTokenModel.findOne({ token });
+    const success = await this.refreshTokenRepository.revokeToken(token, reason);
 
-    if (refreshToken) {
-      refreshToken.isRevoked = true;
-      refreshToken.revokedAt = new Date();
-      refreshToken.revokedReason = reason;
-      await refreshToken.save();
-
-      this.logger.log(
-        `Refresh token révoqué pour l'utilisateur ${refreshToken.userId}: ${reason}`,
-      );
+    if (success) {
+      this.logger.log(`Refresh token révoqué: ${reason}`);
     }
   }
 
@@ -205,17 +191,10 @@ export class RefreshTokenService {
     userId: string,
     reason: string = 'Revoke all tokens',
   ): Promise<void> {
-    await this.refreshTokenModel.updateMany(
-      { userId: new Types.ObjectId(userId), isRevoked: false },
-      {
-        isRevoked: true,
-        revokedAt: new Date(),
-        revokedReason: reason,
-      },
-    );
+    const revokedCount = await this.refreshTokenRepository.revokeAllUserTokens(userId, reason);
 
     this.logger.log(
-      `Tous les refresh tokens révoqués pour l'utilisateur ${userId}: ${reason}`,
+      `${revokedCount} refresh tokens révoqués pour l'utilisateur ${userId}: ${reason}`,
     );
   }
 
@@ -223,15 +202,7 @@ export class RefreshTokenService {
    * Nettoie les tokens expirés (à exécuter périodiquement)
    */
   async cleanupExpiredTokens(): Promise<void> {
-    const result = await this.refreshTokenModel.deleteMany({
-      $or: [
-        { expiresAt: { $lt: new Date() } },
-        {
-          isRevoked: true,
-          revokedAt: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        }, // 30 jours
-      ],
-    });
+    const result = await this.refreshTokenRepository.cleanupExpiredTokens();
 
     this.logger.log(`${result.deletedCount} refresh tokens expirés supprimés`);
   }
@@ -251,22 +222,29 @@ export class RefreshTokenService {
   }
 
   /**
+   * Hash un token pour le stockage sécurisé
+   */
+  private hashToken(token: string): string {
+    return crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+  }
+
+  /**
    * Détecte une potentielle attaque par réutilisation de token
    */
   async detectTokenReuse(token: string): Promise<boolean> {
-    const revokedToken = await this.refreshTokenModel.findOne({
-      token,
-      isRevoked: true,
-    });
+    const reuseResult = await this.refreshTokenRepository.detectTokenReuse(token);
 
-    if (revokedToken) {
+    if (reuseResult.isReused && reuseResult.revokedToken) {
       this.logger.error(
-        `SÉCURITÉ: Tentative de réutilisation d'un refresh token révoqué pour l'utilisateur ${revokedToken.userId}`,
+        `SÉCURITÉ: Tentative de réutilisation d'un refresh token révoqué pour l'utilisateur ${reuseResult.revokedToken.userId}`,
       );
 
       // Révoquer tous les tokens de cet utilisateur par mesure de sécurité
       await this.revokeAllUserTokens(
-        revokedToken.userId.toString(),
+        reuseResult.revokedToken.userId,
         'Token reuse detected - security measure',
       );
 

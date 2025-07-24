@@ -1,13 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { CommunityFiltersDto } from '../dto/community-filters.dto';
 import { CreateCommunityDto } from '../dto/create-community.dto';
-import {
-  CommunityMember,
-  CommunityMemberDocument,
-} from '../schemas/community-member.schema';
-import { Community, CommunityDocument } from '../schemas/community.schema';
+import { CommunityMember } from '../schemas/community-member.schema';
+import { Community } from '../schemas/community.schema';
+import { ICommunityRepository } from '../../repositories/interfaces/community.repository.interface';
+import { ICommunityMemberRepository } from '../../repositories/interfaces/community-member.repository.interface';
 
 interface CommunityQuery {
   $or?: Array<{ [key: string]: { $regex: string; $options: string } }>;
@@ -27,10 +24,8 @@ interface JwtUser {
 @Injectable()
 export class CommunitiesService {
   constructor(
-    @InjectModel(Community.name)
-    private communityModel: Model<CommunityDocument>,
-    @InjectModel(CommunityMember.name)
-    private memberModel: Model<CommunityMemberDocument>,
+    @Inject('ICommunityRepository') private communityRepository: ICommunityRepository,
+    @Inject('ICommunityMemberRepository') private communityMemberRepository: ICommunityMemberRepository,
   ) {}
 
   // Fonction utilitaire pour extraire l'ID utilisateur
@@ -57,17 +52,14 @@ export class CommunitiesService {
     const userId = this._extractUserId(user);
     console.log('Resolved User ID:', userId);
 
-    const newCommunity = new this.communityModel({
+    const community = await this.communityRepository.create({
       ...createCommunityDto,
       createdBy: userId,
-      memberCount: 1,
     });
 
-    const community = await newCommunity.save();
-
     // Ajouter le créateur comme admin
-    await this.memberModel.create({
-      communityId: community._id,
+    await this.communityMemberRepository.create({
+      communityId: (community as any)._id,
       userId: userId,
       role: 'admin',
     });
@@ -118,10 +110,43 @@ export class CommunitiesService {
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-    const [communities, total] = await Promise.all([
-      this.communityModel.find(query).sort(sort).skip(skip).limit(limit).exec(),
-      this.communityModel.countDocuments(query),
-    ]);
+    // Convertir les filtres pour le repository
+    const repositoryOptions = {
+      page,
+      limit,
+      includePrivate,
+      sortBy: sortBy as 'memberCount' | 'createdAt' | 'name',
+      sortOrder: sortOrder as 'asc' | 'desc',
+    };
+
+    let result;
+    if (searchTerm) {
+      result = await this.communityRepository.search(searchTerm, {
+        language,
+        includePrivate,
+        limit,
+        skip,
+      });
+      return {
+        communities: result.communities,
+        total: result.total,
+        page,
+        limit,
+      };
+    } else if (language) {
+      result = await this.communityRepository.findByLanguage(language, repositoryOptions);
+      return result;
+    } else if (tag) {
+      const communities = await this.communityRepository.findByTags([tag], {
+        includePrivate,
+        limit,
+      });
+      const total = communities.length;
+      return { communities, total, page, limit };
+    } else {
+      result = await this.communityRepository.findAll(repositoryOptions);
+      return result;
+    }
 
     return {
       communities,
@@ -139,26 +164,21 @@ export class CommunitiesService {
     const userId = this._extractUserId(userOrId);
 
     // Vérifier si l'utilisateur est déjà membre
-    const existingMember = await this.memberModel.findOne({
-      communityId,
-      userId,
-    });
+    const isMember = await this.communityMemberRepository.isMember(communityId, userId);
 
-    if (existingMember) {
+    if (isMember) {
       return { success: true }; // Déjà membre
     }
 
     // Ajouter comme membre
-    await this.memberModel.create({
+    await this.communityMemberRepository.create({
       communityId,
       userId,
       role: 'member',
     });
 
     // Incrémenter le compteur de membres
-    await this.communityModel.findByIdAndUpdate(communityId, {
-      $inc: { memberCount: 1 },
-    });
+    await this.communityRepository.incrementMemberCount(communityId);
 
     return { success: true };
   }
@@ -170,19 +190,16 @@ export class CommunitiesService {
   ): Promise<{ success: boolean }> {
     const userId = this._extractUserId(userOrId);
 
-    const member = await this.memberModel.findOne({
-      communityId: new Types.ObjectId(communityId),
-      userId: new Types.ObjectId(userId),
-    });
+    const isMember = await this.communityMemberRepository.isMember(communityId, userId);
 
-    if (!member) {
+    if (!isMember) {
       return { success: false };
     }
 
-    await this.memberModel.deleteOne({ _id: member._id });
-    await this.communityModel.findByIdAndUpdate(communityId, {
-      $inc: { memberCount: -1 },
-    });
+    const removed = await this.communityMemberRepository.removeMember(communityId, userId);
+    if (removed) {
+      await this.communityRepository.decrementMemberCount(communityId);
+    }
 
     return { success: true };
   }
@@ -198,22 +215,23 @@ export class CommunitiesService {
     page: number;
     limit: number;
   }> {
-    const skip = (page - 1) * limit;
-    const [members, total] = await Promise.all([
-      this.memberModel
-        .find({ communityId })
-        .populate('userId', 'username profilePicture')
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.memberModel.countDocuments({ communityId }),
-    ]);
+    const result = await this.communityMemberRepository.findByCommunity(communityId, {
+      page,
+      limit,
+      sortBy: 'joinedAt',
+      sortOrder: 'desc',
+    });
+
+    const { members, total } = result;
 
     return { members, total, page, limit };
   }
 
   async getAllMembersWithRoles(communityId: string): Promise<any[]> {
-    return this.memberModel.find({ communityId }).lean();
+    const result = await this.communityMemberRepository.findByCommunity(communityId, {
+      limit: 1000, // Limite élevée pour récupérer tous les membres
+    });
+    return result.members;
   }
 
   // Changer le rôle d'un membre
@@ -226,13 +244,9 @@ export class CommunitiesService {
     const adminId = this._extractUserId(adminUserOrId);
 
     // Vérifier si l'administrateur a les droits
-    const adminMember = await this.memberModel.findOne({
-      communityId,
-      userId: adminId,
-      role: 'admin',
-    });
+    const isAdmin = await this.communityMemberRepository.hasRole(communityId, adminId, 'admin');
 
-    if (!adminMember) {
+    if (!isAdmin) {
       return {
         success: false,
         message: "Vous n'avez pas les droits nécessaires",
@@ -240,17 +254,14 @@ export class CommunitiesService {
     }
 
     // Vérifier si le membre existe
-    const member = await this.memberModel.findOne({
-      communityId,
-      userId: memberUserId,
-    });
+    const isMember = await this.communityMemberRepository.isMember(communityId, memberUserId);
 
-    if (!member) {
+    if (!isMember) {
       return { success: false, message: 'Membre non trouvé' };
     }
 
     // Mettre à jour le rôle
-    await this.memberModel.findByIdAndUpdate(member._id, { role: newRole });
+    await this.communityMemberRepository.updateRole(communityId, memberUserId, newRole);
 
     return { success: true, message: 'Rôle mis à jour avec succès' };
   }
@@ -268,32 +279,32 @@ export class CommunitiesService {
   }> {
     const userId = this._extractUserId(userOrId);
 
-    const skip = (page - 1) * limit;
-    const memberIds = await this.memberModel
-      .find({ userId })
-      .select('communityId')
-      .exec();
+    const membershipResult = await this.communityMemberRepository.findByUser(userId, {
+      page,
+      limit,
+      sortBy: 'joinedAt',
+      sortOrder: 'desc',
+    });
 
-    const communityIds = memberIds.map((member) => member.communityId);
+    const communityIds = membershipResult.memberships.map((member) => (member as any).communityId);
+    
+    // Récupérer les communautés correspondantes
+    const communities = [];
+    for (const communityId of communityIds) {
+      const community = await this.communityRepository.findById(communityId);
+      if (community) {
+        communities.push(community);
+      }
+    }
 
-    const [communities, total] = await Promise.all([
-      this.communityModel
-        .find({ _id: { $in: communityIds } })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.communityModel.countDocuments({ _id: { $in: communityIds } }),
-    ]);
+    const total = membershipResult.total;
 
     return { communities, total, page, limit };
   }
 
   // Récupérer une communauté par son ID
   async findOne(communityId: string): Promise<Community> {
-    const community = await this.communityModel
-      .findById(communityId)
-      .populate('createdBy', 'username profilePicture')
-      .exec();
+    const community = await this.communityRepository.findById(communityId);
 
     if (!community) {
       throw new NotFoundException(
@@ -312,20 +323,16 @@ export class CommunitiesService {
   ): Promise<{ success: boolean; message: string }> {
     const userId = this._extractUserId(userOrId);
 
-    const member = await this.memberModel.findOne({
-      communityId,
-      userId,
-      role: 'admin',
-    });
+    const isAdmin = await this.communityMemberRepository.hasRole(communityId, userId, 'admin');
 
-    if (!member) {
+    if (!isAdmin) {
       return {
         success: false,
         message: "Vous n'avez pas les droits nécessaires",
       };
     }
 
-    await this.communityModel.findByIdAndUpdate(communityId, updateData);
+    await this.communityRepository.update(communityId, updateData);
     return { success: true, message: 'Communauté mise à jour avec succès' };
   }
 
@@ -336,13 +343,9 @@ export class CommunitiesService {
   ): Promise<{ success: boolean; message: string }> {
     const userId = this._extractUserId(userOrId);
 
-    const member = await this.memberModel.findOne({
-      communityId,
-      userId,
-      role: 'admin',
-    });
+    const isAdmin = await this.communityMemberRepository.hasRole(communityId, userId, 'admin');
 
-    if (!member) {
+    if (!isAdmin) {
       return {
         success: false,
         message: "Vous n'avez pas les droits nécessaires",
@@ -350,8 +353,8 @@ export class CommunitiesService {
     }
 
     await Promise.all([
-      this.communityModel.findByIdAndDelete(communityId),
-      this.memberModel.deleteMany({ communityId }),
+      this.communityRepository.delete(communityId),
+      this.communityMemberRepository.removeAllFromCommunity(communityId),
     ]);
 
     return { success: true, message: 'Communauté supprimée avec succès' };
@@ -364,11 +367,7 @@ export class CommunitiesService {
   ): Promise<boolean> {
     const userId = this._extractUserId(userOrId);
 
-    const member = await this.memberModel.findOne({
-      communityId,
-      userId,
-    });
-    return !!member;
+    return this.communityMemberRepository.isMember(communityId, userId);
   }
 
   // Récupérer le rôle d'un membre dans une communauté
@@ -381,31 +380,11 @@ export class CommunitiesService {
       `Recherche du rôle pour communityId: ${communityId}, userId: ${userId}`,
     );
 
-    // Essayez d'abord sans conversion à ObjectId
-    let member = await this.memberModel.findOne({
-      communityId,
-      userId,
-    });
-
-    // Si aucun résultat, essayez avec la conversion
-    if (!member) {
-      console.log('Première recherche échouée, essai avec ObjectId');
-      member = await this.memberModel.findOne({
-        communityId: new Types.ObjectId(communityId),
-        userId: new Types.ObjectId(userId),
-      });
-    }
-
-    console.log('Membre trouvé:', member);
-
-    // Si l'utilisateur est membre mais n'a pas de rôle défini, renvoyer 'member' par défaut
-    if (member && !member.role) {
-      return 'member';
-    }
-
-    return (
-      (member?.role as 'admin' | 'moderator' | 'member' | undefined) || null
-    );
+    const role = await this.communityMemberRepository.getUserRole(communityId, userId);
+    
+    console.log('Rôle trouvé:', role);
+    
+    return role;
   }
 
   // Rechercher des communautés par tag
@@ -419,16 +398,16 @@ export class CommunitiesService {
     page: number;
     limit: number;
   }> {
-    const skip = (page - 1) * limit;
-    const [communities, total] = await Promise.all([
-      this.communityModel
-        .find({ tags: { $in: tags } })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.communityModel.countDocuments({ tags: { $in: tags } }),
-    ]);
+    const communities = await this.communityRepository.findByTags(tags, {
+      includePrivate: false,
+      limit,
+    });
+    
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedCommunities = communities.slice(startIndex, endIndex);
+    const total = communities.length;
 
-    return { communities, total, page, limit };
+    return { communities: paginatedCommunities, total, page, limit };
   }
 }

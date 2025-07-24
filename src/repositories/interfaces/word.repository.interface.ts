@@ -81,6 +81,11 @@ export interface IWordRepository {
    * Récupérer mots vedettes
    */
   findFeatured(limit?: number): Promise<Word[]>;
+
+  /**
+   * Récupérer mots aléatoires avec utilisateur populé
+   */
+  findRandomWithCreatedBy(limit?: number): Promise<Word[]>;
   
   // ========== STATISTIQUES ==========
   
@@ -168,4 +173,32 @@ export interface IWordRepository {
     limit?: number;
     offset?: number;
   }): Promise<Word[]>;
+
+  // ========== MÉTHODES POUR TRANSLATIONS ==========
+
+  /**
+   * Trouver un mot par l'ID d'une de ses traductions
+   */
+  findByTranslationId(translationId: string): Promise<Word | null>;
+
+  /**
+   * Trouver des mots par ID de groupe de traduction
+   */
+  findByTranslationGroupId(groupId: string): Promise<Word[]>;
+
+  /**
+   * Récupérer un mot avec ses traductions populées (utilisateurs)
+   */
+  findByIdWithTranslations(wordId: string): Promise<Word | null>;
+
+  /**
+   * Trouver des mots par catégorie et langue pour suggestions de traduction
+   */
+  findByCategoryAndLanguage(
+    categoryId: string,
+    language: string,
+    status: string,
+    excludeIds: string[],
+    limit: number
+  ): Promise<Word[]>;
 }

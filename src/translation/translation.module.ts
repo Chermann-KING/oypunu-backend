@@ -1,14 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-// Schémas existants (réutilisés)
-import { Word, WordSchema } from '../dictionary/schemas/word.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import {
-  Category,
-  CategorySchema,
-} from '../dictionary/schemas/category.schema';
-
 // Nouveaux schémas pour le système de traduction
 import {
   TranslationGroup,
@@ -29,21 +21,19 @@ import { TranslationController } from './controllers/translation.controller';
 
 // Modules existants
 import { UsersModule } from '../users/users.module';
+import { RepositoriesModule } from '../repositories/repositories.module';
 
 @Module({
   imports: [
-    // Importer les schémas nécessaires
+    // Importer seulement les schémas spécifiques au module translation
     MongooseModule.forFeature([
-      // Schémas existants (pas de modification)
-      { name: Word.name, schema: WordSchema },
-      { name: User.name, schema: UserSchema },
-      { name: Category.name, schema: CategorySchema },
-
       // Nouveaux schémas pour les traductions intelligentes
       { name: TranslationGroup.name, schema: TranslationGroupSchema },
       { name: TrainingData.name, schema: TrainingDataSchema },
     ]),
 
+    // Importer les repositories pour accéder aux données
+    RepositoriesModule,
     // Importer le module Users pour accéder aux services utilisateur
     UsersModule,
   ],

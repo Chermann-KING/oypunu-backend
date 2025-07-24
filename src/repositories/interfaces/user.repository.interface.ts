@@ -142,4 +142,17 @@ export interface IUserRepository {
    * Récupérer les administrateurs
    */
   findAdmins(): Promise<User[]>;
+
+  /**
+   * Récupérer les statistiques d'activité d'un utilisateur
+   */
+  getUserStats(userId: string): Promise<{
+    wordsCount: number;
+    postsCount: number;
+  }>;
+
+  /**
+   * Compter le nombre total d'utilisateurs
+   */
+  count(): Promise<number>;
 }
