@@ -131,6 +131,8 @@ export class Translation {
 
 @Schema({ timestamps: true })
 export class Word {
+  _id: string;
+  
   @Prop({ required: true, index: true })
   word: string;
 

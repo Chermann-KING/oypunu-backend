@@ -312,6 +312,15 @@ export class LanguageRepository implements ILanguageRepository {
     );
   }
 
+  async countApproved(): Promise<number> {
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        return this.languageModel.countDocuments({ status: 'approved' }).exec();
+      },
+      'Language'
+    );
+  }
+
   async getUsageStats(): Promise<{
     languageId: string;
     languageName: string;

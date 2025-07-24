@@ -11,3 +11,8 @@ export { RefreshTokenRepository } from './refresh-token.repository';
 export { ActivityFeedRepository } from './activity-feed.repository';
 export { LanguageRepository } from './language.repository';
 export { CategoryRepository } from './category.repository';
+export { MessageRepository } from './message.repository';
+export { ConversationRepository } from './conversation.repository';
+export { CommunityRepository } from './community.repository';
+export { CommunityMemberRepository } from './community-member.repository';
+export { VoteRepository } from './vote.repository';

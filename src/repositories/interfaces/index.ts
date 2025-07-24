@@ -11,3 +11,8 @@ export { IRefreshTokenRepository } from './refresh-token.repository.interface';
 export { IActivityFeedRepository } from './activity-feed.repository.interface';
 export { ILanguageRepository } from './language.repository.interface';
 export { ICategoryRepository } from './category.repository.interface';
+export { IMessageRepository } from './message.repository.interface';
+export { IConversationRepository } from './conversation.repository.interface';
+export { ICommunityRepository } from './community.repository.interface';
+export { ICommunityMemberRepository } from './community-member.repository.interface';
+export { IVoteRepository } from './vote.repository.interface';

@@ -6,18 +6,33 @@ import { RefreshToken, RefreshTokenSchema } from '../auth/schemas/refresh-token.
 import { ActivityFeed, ActivityFeedSchema } from '../common/schemas/activity-feed.schema';
 import { Language, LanguageSchema } from '../languages/schemas/language.schema';
 import { Category, CategorySchema } from '../dictionary/schemas/category.schema';
+import { Message, MessageSchema } from '../messaging/schemas/message.schema';
+import { Conversation, ConversationSchema } from '../messaging/schemas/conversation.schema';
+import { Community, CommunitySchema } from '../communities/schemas/community.schema';
+import { CommunityMember, CommunityMemberSchema } from '../communities/schemas/community-member.schema';
+import { Vote, VoteSchema } from '../communities/schemas/vote.schema';
 import { UserRepository } from './implementations/user.repository';
 import { WordRepository } from './implementations/word.repository';
 import { RefreshTokenRepository } from './implementations/refresh-token.repository';
 import { ActivityFeedRepository } from './implementations/activity-feed.repository';
 import { LanguageRepository } from './implementations/language.repository';
 import { CategoryRepository } from './implementations/category.repository';
+import { MessageRepository } from './implementations/message.repository';
+import { ConversationRepository } from './implementations/conversation.repository';
+import { CommunityRepository } from './implementations/community.repository';
+import { CommunityMemberRepository } from './implementations/community-member.repository';
+import { VoteRepository } from './implementations/vote.repository';
 import { IUserRepository } from './interfaces/user.repository.interface';
 import { IWordRepository } from './interfaces/word.repository.interface';
 import { IRefreshTokenRepository } from './interfaces/refresh-token.repository.interface';
 import { IActivityFeedRepository } from './interfaces/activity-feed.repository.interface';
 import { ILanguageRepository } from './interfaces/language.repository.interface';
 import { ICategoryRepository } from './interfaces/category.repository.interface';
+import { IMessageRepository } from './interfaces/message.repository.interface';
+import { IConversationRepository } from './interfaces/conversation.repository.interface';
+import { ICommunityRepository } from './interfaces/community.repository.interface';
+import { ICommunityMemberRepository } from './interfaces/community-member.repository.interface';
+import { IVoteRepository } from './interfaces/vote.repository.interface';
 
 /**
  * 🏭 MODULE DES REPOSITORIES
@@ -40,6 +55,11 @@ import { ICategoryRepository } from './interfaces/category.repository.interface'
       { name: ActivityFeed.name, schema: ActivityFeedSchema },
       { name: Language.name, schema: LanguageSchema },
       { name: Category.name, schema: CategorySchema },
+      { name: Message.name, schema: MessageSchema },
+      { name: Conversation.name, schema: ConversationSchema },
+      { name: Community.name, schema: CommunitySchema },
+      { name: CommunityMember.name, schema: CommunityMemberSchema },
+      { name: Vote.name, schema: VoteSchema },
     ]),
   ],
   providers: [
@@ -73,6 +93,31 @@ import { ICategoryRepository } from './interfaces/category.repository.interface'
       provide: 'ICategoryRepository',
       useClass: CategoryRepository,
     },
+    // Liaison interface -> implémentation pour MessageRepository
+    {
+      provide: 'IMessageRepository',
+      useClass: MessageRepository,
+    },
+    // Liaison interface -> implémentation pour ConversationRepository
+    {
+      provide: 'IConversationRepository',
+      useClass: ConversationRepository,
+    },
+    // Liaison interface -> implémentation pour CommunityRepository
+    {
+      provide: 'ICommunityRepository',
+      useClass: CommunityRepository,
+    },
+    // Liaison interface -> implémentation pour CommunityMemberRepository
+    {
+      provide: 'ICommunityMemberRepository',
+      useClass: CommunityMemberRepository,
+    },
+    // Liaison interface -> implémentation pour VoteRepository
+    {
+      provide: 'IVoteRepository',
+      useClass: VoteRepository,
+    },
     // Export direct des classes pour compatibilité
     UserRepository,
     WordRepository,
@@ -80,6 +125,11 @@ import { ICategoryRepository } from './interfaces/category.repository.interface'
     ActivityFeedRepository,
     LanguageRepository,
     CategoryRepository,
+    MessageRepository,
+    ConversationRepository,
+    CommunityRepository,
+    CommunityMemberRepository,
+    VoteRepository,
   ],
   exports: [
     'IUserRepository',
@@ -88,12 +138,22 @@ import { ICategoryRepository } from './interfaces/category.repository.interface'
     'IActivityFeedRepository',
     'ILanguageRepository',
     'ICategoryRepository',
+    'IMessageRepository',
+    'IConversationRepository',
+    'ICommunityRepository',
+    'ICommunityMemberRepository',
+    'IVoteRepository',
     UserRepository,
     WordRepository,
     RefreshTokenRepository,
     ActivityFeedRepository,
     LanguageRepository,
     CategoryRepository,
+    MessageRepository,
+    ConversationRepository,
+    CommunityRepository,
+    CommunityMemberRepository,
+    VoteRepository,
   ],
 })
 export class RepositoriesModule {}

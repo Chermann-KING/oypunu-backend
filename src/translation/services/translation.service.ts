@@ -3,10 +3,11 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Word, WordDocument } from '../../dictionary/schemas/word.schema';
+import { Word } from '../../dictionary/schemas/word.schema';
 import {
   TranslationGroup,
   TranslationGroupDocument,
@@ -15,6 +16,7 @@ import {
   TrainingData,
   TrainingDataDocument,
 } from '../schemas/training-data.schema';
+import { IWordRepository } from '../../repositories/interfaces/word.repository.interface';
 import { User } from '../../users/schemas/user.schema';
 import { SimilarityService } from './similarity.service';
 import { LearningService } from './learning.service';
@@ -36,7 +38,7 @@ import {
 @Injectable()
 export class TranslationService {
   constructor(
-    @InjectModel(Word.name) private wordModel: Model<WordDocument>,
+    @Inject('IWordRepository') private wordRepository: IWordRepository,
     @InjectModel(TranslationGroup.name)
     private translationGroupModel: Model<TranslationGroupDocument>,
     @InjectModel(TrainingData.name)
@@ -49,7 +51,7 @@ export class TranslationService {
    * Récupère les langues disponibles pour un mot spécifique
    */
   async getAvailableLanguages(wordId: string): Promise<AvailableLanguageDto[]> {
-    const word = await this.wordModel.findById(wordId);
+    const word = await this.wordRepository.findById(wordId);
     if (!word) {
       throw new NotFoundException('Mot non trouvé');
     }
@@ -64,9 +66,8 @@ export class TranslationService {
         (t) => t.translationGroupId,
       )?.translationGroupId;
       if (groupId) {
-        const relatedWords = await this.wordModel.find({
-          'translations.translationGroupId': groupId,
-        });
+        // Utiliser la nouvelle méthode spécialisée du repository
+        const relatedWords = await this.wordRepository.findByTranslationGroupId(groupId);
         groupLanguages = relatedWords
           .map((w) => w.language || 'fr')
           .filter(Boolean);
@@ -108,10 +109,8 @@ export class TranslationService {
     wordId: string,
     targetLanguage: string,
   ): Promise<TranslationDto[]> {
-    const word = await this.wordModel
-      .findById(wordId)
-      .populate('translations.createdBy', 'username')
-      .populate('translations.validatedBy', 'username');
+    // Utiliser la méthode spécialisée avec traductions populées
+    const word = await this.wordRepository.findByIdWithTranslations(wordId);
 
     if (!word) {
       throw new NotFoundException('Mot non trouvé');
@@ -154,7 +153,7 @@ export class TranslationService {
     createTranslationDto: CreateTranslationDto,
     userId: string,
   ): Promise<ValidationResultDto> {
-    const sourceWord = await this.wordModel.findById(
+    const sourceWord = await this.wordRepository.findById(
       createTranslationDto.sourceWordId,
     );
     if (!sourceWord) {
@@ -289,7 +288,7 @@ export class TranslationService {
   async searchTranslationSuggestions(
     searchDto: SearchTranslationDto,
   ): Promise<TranslationSuggestionDto[]> {
-    const sourceWord = await this.wordModel.findById(searchDto.wordId);
+    const sourceWord = await this.wordRepository.findById(searchDto.wordId);
     if (!sourceWord) {
       throw new NotFoundException('Mot source non trouvé');
     }
@@ -298,13 +297,13 @@ export class TranslationService {
 
     // 1. Recherche par terme si fourni
     if (searchDto.searchTerm) {
-      const matchingWords = await this.wordModel
-        .find({
-          language: searchDto.targetLanguage,
-          word: { $regex: searchDto.searchTerm, $options: 'i' },
-          status: 'approved',
-        })
-        .limit(10);
+      // Utiliser la méthode de recherche du repository
+      const searchResult = await this.wordRepository.search(searchDto.searchTerm, {
+        language: searchDto.targetLanguage,
+        status: 'approved',
+        limit: 10,
+      });
+      const matchingWords = searchResult.words;
 
       for (const word of matchingWords) {
         const similarity = this.similarityService.calculateSimilarity(
@@ -338,14 +337,14 @@ export class TranslationService {
 
     // 2. Recherche par catégorie si pas assez de résultats
     if (suggestions.length < 5 && sourceWord.categoryId) {
-      const categoryWords = await this.wordModel
-        .find({
-          language: searchDto.targetLanguage,
-          categoryId: sourceWord.categoryId,
-          status: 'approved',
-          _id: { $nin: suggestions.map((s) => s.wordId) },
-        })
-        .limit(10 - suggestions.length);
+      const categoryWords = await this.wordRepository
+        .findByCategoryAndLanguage(
+          sourceWord.categoryId,
+          searchDto.targetLanguage,
+          'approved',
+          suggestions.map((s) => s.wordId),
+          10 - suggestions.length
+        );
 
       for (const word of categoryWords) {
         const similarity = this.similarityService.calculateSimilarity(
@@ -386,9 +385,8 @@ export class TranslationService {
     userId: string,
   ): Promise<ValidationResultDto> {
     // Trouver le mot contenant cette traduction
-    const word = await this.wordModel.findOne({
-      'translations._id': translationId,
-    });
+    // TODO: Créer une méthode spécialisée findByTranslationId dans le repository
+    const word = await this.wordRepository.findByTranslationId(translationId);
 
     if (!word) {
       throw new NotFoundException('Traduction non trouvée');
@@ -456,9 +454,8 @@ export class TranslationService {
     voteDto: VoteTranslationDto,
     userId: string,
   ): Promise<{ success: boolean; newVoteCount: number }> {
-    const word = await this.wordModel.findOne({
-      'translations._id': translationId,
-    });
+    // TODO: Utiliser la même méthode spécialisée que ci-dessus
+    const word = await this.wordRepository.findByTranslationId(translationId);
 
     if (!word) {
       throw new NotFoundException('Traduction non trouvée');

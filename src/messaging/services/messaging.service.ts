@@ -3,25 +3,21 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Message, MessageDocument } from '../schemas/message.schema';
-import {
-  Conversation,
-  ConversationDocument,
-} from '../schemas/conversation.schema';
-import { User, UserDocument } from '../../users/schemas/user.schema';
+import { Conversation } from '../schemas/conversation.schema';
 import { SendMessageDto } from '../dto/send-message.dto';
 import { GetMessagesDto } from '../dto/get-messages.dto';
+import { IMessageRepository } from '../../repositories/interfaces/message.repository.interface';
+import { IConversationRepository } from '../../repositories/interfaces/conversation.repository.interface';
+import { IUserRepository } from '../../repositories/interfaces/user.repository.interface';
 
 @Injectable()
 export class MessagingService {
   constructor(
-    @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
-    @InjectModel(Conversation.name)
-    private conversationModel: Model<ConversationDocument>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @Inject('IMessageRepository') private messageRepository: IMessageRepository,
+    @Inject('IConversationRepository') private conversationRepository: IConversationRepository,
+    @Inject('IUserRepository') private userRepository: IUserRepository,
   ) {}
 
   /**
@@ -35,8 +31,8 @@ export class MessagingService {
 
     // Vérifier que l'expéditeur et le destinataire existent
     const [sender, receiver] = await Promise.all([
-      this.userModel.findById(senderId),
-      this.userModel.findById(receiverId),
+      this.userRepository.findById(senderId),
+      this.userRepository.findById(receiverId),
     ]);
 
     if (!sender) {
@@ -60,8 +56,8 @@ export class MessagingService {
     );
 
     // Créer le message
-    const message = new this.messageModel({
-      conversationId: conversation._id,
+    const message = await this.messageRepository.create({
+      conversationId: (conversation as any)._id,
       senderId,
       receiverId,
       content,
@@ -69,36 +65,25 @@ export class MessagingService {
       metadata,
     });
 
-    await message.save();
-
     // Mettre à jour la conversation
-    conversation.lastMessage = message._id;
-    conversation.lastActivity = new Date();
-    await conversation.save();
-
-    // Peupler les données pour le retour
-    await message.populate([
-      { path: 'senderId', select: 'username email profilePicture' },
-      { path: 'receiverId', select: 'username email profilePicture' },
-    ]);
+    await this.conversationRepository.updateLastMessage(
+      (conversation as any)._id,
+      (message as any)._id,
+      content.substring(0, 100) // Preview du message
+    );
 
     // Transformer pour la cohérence frontend
-    const messageObj = message.toObject();
     return {
-      ...messageObj,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      id: (messageObj._id as any).toString(),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      conversationId: (messageObj.conversationId as any).toString(),
+      ...message,
+      id: (message as any)._id?.toString(),
+      conversationId: (message as any).conversationId?.toString(),
       senderId: {
-        ...messageObj.senderId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        id: (messageObj.senderId._id as any).toString(),
+        ...sender,
+        id: (sender as any)._id?.toString(),
       },
       receiverId: {
-        ...messageObj.receiverId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        id: (messageObj.receiverId._id as any).toString(),
+        ...receiver,
+        id: (receiver as any)._id?.toString(),
       },
     };
   }
@@ -122,16 +107,12 @@ export class MessagingService {
     }
 
     // Vérifier que l'utilisateur fait partie de la conversation
-    const conversation = await this.conversationModel.findById(conversationId);
+    const conversation = await this.conversationRepository.findById(conversationId);
     if (!conversation) {
       throw new NotFoundException('Conversation introuvable');
     }
 
-    const isParticipant = conversation.participants.some(
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      (participantId) => (participantId as any).toString() === userId,
-    );
-
+    const isParticipant = await this.conversationRepository.isParticipant(conversationId, userId);
     if (!isParticipant) {
       throw new ForbiddenException(
         "Vous n'avez pas accès à cette conversation",
@@ -140,46 +121,39 @@ export class MessagingService {
 
     const skip = (page - 1) * limit;
 
-    const [messages, total] = await Promise.all([
-      this.messageModel
-        .find({
-          conversationId,
-          isDeleted: false,
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate([
-          { path: 'senderId', select: 'username email profilePicture' },
-          { path: 'receiverId', select: 'username email profilePicture' },
-        ])
-        .lean(),
-      this.messageModel.countDocuments({
-        conversationId,
-        isDeleted: false,
-      }),
-    ]);
+    const result = await this.messageRepository.findByConversation(conversationId, {
+      page,
+      limit,
+      sortOrder: 'desc'
+    });
+
+    const { messages, total } = result;
 
     const pages = Math.ceil(total / limit);
 
     // Transformer les messages pour la cohérence frontend
-    const transformedMessages = messages.map((message) => ({
-      ...message,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      id: (message._id as any).toString(),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      conversationId: (message.conversationId as any).toString(),
-      senderId: {
-        ...message.senderId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        id: (message.senderId._id as any).toString(),
-      },
-      receiverId: {
-        ...message.receiverId,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        id: (message.receiverId._id as any).toString(),
-      },
-    }));
+    const transformedMessages = await Promise.all(
+      messages.map(async (message) => {
+        const [sender, receiver] = await Promise.all([
+          this.userRepository.findById((message as any).senderId),
+          this.userRepository.findById((message as any).receiverId),
+        ]);
+
+        return {
+          ...message,
+          id: (message as any)._id?.toString(),
+          conversationId: (message as any).conversationId?.toString(),
+          senderId: {
+            ...sender,
+            id: (sender as any)?._id?.toString(),
+          },
+          receiverId: {
+            ...receiver,
+            id: (receiver as any)?._id?.toString(),
+          },
+        };
+      })
+    );
 
     return {
       messages: transformedMessages.reverse(),
@@ -193,36 +167,44 @@ export class MessagingService {
    * Récupérer les conversations d'un utilisateur
    */
   async getUserConversations(userId: string): Promise<any[]> {
-    const conversations = await this.conversationModel
-      .find({
-        participants: userId,
-        isActive: true,
-      })
-      .sort({ lastActivity: -1 })
-      .populate([
-        { path: 'participants', select: 'username email profilePicture' },
-        {
-          path: 'lastMessage',
-          select: 'content messageType createdAt isRead',
-          populate: {
-            path: 'senderId',
-            select: 'username',
-          },
-        },
-      ])
-      .lean();
+    const result = await this.conversationRepository.findByUser(userId, {
+      sortBy: 'lastActivity',
+      sortOrder: 'desc',
+      includeArchived: false,
+    });
+    
+    const conversations = result.conversations;
 
-    // Transformer les _id en id pour la cohérence frontend
-    return conversations.map((conversation) => ({
-      ...conversation,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      id: (conversation._id as any).toString(),
-      participants: conversation.participants.map((participant) => ({
-        ...participant,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        id: (participant._id as any).toString(),
-      })),
-    }));
+    // Transformer les _id en id pour la cohérence frontend et enrichir avec les données utilisateurs
+    return Promise.all(
+      conversations.map(async (conversation) => {
+        const participants = await Promise.all(
+          (conversation as any).participants.map(async (participantId: string) => {
+            const participant = await this.userRepository.findById(participantId);
+            return {
+              ...participant,
+              id: (participant as any)?._id?.toString(),
+            };
+          })
+        );
+
+        const lastMessage = (conversation as any).lastMessageId
+          ? await this.messageRepository.findById((conversation as any).lastMessageId)
+          : null;
+
+        return {
+          ...conversation,
+          id: (conversation as any)._id?.toString(),
+          participants,
+          lastMessage: lastMessage
+            ? {
+                ...lastMessage,
+                id: (lastMessage as any)._id?.toString(),
+              }
+            : null,
+        };
+      })
+    );
   }
 
   /**
@@ -233,16 +215,12 @@ export class MessagingService {
     conversationId: string,
   ): Promise<{ modifiedCount: number }> {
     // Vérifier l'accès à la conversation
-    const conversation = await this.conversationModel.findById(conversationId);
+    const conversation = await this.conversationRepository.findById(conversationId);
     if (!conversation) {
       throw new NotFoundException('Conversation introuvable');
     }
 
-    const isParticipant = conversation.participants.some(
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      (participantId) => (participantId as any).toString() === userId,
-    );
-
+    const isParticipant = await this.conversationRepository.isParticipant(conversationId, userId);
     if (!isParticipant) {
       throw new ForbiddenException(
         "Vous n'avez pas accès à cette conversation",
@@ -250,19 +228,9 @@ export class MessagingService {
     }
 
     // Marquer comme lus tous les messages reçus dans cette conversation
-    const result = await this.messageModel.updateMany(
-      {
-        conversationId,
-        receiverId: userId,
-        isRead: false,
-      },
-      {
-        isRead: true,
-        readAt: new Date(),
-      },
-    );
+    const modifiedCount = await this.messageRepository.markConversationAsRead(conversationId, userId);
 
-    return { modifiedCount: result.modifiedCount };
+    return { modifiedCount };
   }
 
   /**
@@ -271,18 +239,17 @@ export class MessagingService {
   private async findOrCreateConversation(
     userId1: string,
     userId2: string,
-  ): Promise<ConversationDocument> {
+  ): Promise<Conversation> {
     // Chercher une conversation existante
-    let conversation = await this.conversationModel.findOne({
-      participants: { $all: [userId1, userId2] },
-    });
+    let conversation = await this.conversationRepository.findByParticipants([userId1, userId2]);
 
     // Si pas trouvée, en créer une nouvelle
     if (!conversation) {
-      conversation = new this.conversationModel({
+      conversation = await this.conversationRepository.create({
         participants: [userId1, userId2],
+        type: 'private',
+        createdBy: userId1,
       });
-      await conversation.save();
     }
 
     return conversation;
@@ -292,12 +259,6 @@ export class MessagingService {
    * Récupérer le nombre de messages non lus
    */
   async getUnreadMessagesCount(userId: string): Promise<number> {
-    const count = await this.messageModel.countDocuments({
-      receiverId: userId,
-      isRead: false,
-      isDeleted: false,
-    });
-
-    return count;
+    return this.messageRepository.countUnreadForUser(userId);
   }
 }

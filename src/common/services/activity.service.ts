@@ -1,17 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Injectable, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ActivityFeed,
-  ActivityFeedDocument,
   ActivityType,
   EntityType,
 } from '../schemas/activity-feed.schema';
-import {
-  Language,
-  LanguageDocument,
-} from '../../languages/schemas/language.schema';
+import { IActivityFeedRepository } from '../../repositories/interfaces/activity-feed.repository.interface';
+import { ILanguageRepository } from '../../repositories/interfaces/language.repository.interface';
 
 export interface CreateActivityData {
   userId: string;
@@ -93,10 +88,8 @@ const WORLD_LANGUAGES_MAP: Record<
 @Injectable()
 export class ActivityService {
   constructor(
-    @InjectModel(ActivityFeed.name)
-    private activityFeedModel: Model<ActivityFeedDocument>,
-    @InjectModel(Language.name)
-    private languageModel: Model<LanguageDocument>,
+    @Inject('IActivityFeedRepository') private activityFeedRepository: IActivityFeedRepository,
+    @Inject('ILanguageRepository') private languageRepository: ILanguageRepository,
     private eventEmitter: EventEmitter2,
   ) {}
 
@@ -106,14 +99,10 @@ export class ActivityService {
       const enrichedData = await this.enrichWithLanguageInfo(data);
 
       // Créer l'activité en base
-      const activity = new this.activityFeedModel({
+      const activity = await this.activityFeedRepository.create({
         ...enrichedData,
         isPublic: data.isPublic !== false, // Par défaut public
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
-
-      await activity.save();
 
       console.log('📊 Nouvelle activité créée:', {
         type: data.activityType,
@@ -146,15 +135,7 @@ export class ActivityService {
 
     try {
       // Chercher dans la vraie collection Language
-      const language = await this.languageModel
-        .findOne({
-          $or: [
-            { iso639_1: languageCode },
-            { iso639_2: languageCode },
-            { iso639_3: languageCode },
-          ],
-        })
-        .exec();
+      const language = await this.languageRepository.findByCode(languageCode);
 
       if (language) {
         return {
@@ -238,41 +219,31 @@ export class ActivityService {
     limit: number = 10,
     prioritizeAfrican: boolean = true,
   ): Promise<ActivityFeed[]> {
-    let query = this.activityFeedModel
-      .find({
-        isPublic: true,
-        isVisible: true,
-      })
-      .limit(limit)
-      .lean();
-
-    if (prioritizeAfrican) {
-      // Prioriser les activités sur les langues africaines
-      query = query.sort({
-        languageRegion: 1, // africa = 1, autres = 2+
-        createdAt: -1,
-      });
-    } else {
-      query = query.sort({ createdAt: -1 });
-    }
-
-    return await query.exec();
+    const sortBy = prioritizeAfrican ? 'languageRegion' : 'createdAt';
+    const sortOrder = prioritizeAfrican ? 'asc' : 'desc';
+    
+    const result = await this.activityFeedRepository.findRecent({
+      limit,
+      isPublic: true,
+      isVisible: true,
+      sortBy,
+      sortOrder,
+      secondarySortBy: 'createdAt',
+      secondarySortOrder: 'desc'
+    });
+    
+    return result.activities;
   }
 
   async getActivitiesByType(
     activityType: ActivityType,
     limit: number = 5,
   ): Promise<ActivityFeed[]> {
-    return await this.activityFeedModel
-      .find({
-        activityType,
-        isPublic: true,
-        isVisible: true,
-      })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean()
-      .exec();
+    return await this.activityFeedRepository.findByType(activityType, {
+      limit,
+      isPublic: true,
+      isVisible: true,
+    });
   }
 
   // ====== Méthodes de convenance pour les types d'activités courantes ======

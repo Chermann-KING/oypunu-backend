@@ -105,6 +105,11 @@ export interface ILanguageRepository {
     rejected: number;
     total: number;
   }>;
+
+  /**
+   * Compter uniquement les langues approuvées
+   */
+  countApproved(): Promise<number>;
   
   /**
    * Récupérer les statistiques d'utilisation des langues

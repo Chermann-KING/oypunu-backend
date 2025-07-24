@@ -4,16 +4,17 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  Inject,
 } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { Types } from "mongoose";
 import {
   ContributorRequest,
-  ContributorRequestDocument,
   ContributorRequestStatus,
   ContributorRequestPriority,
 } from "../schemas/contributor-request.schema";
-import { User, UserDocument, UserRole } from "../schemas/user.schema";
+import { User, UserRole } from "../schemas/user.schema";
+import { IContributorRequestRepository } from "../../repositories/interfaces/contributor-request.repository.interface";
+import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { CreateContributorRequestDto } from "../dto/create-contributor-request.dto";
 import {
   ReviewContributorRequestDto,
@@ -58,10 +59,10 @@ export interface ContributorRequestStats {
 @Injectable()
 export class ContributorRequestService {
   constructor(
-    @InjectModel(ContributorRequest.name)
-    private contributorRequestModel: Model<ContributorRequestDocument>,
-    @InjectModel(User.name)
-    private userModel: Model<UserDocument>,
+    @Inject('IContributorRequestRepository')
+    private contributorRequestRepository: IContributorRequestRepository,
+    @Inject('IUserRepository')
+    private userRepository: IUserRepository,
     private eventEmitter: EventEmitter2
   ) {}
 
@@ -85,7 +86,7 @@ export class ContributorRequestService {
     createDto: CreateContributorRequestDto
   ): Promise<ContributorRequest> {
     // Vérifier si l'utilisateur existe
-    const user = await this.userModel.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException("Utilisateur non trouvé");
     }
@@ -98,15 +99,7 @@ export class ContributorRequestService {
     }
 
     // Vérifier s'il n'y a pas déjà une demande en cours
-    const existingRequest = await this.contributorRequestModel.findOne({
-      userId: new Types.ObjectId(userId),
-      status: {
-        $in: [
-          ContributorRequestStatus.PENDING,
-          ContributorRequestStatus.UNDER_REVIEW,
-        ],
-      },
-    });
+    const existingRequest = await this.contributorRequestRepository.findActiveByUser(userId);
 
     if (existingRequest) {
       throw new ConflictException(
@@ -118,13 +111,11 @@ export class ContributorRequestService {
     const userStats = await this.getUserStats(userId);
 
     // Créer la demande
-    const request = new this.contributorRequestModel({
-      userId: new Types.ObjectId(userId),
+    const savedRequest = await this.contributorRequestRepository.create({
+      userId,
       username: user.username,
       email: user.email,
       ...createDto,
-      status: ContributorRequestStatus.PENDING,
-      priority: this.calculateInitialPriority(userStats, createDto),
       userWordsCount: userStats.wordsCount,
       userCommunityPostsCount: userStats.postsCount,
       userJoinDate: (user as any).createdAt,
@@ -143,18 +134,7 @@ export class ContributorRequestService {
               lang.iso639_1 || lang.iso639_2 || lang.iso639_3 || lang.name
           )
           .filter(Boolean) || [],
-      activityLog: [
-        {
-          action: "created",
-          performedBy: new Types.ObjectId(userId),
-          performedAt: new Date(),
-          notes: "Demande créée par l'utilisateur",
-          newStatus: ContributorRequestStatus.PENDING,
-        },
-      ],
     });
-
-    const savedRequest = await request.save();
 
     // Émettre un événement pour notifications
     this.eventEmitter.emit("contributor.request.created", {
@@ -169,25 +149,7 @@ export class ContributorRequestService {
 
   // Récupérer les statistiques utilisateur
   private async getUserStats(userId: string) {
-    const [wordsCount, postsCount] = await Promise.all([
-      this.userModel.aggregate([
-        { $match: { _id: new Types.ObjectId(userId) } },
-        { $project: { totalWordsAdded: { $ifNull: ["$totalWordsAdded", 0] } } },
-      ]),
-      this.userModel.aggregate([
-        { $match: { _id: new Types.ObjectId(userId) } },
-        {
-          $project: {
-            totalCommunityPosts: { $ifNull: ["$totalCommunityPosts", 0] },
-          },
-        },
-      ]),
-    ]);
-
-    return {
-      wordsCount: wordsCount[0]?.totalWordsAdded || 0,
-      postsCount: postsCount[0]?.totalCommunityPosts || 0,
-    };
+    return this.userRepository.getUserStats(userId);
   }
 
   // Calculer la priorité initiale basée sur l'activité de l'utilisateur

@@ -6,6 +6,7 @@ import { CreateWordDto } from '../../dictionary/dto/create-word.dto';
 import { UpdateWordDto } from '../../dictionary/dto/update-word.dto';
 import { SearchWordsDto } from '../../dictionary/dto/search-words.dto';
 import { IWordRepository } from '../interfaces/word.repository.interface';
+import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
 
 /**
  * 📚 REPOSITORY WORD - IMPLÉMENTATION MONGOOSE
@@ -226,6 +227,34 @@ export class WordRepository implements IWordRepository {
       .limit(limit)
       .sort({ featuredAt: -1, viewCount: -1 })
       .exec();
+  }
+
+  async findRandomWithCreatedBy(limit: number = 3): Promise<Word[]> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        const result = await this.wordModel.aggregate([
+          { $match: { status: 'approved' } },
+          { $sample: { size: limit } },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'createdBy',
+              foreignField: '_id',
+              as: 'createdBy',
+            },
+          },
+          {
+            $unwind: {
+              path: '$createdBy',
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+        ]);
+        return result;
+      },
+      'Word',
+      `random-${limit}`
+    );
   }
 
   // ========== STATISTIQUES ==========
@@ -498,5 +527,93 @@ export class WordRepository implements IWordRepository {
     }
 
     return mongoQuery.sort({ viewCount: -1, createdAt: -1 }).exec();
+  }
+
+  // ========== MÉTHODES POUR TRANSLATIONS ==========
+
+  async findByTranslationId(translationId: string): Promise<Word | null> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(translationId)) {
+          return null;
+        }
+        return this.wordModel.findOne({
+          'translations._id': translationId,
+        }).exec();
+      },
+      'Word',
+      `translation-${translationId}`
+    );
+  }
+
+  async findByTranslationGroupId(groupId: string): Promise<Word[]> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(groupId)) {
+          return [];
+        }
+        return this.wordModel.find({
+          'translations.translationGroupId': groupId,
+        }).exec();
+      },
+      'Word',
+      `group-${groupId}`
+    );
+  }
+
+  async findByIdWithTranslations(wordId: string): Promise<Word | null> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(wordId)) {
+          return null;
+        }
+        return this.wordModel
+          .findById(wordId)
+          .populate('translations.createdBy', 'username')
+          .populate('translations.validatedBy', 'username')
+          .exec();
+      },
+      'Word',
+      wordId
+    );
+  }
+
+  async findByCategoryAndLanguage(
+    categoryId: string,
+    language: string,
+    status: string,
+    excludeIds: string[],
+    limit: number
+  ): Promise<Word[]> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(categoryId)) {
+          return [];
+        }
+
+        const query: any = {
+          language,
+          categoryId: new Types.ObjectId(categoryId),
+          status,
+        };
+
+        if (excludeIds.length > 0) {
+          const validExcludeIds = excludeIds
+            .filter(id => Types.ObjectId.isValid(id))
+            .map(id => new Types.ObjectId(id));
+          
+          if (validExcludeIds.length > 0) {
+            query._id = { $nin: validExcludeIds };
+          }
+        }
+
+        return this.wordModel
+          .find(query)
+          .limit(limit)
+          .exec();
+      },
+      'Word',
+      `category-${categoryId}-lang-${language}`
+    );
   }
 }
