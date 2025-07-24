@@ -227,6 +227,96 @@ export class ActivityFeedRepository implements IActivityFeedRepository {
     });
   }
 
+  async findRecent(options: {
+    limit?: number;
+    isPublic?: boolean;
+    isVisible?: boolean;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    secondarySortBy?: string;
+    secondarySortOrder?: 'asc' | 'desc';
+  } = {}): Promise<{
+    activities: ActivityFeed[];
+    total: number;
+  }> {
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        const {
+          limit = 10,
+          isPublic = true,
+          isVisible = true,
+          sortBy = 'createdAt',
+          sortOrder = 'desc',
+          secondarySortBy,
+          secondarySortOrder = 'desc'
+        } = options;
+
+        const filter: any = {};
+        if (isPublic !== undefined) {
+          filter.isPublic = isPublic;
+        }
+        if (isVisible !== undefined) {
+          filter.isVisible = isVisible;
+        }
+
+        // Construire le tri
+        const sort: any = {};
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+        if (secondarySortBy && secondarySortBy !== sortBy) {
+          sort[secondarySortBy] = secondarySortOrder === 'asc' ? 1 : -1;
+        }
+
+        const [activities, total] = await Promise.all([
+          this.activityFeedModel
+            .find(filter)
+            .sort(sort)
+            .limit(limit)
+            .exec(),
+          this.activityFeedModel.countDocuments(filter).exec(),
+        ]);
+
+        return {
+          activities: activities.map(activity => this.mapToInterface(activity)),
+          total,
+        };
+      },
+      'ActivityFeed',
+    );
+  }
+
+  async findByType(activityType: string, options: {
+    limit?: number;
+    isPublic?: boolean;
+    isVisible?: boolean;
+  } = {}): Promise<ActivityFeed[]> {
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        const {
+          limit = 5,
+          isPublic = true,
+          isVisible = true,
+        } = options;
+
+        const filter: any = { activityType };
+        if (isPublic !== undefined) {
+          filter.isPublic = isPublic;
+        }
+        if (isVisible !== undefined) {
+          filter.isVisible = isVisible;
+        }
+
+        const activities = await this.activityFeedModel
+          .find(filter)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .exec();
+
+        return activities.map(activity => this.mapToInterface(activity));
+      },
+      'ActivityFeed',
+    );
+  }
+
   // ===== COMPTAGE ET STATISTIQUES =====
 
   async countByUser(userId: string): Promise<number> {

@@ -188,6 +188,31 @@ export interface IActivityFeedRepository {
     page: number;
     limit: number;
   }>;
+
+  /**
+   * Trouve les activités récentes avec options de tri
+   */
+  findRecent(options?: {
+    limit?: number;
+    isPublic?: boolean;
+    isVisible?: boolean;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    secondarySortBy?: string;
+    secondarySortOrder?: 'asc' | 'desc';
+  }): Promise<{
+    activities: ActivityFeed[];
+    total: number;
+  }>;
+
+  /**
+   * Trouve les activités par type (version simplifiée)
+   */
+  findByType(activityType: string, options?: {
+    limit?: number;
+    isPublic?: boolean;
+    isVisible?: boolean;
+  }): Promise<ActivityFeed[]>;
   
   /**
    * Trouve les activités liées à une entité

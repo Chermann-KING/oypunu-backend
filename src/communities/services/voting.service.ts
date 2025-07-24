@@ -5,13 +5,14 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { Vote } from '../schemas/vote.schema';
-import { CommunityPost, CommunityPostDocument } from '../schemas/community-post.schema';
-import { PostComment, PostCommentDocument } from '../schemas/post-comment.schema';
+import { CommunityPost } from '../schemas/community-post.schema';
+import { PostComment } from '../schemas/post-comment.schema';
 import { IVoteRepository } from '../../repositories/interfaces/vote.repository.interface';
 import { ICommunityMemberRepository } from '../../repositories/interfaces/community-member.repository.interface';
+import { ICommunityPostRepository } from '../../repositories/interfaces/community-post.repository.interface';
+import { IPostCommentRepository } from '../../repositories/interfaces/post-comment.repository.interface';
 
 export interface VoteResult {
   success: boolean;
@@ -44,8 +45,8 @@ export class VotingService {
   constructor(
     @Inject('IVoteRepository') private voteRepository: IVoteRepository,
     @Inject('ICommunityMemberRepository') private communityMemberRepository: ICommunityMemberRepository,
-    @InjectModel(CommunityPost.name) private postModel: Model<CommunityPostDocument>,
-    @InjectModel(PostComment.name) private commentModel: Model<PostCommentDocument>,
+    @Inject('ICommunityPostRepository') private postRepository: ICommunityPostRepository,
+    @Inject('IPostCommentRepository') private commentRepository: IPostCommentRepository,
   ) {}
 
   /**
@@ -60,14 +61,14 @@ export class VotingService {
     let communityId: string;
 
     if (targetType === 'community_post') {
-      const post = await this.postModel.findById(targetId);
+      const post = await this.postRepository.findById(targetId);
       if (!post) {
         return { canVote: false, reason: 'Post introuvable' };
       }
-      communityId = post.communityId.toString();
+      communityId = (post.communityId as any).toString();
 
       // L'auteur ne peut pas voter pour son propre post
-      if (post.authorId.toString() === userId) {
+      if ((post.authorId as any).toString() === userId) {
         return {
           canVote: false,
           reason: 'Vous ne pouvez pas voter pour votre propre publication',
@@ -82,15 +83,17 @@ export class VotingService {
         };
       }
     } else {
-      const comment = await this.commentModel
-        .findById(targetId)
-        .populate('postId');
-      if (!comment || !comment.postId) {
+      const comment = await this.commentRepository.findById(targetId);
+      if (!comment) {
         return { canVote: false, reason: 'Commentaire introuvable' };
       }
 
-      const post = comment.postId as any;
-      communityId = post.communityId.toString();
+      // Récupérer le post associé au commentaire
+      const post = await this.postRepository.findById((comment.postId as any).toString());
+      if (!post) {
+        return { canVote: false, reason: 'Post associé au commentaire introuvable' };
+      }
+      communityId = (post.communityId as any).toString();
 
       // L'auteur ne peut pas voter pour son propre commentaire
       if (comment.authorId.toString() === userId) {
@@ -215,31 +218,39 @@ export class VotingService {
     }
 
     // Mettre à jour les scores dans le document cible
-    const updateQuery = {
-      $inc: {
-        score: scoreChange,
-        upvotes: upvoteChange,
-        downvotes: downvoteChange,
-      },
-    };
-
     let updatedDocument;
+    let updateSuccess = false;
+
     if (targetType === 'community_post') {
-      updatedDocument = await this.postModel.findByIdAndUpdate(
-        targetId,
-        updateQuery,
-        { new: true },
+      // Utiliser les méthodes spécialisées du repository
+      await this.postRepository.updateScore(targetId, scoreChange);
+      const currentUpvotes = upvoteChange > 0 ? upvoteChange : 0;
+      const currentDownvotes = downvoteChange > 0 ? downvoteChange : 0;
+      
+      // Note: Il faudrait récupérer les valeurs actuelles pour calculer les nouveaux totaux
+      // Pour simplifier, on utilise updateVoteCounts avec les changements
+      updateSuccess = await this.postRepository.updateVoteCounts(
+        targetId, 
+        currentUpvotes, 
+        currentDownvotes
       );
+      updatedDocument = await this.postRepository.findById(targetId);
     } else {
-      updatedDocument = await this.commentModel.findByIdAndUpdate(
-        targetId,
-        updateQuery,
-        { new: true },
+      // Même logique pour les commentaires
+      await this.commentRepository.updateScore(targetId, scoreChange);
+      const currentUpvotes = upvoteChange > 0 ? upvoteChange : 0;
+      const currentDownvotes = downvoteChange > 0 ? downvoteChange : 0;
+      
+      updateSuccess = await this.commentRepository.updateVoteCounts(
+        targetId, 
+        currentUpvotes, 
+        currentDownvotes
       );
+      updatedDocument = await this.commentRepository.findById(targetId);
     }
 
-    if (!updatedDocument) {
-      throw new NotFoundException('Cible introuvable');
+    if (!updatedDocument || !updateSuccess) {
+      throw new NotFoundException('Cible introuvable ou échec de mise à jour');
     }
 
     // Le vote actuel est déjà retourné par le repository

@@ -30,6 +30,11 @@ export interface ILanguageRepository {
     iso639_2?: string;
     iso639_3?: string;
   }): Promise<Language | null>;
+
+  /**
+   * Récupérer une langue par code ISO
+   */
+  findByCode(languageCode: string): Promise<Language | null>;
   
   /**
    * Mettre à jour une langue

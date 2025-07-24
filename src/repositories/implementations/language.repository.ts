@@ -97,6 +97,22 @@ export class LanguageRepository implements ILanguageRepository {
     );
   }
 
+  async findByCode(languageCode: string): Promise<Language | null> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return this.languageModel.findOne({
+          $or: [
+            { iso639_1: languageCode },
+            { iso639_2: languageCode },
+            { iso639_3: languageCode },
+          ],
+        }).exec();
+      },
+      'Language',
+      languageCode
+    );
+  }
+
   async update(id: string, updateData: Partial<Language>): Promise<Language | null> {
     return DatabaseErrorHandler.handleUpdateOperation(
       async () => {

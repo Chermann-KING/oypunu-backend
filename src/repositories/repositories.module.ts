@@ -10,6 +10,8 @@ import { Message, MessageSchema } from '../messaging/schemas/message.schema';
 import { Conversation, ConversationSchema } from '../messaging/schemas/conversation.schema';
 import { Community, CommunitySchema } from '../communities/schemas/community.schema';
 import { CommunityMember, CommunityMemberSchema } from '../communities/schemas/community-member.schema';
+import { CommunityPost, CommunityPostSchema } from '../communities/schemas/community-post.schema';
+import { PostComment, PostCommentSchema } from '../communities/schemas/post-comment.schema';
 import { Vote, VoteSchema } from '../communities/schemas/vote.schema';
 import { UserRepository } from './implementations/user.repository';
 import { WordRepository } from './implementations/word.repository';
@@ -21,6 +23,8 @@ import { MessageRepository } from './implementations/message.repository';
 import { ConversationRepository } from './implementations/conversation.repository';
 import { CommunityRepository } from './implementations/community.repository';
 import { CommunityMemberRepository } from './implementations/community-member.repository';
+import { CommunityPostRepository } from './implementations/community-post.repository';
+import { PostCommentRepository } from './implementations/post-comment.repository';
 import { VoteRepository } from './implementations/vote.repository';
 import { IUserRepository } from './interfaces/user.repository.interface';
 import { IWordRepository } from './interfaces/word.repository.interface';
@@ -32,6 +36,8 @@ import { IMessageRepository } from './interfaces/message.repository.interface';
 import { IConversationRepository } from './interfaces/conversation.repository.interface';
 import { ICommunityRepository } from './interfaces/community.repository.interface';
 import { ICommunityMemberRepository } from './interfaces/community-member.repository.interface';
+import { ICommunityPostRepository } from './interfaces/community-post.repository.interface';
+import { IPostCommentRepository } from './interfaces/post-comment.repository.interface';
 import { IVoteRepository } from './interfaces/vote.repository.interface';
 
 /**
@@ -59,6 +65,8 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
       { name: Conversation.name, schema: ConversationSchema },
       { name: Community.name, schema: CommunitySchema },
       { name: CommunityMember.name, schema: CommunityMemberSchema },
+      { name: CommunityPost.name, schema: CommunityPostSchema },
+      { name: PostComment.name, schema: PostCommentSchema },
       { name: Vote.name, schema: VoteSchema },
     ]),
   ],
@@ -113,6 +121,16 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
       provide: 'ICommunityMemberRepository',
       useClass: CommunityMemberRepository,
     },
+    // Liaison interface -> implémentation pour CommunityPostRepository
+    {
+      provide: 'ICommunityPostRepository',
+      useClass: CommunityPostRepository,
+    },
+    // Liaison interface -> implémentation pour PostCommentRepository
+    {
+      provide: 'IPostCommentRepository',
+      useClass: PostCommentRepository,
+    },
     // Liaison interface -> implémentation pour VoteRepository
     {
       provide: 'IVoteRepository',
@@ -129,6 +147,8 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     ConversationRepository,
     CommunityRepository,
     CommunityMemberRepository,
+    CommunityPostRepository,
+    PostCommentRepository,
     VoteRepository,
   ],
   exports: [
@@ -142,6 +162,8 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     'IConversationRepository',
     'ICommunityRepository',
     'ICommunityMemberRepository',
+    'ICommunityPostRepository',
+    'IPostCommentRepository',
     'IVoteRepository',
     UserRepository,
     WordRepository,
@@ -153,6 +175,8 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     ConversationRepository,
     CommunityRepository,
     CommunityMemberRepository,
+    CommunityPostRepository,
+    PostCommentRepository,
     VoteRepository,
   ],
 })
