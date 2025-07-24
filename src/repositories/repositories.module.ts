@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { WordView, WordViewSchema } from '../users/schemas/word-view.schema';
 import { Word, WordSchema } from '../dictionary/schemas/word.schema';
 import { RefreshToken, RefreshTokenSchema } from '../auth/schemas/refresh-token.schema';
 import { ActivityFeed, ActivityFeedSchema } from '../common/schemas/activity-feed.schema';
@@ -14,6 +15,7 @@ import { CommunityPost, CommunityPostSchema } from '../communities/schemas/commu
 import { PostComment, PostCommentSchema } from '../communities/schemas/post-comment.schema';
 import { Vote, VoteSchema } from '../communities/schemas/vote.schema';
 import { UserRepository } from './implementations/user.repository';
+import { WordViewRepository } from './implementations/word-view.repository';
 import { WordRepository } from './implementations/word.repository';
 import { RefreshTokenRepository } from './implementations/refresh-token.repository';
 import { ActivityFeedRepository } from './implementations/activity-feed.repository';
@@ -27,6 +29,7 @@ import { CommunityPostRepository } from './implementations/community-post.reposi
 import { PostCommentRepository } from './implementations/post-comment.repository';
 import { VoteRepository } from './implementations/vote.repository';
 import { IUserRepository } from './interfaces/user.repository.interface';
+import { IWordViewRepository } from './interfaces/word-view.repository.interface';
 import { IWordRepository } from './interfaces/word.repository.interface';
 import { IRefreshTokenRepository } from './interfaces/refresh-token.repository.interface';
 import { IActivityFeedRepository } from './interfaces/activity-feed.repository.interface';
@@ -56,6 +59,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
+      { name: WordView.name, schema: WordViewSchema },
       { name: Word.name, schema: WordSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema },
       { name: ActivityFeed.name, schema: ActivityFeedSchema },
@@ -75,6 +79,11 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     {
       provide: 'IUserRepository',
       useClass: UserRepository,
+    },
+    // Liaison interface -> implémentation pour WordViewRepository
+    {
+      provide: 'IWordViewRepository',
+      useClass: WordViewRepository,
     },
     // Liaison interface -> implémentation pour WordRepository
     {
@@ -138,6 +147,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     },
     // Export direct des classes pour compatibilité
     UserRepository,
+    WordViewRepository,
     WordRepository,
     RefreshTokenRepository,
     ActivityFeedRepository,
@@ -153,6 +163,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
   ],
   exports: [
     'IUserRepository',
+    'IWordViewRepository',
     'IWordRepository',
     'IRefreshTokenRepository',
     'IActivityFeedRepository',
@@ -166,6 +177,7 @@ import { IVoteRepository } from './interfaces/vote.repository.interface';
     'IPostCommentRepository',
     'IVoteRepository',
     UserRepository,
+    WordViewRepository,
     WordRepository,
     RefreshTokenRepository,
     ActivityFeedRepository,

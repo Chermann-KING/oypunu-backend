@@ -5,27 +5,22 @@ import {
   Logger,
   Inject,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Types } from 'mongoose';
 import { Word } from '../../schemas/word.schema';
-import {
-  Language,
-  LanguageDocument,
-} from '../../../languages/schemas/language.schema';
-import {
-  WordView,
-  WordViewDocument,
-} from '../../../users/schemas/word-view.schema';
+import { Language } from '../../../languages/schemas/language.schema';
+import { WordView } from '../../../users/schemas/word-view.schema';
 import { CreateWordDto } from '../../dto/create-word.dto';
 import { UpdateWordDto } from '../../dto/update-word.dto';
 import { SearchWordsDto } from '../../dto/search-words.dto';
-import { User, UserDocument, UserRole } from '../../../users/schemas/user.schema';
+import { User, UserRole } from '../../../users/schemas/user.schema';
 import { CategoriesService } from '../categories.service';
 import { UsersService } from '../../../users/services/users.service';
 import { ActivityService } from '../../../common/services/activity.service';
 import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
 import { IWordRepository } from '../../../repositories/interfaces/word.repository.interface';
 import { IUserRepository } from '../../../repositories/interfaces/user.repository.interface';
+import { ILanguageRepository } from '../../../repositories/interfaces/language.repository.interface';
+import { IWordViewRepository } from '../../../repositories/interfaces/word-view.repository.interface';
 
 interface WordFilter {
   status: string;
@@ -46,8 +41,8 @@ export class WordCoreService {
   constructor(
     @Inject('IWordRepository') private wordRepository: IWordRepository,
     @Inject('IUserRepository') private userRepository: IUserRepository,
-    @InjectModel(Language.name) private languageModel: Model<LanguageDocument>,
-    @InjectModel(WordView.name) private wordViewModel: Model<WordViewDocument>,
+    @Inject('ILanguageRepository') private languageRepository: ILanguageRepository,
+    @Inject('IWordViewRepository') private wordViewRepository: IWordViewRepository,
     private categoriesService: CategoriesService,
     private usersService: UsersService,
     private activityService: ActivityService,
