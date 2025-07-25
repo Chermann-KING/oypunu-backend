@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdminController } from './controllers/admin.controller';
+import { DatabaseMigrationController } from './controllers/database-migration.controller';
 import { AdminService } from './services/admin.service';
 import { AnalyticsService } from './services/analytics.service';
+import { DatabaseModule } from '../database/database.module';
 import { UsersModule } from '../users/users.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Word, WordSchema } from '../dictionary/schemas/word.schema';
@@ -32,9 +34,10 @@ import { ActivityFeed, ActivityFeedSchema } from '../common/schemas/activity-fee
       { name: Message.name, schema: MessageSchema },
       { name: ActivityFeed.name, schema: ActivityFeedSchema },
     ]),
+    DatabaseModule,
     UsersModule,
   ],
-  controllers: [AdminController],
+  controllers: [AdminController, DatabaseMigrationController],
   providers: [AdminService, AnalyticsService],
   exports: [AdminService, AnalyticsService],
 })

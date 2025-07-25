@@ -19,7 +19,12 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prestart:prod": "npm run build",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org chermann-king --project oypunu-backend ./dist && sentry-cli sourcemaps upload --org chermann-king --project oypunu-backend ./dist"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org chermann-king --project oypunu-backend ./dist && sentry-cli sourcemaps upload --org chermann-king --project oypunu-backend ./dist",
+    "migrate:up": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts up",
+    "migrate:indexes": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts indexes",
+    "migrate:down": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts down",
+    "migrate:status": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts status",
+    "migrate:force": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts force"
   },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.0.2",
