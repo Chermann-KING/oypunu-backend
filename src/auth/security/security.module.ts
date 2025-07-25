@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TokenStorageService } from './token-storage.service';
 import { RateLimiterService } from './rate-limiter.service';
 import { SecurityHeadersMiddleware } from './security-headers.middleware';
+import { JwtSecretValidatorService } from './jwt-secret-validator.service';
 
 /**
  * 🛡️ MODULE GLOBAL DE SÉCURITÉ
@@ -11,6 +12,7 @@ import { SecurityHeadersMiddleware } from './security-headers.middleware';
  * - Gestion sécurisée des tokens et chiffrement
  * - Rate limiting et protection DDoS
  * - Headers de sécurité HTTP
+ * - Validation sécurité JWT secrets
  * - Middleware de détection d'intrusion
  * 
  * Marqué @Global pour disponibilité dans toute l'application
@@ -22,11 +24,13 @@ import { SecurityHeadersMiddleware } from './security-headers.middleware';
     TokenStorageService,
     RateLimiterService,
     SecurityHeadersMiddleware,
+    JwtSecretValidatorService,
   ],
   exports: [
     TokenStorageService,
     RateLimiterService,
     SecurityHeadersMiddleware,
+    JwtSecretValidatorService,
   ],
 })
 export class SecurityModule {

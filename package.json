@@ -24,7 +24,11 @@
     "migrate:indexes": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts indexes",
     "migrate:down": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts down",
     "migrate:status": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts status",
-    "migrate:force": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts force"
+    "migrate:force": "ts-node -r tsconfig-paths/register src/cli/migrate.cli.ts force",
+    "jwt:validate": "ts-node -r tsconfig-paths/register src/cli/jwt-security.cli.ts validate",
+    "jwt:generate": "ts-node -r tsconfig-paths/register src/cli/jwt-security.cli.ts generate",
+    "jwt:audit": "ts-node -r tsconfig-paths/register src/cli/jwt-security.cli.ts audit",
+    "jwt:check": "ts-node -r tsconfig-paths/register src/cli/jwt-security.cli.ts check"
   },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.0.2",

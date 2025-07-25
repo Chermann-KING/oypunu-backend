@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdminController } from './controllers/admin.controller';
 import { DatabaseMigrationController } from './controllers/database-migration.controller';
+import { JwtSecurityController } from './controllers/jwt-security.controller';
 import { AdminService } from './services/admin.service';
 import { AnalyticsService } from './services/analytics.service';
 import { DatabaseModule } from '../database/database.module';
@@ -37,7 +38,7 @@ import { ActivityFeed, ActivityFeedSchema } from '../common/schemas/activity-fee
     DatabaseModule,
     UsersModule,
   ],
-  controllers: [AdminController, DatabaseMigrationController],
+  controllers: [AdminController, DatabaseMigrationController, JwtSecurityController],
   providers: [AdminService, AnalyticsService],
   exports: [AdminService, AnalyticsService],
 })
