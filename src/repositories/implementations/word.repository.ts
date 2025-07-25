@@ -135,13 +135,14 @@ export class WordRepository implements IWordRepository {
 
     const filter: any = { status: 'approved' };
 
-    // Recherche textuelle
+    // Recherche textuelle sécurisée (protection contre ReDoS)
     if (searchParams.query && searchParams.query.trim()) {
+      const escapedQuery = this.escapeRegexCharacters(searchParams.query.trim());
       filter.$or = [
-        { word: { $regex: searchParams.query, $options: 'i' } },
-        { 'meanings.definition': { $regex: searchParams.query, $options: 'i' } },
-        { 'meanings.example': { $regex: searchParams.query, $options: 'i' } },
-        { 'translations.translatedWord': { $regex: searchParams.query, $options: 'i' } },
+        { word: { $regex: escapedQuery, $options: 'i' } },
+        { 'meanings.definition': { $regex: escapedQuery, $options: 'i' } },
+        { 'meanings.example': { $regex: escapedQuery, $options: 'i' } },
+        { 'translations.translatedWord': { $regex: escapedQuery, $options: 'i' } },
       ];
     }
 
@@ -615,5 +616,16 @@ export class WordRepository implements IWordRepository {
       'Word',
       `category-${categoryId}-lang-${language}`
     );
+  }
+
+  /**
+   * 🔒 Échappe les caractères spéciaux regex pour prévenir les attaques ReDoS
+   * 
+   * @param input - Chaîne d'entrée à échapper
+   * @returns Chaîne sécurisée pour utilisation dans regex
+   */
+  private escapeRegexCharacters(input: string): string {
+    // Échapper tous les caractères spéciaux regex : . * + ? ^ $ { } ( ) | [ ] \
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
