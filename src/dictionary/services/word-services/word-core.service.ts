@@ -147,16 +147,22 @@ export class WordCoreService {
     status = 'approved',
     language?: string,
     categoryId?: string,
-  ): Promise<{ words: Word[]; total: number; page: number; limit: number }> {
+  ): Promise<{ words: Word[]; total: number; page: number; limit: number; totalPages: number }> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        return this.wordRepository.findAll({
+        const result = await this.wordRepository.findAll({
           page,
           limit,
           status,
           language,
           categoryId,
         });
+        
+        // PHASE 2-1: Calcul de totalPages intégré dans le service core
+        return {
+          ...result,
+          totalPages: Math.ceil(result.total / result.limit),
+        };
       },
       'WordCore',
     );
