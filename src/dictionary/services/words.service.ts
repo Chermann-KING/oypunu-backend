@@ -22,6 +22,7 @@ import { WordAnalyticsService } from "./word-services/word-analytics.service";
 import { WordRevisionService } from "./word-services/word-revision.service";
 import { WordTranslationService } from "./word-services/word-translation.service";
 import { WordCoreService } from "./word-services/word-core.service";
+import { WordPermissionService } from "./word-services/word-permission.service";
 
 @Injectable()
 export class WordsService {
@@ -36,7 +37,8 @@ export class WordsService {
     private wordAnalyticsService: WordAnalyticsService,
     private wordRevisionService: WordRevisionService,
     private wordTranslationService: WordTranslationService,
-    private wordCoreService: WordCoreService
+    private wordCoreService: WordCoreService,
+    private wordPermissionService: WordPermissionService
   ) {}
 
   // Injecter les dépendances (ActivityService est optionnel pour éviter les erreurs circulaires)
@@ -83,6 +85,7 @@ export class WordsService {
     );
   }
 
+  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordCoreService (sans adaptation)
   async findAll(
     page = 1,
     limit = 10,
@@ -95,12 +98,7 @@ export class WordsService {
     totalPages: number;
   }> {
     console.log("🎭 WordsService.findAll - Délégation vers WordCoreService");
-    const result = await this.wordCoreService.findAll(page, limit, status);
-    
-    return {
-      ...result,
-      totalPages: Math.ceil(result.total / result.limit),
-    };
+    return this.wordCoreService.findAll(page, limit, status);
   }
 
   /**
@@ -265,69 +263,10 @@ export class WordsService {
     return this.wordAudioService.addAudioFile(wordId, accent, fileBuffer, user);
   }
 
+  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordPermissionService
   async canUserEditWord(wordId: string, user: User): Promise<boolean> {
-    console.log("=== DEBUG canUserEditWord ===");
-    console.log("WordId:", wordId);
-    console.log("User:", {
-      _id: user._id,
-      username: user.username,
-      role: user.role,
-    });
-
-    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
-      console.log("✅ User is admin/superadmin, allowing edit");
-      return true;
-    }
-
-    // PHASE 5 - DÉLÉGATION: Vérification mot via WordCoreService  
-    try {
-      const word = await this.wordCoreService.findOne(wordId);
-      if (!word) {
-        console.log("❌ Word not found");
-        return false;
-      }
-
-    console.log("Word found:", {
-      word: word.word,
-      createdBy: word.createdBy,
-      createdByType: typeof word.createdBy,
-      status: word.status,
-    });
-
-    // L'utilisateur peut modifier s'il est le créateur et que le mot n'est pas rejeté
-    if (!word.createdBy || word.status === "rejected") {
-      console.log("❌ No createdBy or word is rejected");
-      return false;
-    }
-
-    // Gérer le cas où createdBy est un ObjectId (string) ou un objet User peuplé
-    let createdByIdToCompare: string;
-    if (typeof word.createdBy === "object" && "_id" in word.createdBy) {
-      // createdBy est un objet User peuplé
-      createdByIdToCompare = String(word.createdBy._id);
-      console.log("🔍 createdBy is User object, ID:", createdByIdToCompare);
-    } else {
-      // createdBy est juste un ObjectId (string)
-      createdByIdToCompare = String(word.createdBy);
-      console.log("🔍 createdBy is ObjectId string, ID:", createdByIdToCompare);
-    }
-
-    const userIdToCompare = String(user._id);
-    console.log("🔍 Comparing IDs:", {
-      createdByIdToCompare,
-      userIdToCompare,
-      areEqual: createdByIdToCompare === userIdToCompare,
-    });
-
-      const canEdit = createdByIdToCompare === userIdToCompare;
-      console.log("✅ Can edit result:", canEdit);
-      console.log("=== END DEBUG canUserEditWord ===");
-
-      return canEdit;
-    } catch (error) {
-      console.log("❌ Error checking word:", error);
-      return false;
-    }
+    console.log("🔄 WordsService.canUserEditWord - Délégation vers WordPermissionService");
+    return this.wordPermissionService.canUserEditWordById(wordId, user);
   }
 
   // PHASE 5 - DÉLÉGATION: Récupérer les révisions en attente avec pagination
@@ -462,6 +401,7 @@ export class WordsService {
    * Récupère les mots en attente pour les admins
    * PHASE 5 - DÉLÉGATION: Délégation vers WordCoreService
    */
+  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordCoreService (sans adaptation)
   async getAdminPendingWords(
     page = 1,
     limit = 10
@@ -475,11 +415,7 @@ export class WordsService {
     console.log(
       "🎭 WordsService.getAdminPendingWords - Délégation vers WordCoreService"
     );
-    const result = await this.wordCoreService.findAll(page, limit, "pending");
-    return {
-      ...result,
-      totalPages: Math.ceil(result.total / result.limit),
-    };
+    return this.wordCoreService.findAll(page, limit, "pending");
   }
 
   /**
@@ -535,116 +471,69 @@ export class WordsService {
    * Met à jour en masse les fichiers audio d'un mot
    * PHASE 2 - ÉTAPE 4 : Délégation vers WordAudioService
    */
+  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordAudioService (sans adaptation - interface harmonisée)
   async bulkUpdateAudioFiles(
     wordId: string,
     audioUpdates: Array<{
       accent: string;
-      audioBuffer: Buffer;
-      replaceExisting?: boolean;
+      fileBuffer?: Buffer;
+      action: 'add' | 'update' | 'delete';
     }>,
     user: User
   ): Promise<Word> {
-    // Adapter les données vers le format WordAudioService
-    const adaptedUpdates = audioUpdates.map((update) => ({
-      accent: update.accent,
-      fileBuffer: update.audioBuffer,
-      action: update.replaceExisting ? ("update" as const) : ("add" as const),
-    }));
-
     console.log(
       "🎵 WordsService.bulkUpdateAudioFiles - Délégation vers WordAudioService"
     );
     return this.wordAudioService.bulkUpdateAudioFiles(
       wordId,
-      adaptedUpdates,
+      audioUpdates,
       user
     );
   }
 
-  /**
-   * Génère une URL optimisée pour un fichier audio
-   * PHASE 2 - ÉTAPE 4 : Délégation vers WordAudioService
-   */
+  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordAudioService (sans adaptation - interface harmonisée)
   async getOptimizedAudioUrl(
     wordId: string,
     accent: string,
-    options: {
-      quality?: "auto:low" | "auto:good" | "auto:best";
-      format?: "mp3" | "ogg" | "wav";
-      volume?: number;
-      speed?: number;
-    } = {}
-  ): Promise<string> {
-    // Adapter les options vers le format WordAudioService
-    const adaptedOptions = {
-      quality:
-        (options.quality?.replace("auto:", "") as "auto" | "good" | "best") ||
-        "auto",
-      format: options.format || "mp3",
-    };
-
+    options?: {
+      quality?: 'auto' | 'good' | 'best';
+      format?: 'mp3' | 'ogg' | 'wav';
+    }
+  ): Promise<{
+    url: string;
+    optimizedUrl: string;
+    format: string;
+    quality: string;
+  }> {
     console.log(
       "🎵 WordsService.getOptimizedAudioUrl - Délégation vers WordAudioService"
     );
-    const result = await this.wordAudioService.getOptimizedAudioUrl(
+    return this.wordAudioService.getOptimizedAudioUrl(
       wordId,
       accent,
-      adaptedOptions
+      options
     );
-    return result.optimizedUrl;
   }
 
   /**
    * Vérifie la validité des fichiers audio d'un mot
    * PHASE 2 - ÉTAPE 4 : Délégation vers WordAudioService
    */
+  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordAudioService (sans adaptation - interface harmonisée) 
   async validateWordAudioFiles(wordId: string): Promise<{
-    valid: boolean;
-    issues: string[];
-    audioFiles: Array<{
+    wordId: string;
+    totalFiles: number;
+    validFiles: number;
+    invalidFiles: Array<{
       accent: string;
-      status: "valid" | "invalid" | "missing";
-      error?: string;
+      issues: string[];
     }>;
+    recommendations: string[];
   }> {
     console.log(
       "🎵 WordsService.validateWordAudioFiles - Délégation vers WordAudioService"
     );
-    const result = await this.wordAudioService.validateWordAudioFiles(wordId);
-
-    // Adapter la réponse vers le format attendu par WordsService
-    const audioFiles: Array<{
-      accent: string;
-      status: "valid" | "invalid" | "missing";
-      error?: string;
-    }> = [];
-
-    // Ajouter les fichiers invalides
-    result.invalidFiles.forEach((invalid) => {
-      audioFiles.push({
-        accent: invalid.accent,
-        status: "invalid",
-        error: invalid.issues.join(", "),
-      });
-    });
-
-    // Ajouter les fichiers valides
-    const totalFiles = result.totalFiles;
-    const invalidCount = result.invalidFiles.length;
-    const validCount = totalFiles - invalidCount;
-
-    for (let i = 0; i < validCount; i++) {
-      audioFiles.push({
-        accent: `valid-${i}`, // Placeholder car WordAudioService ne retourne pas les détails des valides
-        status: "valid",
-      });
-    }
-
-    return {
-      valid: result.invalidFiles.length === 0,
-      issues: result.recommendations,
-      audioFiles,
-    };
+    return this.wordAudioService.validateWordAudioFiles(wordId);
   }
 
   /**

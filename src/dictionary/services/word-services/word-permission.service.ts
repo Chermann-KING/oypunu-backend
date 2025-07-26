@@ -1,9 +1,10 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { User, UserRole } from '../../../users/schemas/user.schema';
 import { CreateWordDto } from '../../dto/create-word.dto';
 import { UpdateWordDto } from '../../dto/update-word.dto';
 import { Word } from '../../schemas/word.schema';
 import { IWordPermissionService } from '../../interfaces/word-permission.interface';
+import { WordCoreService } from './word-core.service';
 
 /**
  * Implémentation du service de permissions pour les mots
@@ -11,6 +12,11 @@ import { IWordPermissionService } from '../../interfaces/word-permission.interfa
  */
 @Injectable()
 export class WordPermissionService implements IWordPermissionService {
+  
+  constructor(
+    @Inject(forwardRef(() => WordCoreService))
+    private wordCoreService: WordCoreService
+  ) {}
 
   /**
    * Valide qu'un utilisateur peut créer un mot
@@ -60,24 +66,84 @@ export class WordPermissionService implements IWordPermissionService {
 
   /**
    * Vérifie si un utilisateur peut éditer un mot spécifique
+   * PHASE 2-1: Refactoring - Logique complète extraite de words.service.ts
    */
   async canUserEditWord(word: Word, user: User): Promise<boolean> {
-    // Administrateurs peuvent tout éditer
-    if (this.isAdminUser(user)) {
+    console.log("=== DEBUG WordPermissionService.canUserEditWord ===");
+    console.log("Word:", {
+      id: word._id,
+      word: word.word,
+      createdBy: word.createdBy,
+      status: word.status,
+    });
+    console.log("User:", {
+      _id: user._id,
+      username: user.username,
+      role: user.role,
+    });
+
+    // Administrateurs et super-administrateurs peuvent tout éditer
+    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
+      console.log("✅ User is admin/superadmin, allowing edit");
       return true;
     }
 
-    // Créateur peut éditer son propre mot
-    if (word.createdBy?.toString() === user._id?.toString()) {
+    // Vérifications de base
+    if (!word.createdBy || word.status === "rejected") {
+      console.log("❌ No createdBy or word is rejected");
+      return false;
+    }
+
+    // Gérer le cas où createdBy est un ObjectId (string) ou un objet User peuplé
+    let createdByIdToCompare: string;
+    if (typeof word.createdBy === "object" && "_id" in word.createdBy) {
+      // createdBy est un objet User peuplé
+      createdByIdToCompare = String(word.createdBy._id);
+      console.log("🔍 createdBy is User object, ID:", createdByIdToCompare);
+    } else {
+      // createdBy est juste un ObjectId (string)
+      createdByIdToCompare = String(word.createdBy);
+      console.log("🔍 createdBy is ObjectId string, ID:", createdByIdToCompare);
+    }
+
+    const userIdToCompare = String(user._id);
+    console.log("🔍 Comparing IDs:", {
+      createdByIdToCompare,
+      userIdToCompare,
+      areEqual: createdByIdToCompare === userIdToCompare,
+    });
+
+    const canEdit = createdByIdToCompare === userIdToCompare;
+    
+    // Contributeurs peuvent aussi éditer les mots en attente
+    if (!canEdit && user.role === UserRole.CONTRIBUTOR && word.status === 'pending') {
+      console.log("✅ Contributor can edit pending word");
       return true;
     }
 
-    // Contributeurs peuvent éditer les mots en attente
-    if (user.role === UserRole.CONTRIBUTOR && word.status === 'pending') {
-      return true;
-    }
+    console.log("✅ Can edit result:", canEdit);
+    console.log("=== END DEBUG WordPermissionService.canUserEditWord ===");
 
-    return false;
+    return canEdit;
+  }
+
+  /**
+   * Vérifie si un utilisateur peut éditer un mot par son ID
+   * PHASE 2-1: Méthode de convenance qui récupère le mot et délègue vers canUserEditWord
+   */
+  async canUserEditWordById(wordId: string, user: User): Promise<boolean> {
+    try {
+      const word = await this.wordCoreService.findOne(wordId);
+      if (!word) {
+        console.log("❌ Word not found");
+        return false;
+      }
+      
+      return this.canUserEditWord(word, user);
+    } catch (error) {
+      console.log("❌ Error checking word permissions:", error);
+      return false;
+    }
   }
 
   /**
