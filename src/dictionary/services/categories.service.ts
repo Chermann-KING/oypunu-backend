@@ -4,7 +4,7 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
+import { ValidationErrorHandler } from '../../common/utils/validation-error-handler.util';
 import { Category } from '../schemas/category.schema';
 import { CreateCategoryDto } from '../dto/create-category.dto';
 import { UpdateCategoryDto } from '../dto/update-category.dto';
@@ -45,10 +45,9 @@ export class CategoriesService {
     return result.categories;
   }
 
+  // PHASE 2-4: Validation centralisée avec ValidationErrorHandler
   async findOne(id: string): Promise<Category> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de catégorie invalide');
-    }
+    ValidationErrorHandler.validateObjectId(id, 'catégorie');
 
     const category = await this.categoryRepository.findById(id);
 
@@ -59,13 +58,12 @@ export class CategoriesService {
     return category;
   }
 
+  // PHASE 2-4: Validation centralisée avec ValidationErrorHandler
   async update(
     id: string,
     updateCategoryDto: UpdateCategoryDto,
   ): Promise<Category> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de catégorie invalide');
-    }
+    ValidationErrorHandler.validateObjectId(id, 'catégorie');
 
     // Vérifier si la catégorie existe
     const category = await this.categoryRepository.findById(id);
@@ -83,10 +81,9 @@ export class CategoriesService {
     return updatedCategory;
   }
 
+  // PHASE 2-4: Validation centralisée avec ValidationErrorHandler
   async remove(id: string): Promise<{ success: boolean }> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('ID de catégorie invalide');
-    }
+    ValidationErrorHandler.validateObjectId(id, 'catégorie');
 
     // Vérifier si la catégorie existe
     const category = await this.categoryRepository.findById(id);
