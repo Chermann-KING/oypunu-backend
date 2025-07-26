@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary, ConfigOptions } from 'cloudinary';
 import { ConfigService } from '@nestjs/config';
+import { ExternalServiceErrorHandler } from '../../common/utils/external-service-error-handler.util';
 
 interface CloudinaryUploadResult {
   secure_url: string;
@@ -368,16 +369,8 @@ export class AudioService {
         fileSize: result.bytes,
       };
     } catch (error: unknown) {
-      console.error('Audio upload error:', error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new BadRequestException(
-          `Erreur lors de l'upload audio: ${error.message}`,
-        );
-      }
-      throw new BadRequestException("Erreur inconnue lors de l'upload audio");
+      // PHASE 2-4: Gestion d'erreur centralisée via ExternalServiceErrorHandler
+      ExternalServiceErrorHandler.handleCloudinaryError(error, 'upload');
     }
   }
 
@@ -401,18 +394,8 @@ export class AudioService {
         throw new Error(`Échec de suppression: ${result.result}`);
       }
     } catch (error: unknown) {
-      console.error('Audio deletion error:', error);
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      if (error instanceof Error) {
-        throw new BadRequestException(
-          `Erreur lors de la suppression audio: ${error.message}`,
-        );
-      }
-      throw new BadRequestException(
-        'Erreur inconnue lors de la suppression audio',
-      );
+      // PHASE 2-4: Gestion d'erreur centralisée via ExternalServiceErrorHandler
+      ExternalServiceErrorHandler.handleCloudinaryError(error, 'delete');
     }
   }
 
