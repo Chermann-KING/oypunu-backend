@@ -595,29 +595,6 @@ export class ActivityService {
     });
   }
 
-  /**
-   * Enregistrer l'ajout d'une traduction
-   */
-  async logTranslationAdded(
-    userId: string,
-    wordId: string,
-    targetLanguage: string,
-    translatedWord: string,
-    metadata?: Record<string, any>
-  ): Promise<ActivityFeed> {
-    return this.recordActivity({
-      userId,
-      activityType: 'translation_added',
-      targetType: 'word',
-      targetId: wordId,
-      metadata: {
-        targetLanguage,
-        translatedWord,
-        addedAt: new Date(),
-        ...metadata
-      }
-    });
-  }
 
   /**
    * Enregistrer une action de vote
@@ -701,6 +678,29 @@ export class ActivityService {
       metadata: {
         achievementName,
         unlockedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * ⭐ Logger le gain d'XP
+   */
+  async logXPGained(
+    userId: string,
+    action: string,
+    xpGained: number,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'xp_gained',
+      targetType: 'user',
+      targetId: userId,
+      metadata: {
+        action,
+        xpGained,
+        gainedAt: new Date(),
         ...metadata
       }
     });

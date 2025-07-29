@@ -2,6 +2,7 @@ import { Injectable, Inject } from "@nestjs/common";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
+import { IActivityFeedRepository } from "../../repositories/interfaces/activity-feed.repository.interface";
 import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
 
 export interface DashboardMetrics {
@@ -168,7 +169,9 @@ export class AnalyticsService {
     @Inject("IWordRepository") private wordRepository: IWordRepository,
     @Inject("IUserRepository") private userRepository: IUserRepository,
     @Inject("IWordViewRepository")
-    private wordViewRepository: IWordViewRepository
+    private wordViewRepository: IWordViewRepository,
+    @Inject("IActivityFeedRepository")
+    private activityFeedRepository: IActivityFeedRepository
   ) {}
 
   async getDashboardMetrics(): Promise<DashboardMetrics> {
@@ -290,11 +293,13 @@ export class AnalyticsService {
             averageViewsPerDay: userActivityStats.averageViewsPerDay,
             lastActivity: await this.getLastUserActivity(userId) || new Date(),
           },
-          languagePreferences: languagePreferences.map((pref) => ({
-            language: pref.language,
-            wordCount: pref.count,
-            viewCount: await this.getLanguageViewCount(userId, pref.language),
-          })),
+          languagePreferences: await Promise.all(
+            languagePreferences.map(async (pref) => ({
+              language: pref.language,
+              wordCount: pref.count,
+              viewCount: await this.getLanguageViewCount(userId, pref.language),
+            }))
+          ),
         };
       },
       "Analytics",
@@ -409,14 +414,16 @@ export class AnalyticsService {
         });
 
         return {
-          words: mostViewed.map((word) => ({
-            wordId: word.wordId,
-            word: word.word,
-            language: word.language,
-            searchCount: word.viewCount,
-            uniqueUsers: word.uniqueUsers,
-            lastSearched: await this.getLastWordSearchTimestamp(word.wordId) || new Date(),
-          })),
+          words: await Promise.all(
+            mostViewed.map(async (word) => ({
+              wordId: word.wordId,
+              word: word.word,
+              language: word.language,
+              searchCount: word.viewCount,
+              uniqueUsers: word.uniqueUsers,
+              lastSearched: await this.getLastWordSearchTimestamp(word.wordId) || new Date(),
+            }))
+          ),
           totalSearches,
           timeframe: options.timeframe,
         };
@@ -774,41 +781,6 @@ export class AnalyticsService {
     }
   }
 
-  /**
-   * Calcule les métriques de performance réelles
-   */
-  async getPerformanceMetrics(): Promise<{
-    averageResponseTime: number;
-    requestsPerSecond: number;
-    errorRate: number;
-    uptime: number;
-    memoryUsage: number;
-    diskUsage: number;
-  }> {
-    return DatabaseErrorHandler.handleAggregationOperation(
-      async () => {
-        // Utiliser les données système et monitoring réels
-        const now = Date.now();
-        const memUsage = process.memoryUsage();
-        
-        // Simuler des métriques réalistes basées sur l'activité
-        const totalViews = await this.wordViewRepository.countTotal({
-          startDate: new Date(now - 24 * 60 * 60 * 1000) // Dernières 24h
-        });
-        
-        return {
-          averageResponseTime: Math.random() * 100 + 50, // 50-150ms
-          requestsPerSecond: totalViews / (24 * 60 * 60), // Basé sur les vues réelles
-          errorRate: Math.random() * 0.05, // 0-5%
-          uptime: process.uptime(),
-          memoryUsage: memUsage.heapUsed / memUsage.heapTotal,
-          diskUsage: Math.random() * 0.8 + 0.1 // 10-90%
-        };
-      },
-      'Analytics',
-      'performance-metrics'
-    );
-  }
 
   /**
    * Calcule les métriques d'engagement détaillées
@@ -824,12 +796,14 @@ export class AnalyticsService {
   }> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
-        const filter = userId ? { userId } : {};
-        
-        // Calculer les métriques réelles
+        // Calculer les métriques réelles basées sur userId si fourni
         const [totalViews, uniqueUsers, activeUsers] = await Promise.all([
-          this.wordViewRepository.countTotal(filter),
-          this.wordViewRepository.countTotal({ ...filter, uniqueUsers: true }),
+          userId ? 
+            this.wordViewRepository.countByUser(userId) : 
+            this.wordViewRepository.countTotal({}),
+          userId ? 
+            this.wordViewRepository.countByUser(userId) : 
+            this.wordViewRepository.countTotal({ uniqueUsers: true }),
           this.userRepository.findActiveUsers(0.003) // 5 minutes
         ]);
 
