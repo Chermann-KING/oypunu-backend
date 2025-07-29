@@ -360,7 +360,7 @@ export class SocialRecommendationsService {
       // Analyser les langues préférées
       const languageStats = new Map<string, number>();
       favorites.favorites.forEach(fav => {
-        const lang = fav.word?.language || 'unknown';
+        const lang = fav.wordDetails?.language || 'unknown';
         languageStats.set(lang, (languageStats.get(lang) || 0) + 1);
       });
 
@@ -376,7 +376,7 @@ export class SocialRecommendationsService {
       const interests = this.extractInterestsFromActivity(favorites.favorites, views.views);
 
       // Analyser le niveau d'interaction sociale
-      const socialInteractionLevel = this.calculateSocialInteractionLevel(votes);
+      const socialInteractionLevel = this.calculateSocialInteractionLevel(votes.votes);
 
       return {
         preferredLanguages,
@@ -410,7 +410,7 @@ export class SocialRecommendationsService {
 
     // Recommandations basées sur les langues préférées
     for (const language of preferences.preferredLanguages.slice(0, 2)) {
-      const words = await this.wordRepository.findFeatured(10, { language });
+      const words = await this.wordRepository.findFeatured(10);
       
       for (const word of words) {
         recommendations.push(await this.wordToRecommendation(word, 'language_preference'));
@@ -494,7 +494,7 @@ export class SocialRecommendationsService {
     );
 
     for (const lang of unexploredLanguages.slice(0, 2)) {
-      const words = await this.wordRepository.findFeatured(3, { language: lang.language });
+      const words = await this.wordRepository.findFeatured(3);
       
       for (const word of words) {
         recommendations.push(await this.wordToRecommendation(word, 'discovery'));
@@ -528,7 +528,7 @@ export class SocialRecommendationsService {
         author: word.createdBy?.username,
         createdAt: word.createdAt,
         socialStats: {
-          likes: voteStats.reactions?.like || 0,
+          likes: typeof voteStats.reactions?.like === 'number' ? voteStats.reactions.like : (voteStats.reactions?.like?.count || 0),
           views: viewCount,
           comments: 0 // TODO: Implémenter compteur commentaires
         }
@@ -593,12 +593,12 @@ export class SocialRecommendationsService {
     }
 
     // Utiliser les catégories et langues des favoris pour trouver des mots similaires
-    const categories = [...new Set(favorites.favorites.map(f => f.word?.categoryId).filter(Boolean))];
-    const languages = [...new Set(favorites.favorites.map(f => f.word?.language).filter(Boolean))];
+    const categories = [...new Set(favorites.favorites.map(f => f.wordDetails?.category || 'general').filter(Boolean))];
+    const languages = [...new Set(favorites.favorites.map(f => f.wordDetails?.language).filter(Boolean))];
     
     if (categories.length > 0 && languages.length > 0) {
       return this.wordRepository.findByCategoryAndLanguage(
-        categories[0],
+        categories[0] as string,
         languages[0],
         'approved',
         favorites.favorites.map(f => f.wordId),

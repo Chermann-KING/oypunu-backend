@@ -88,6 +88,21 @@ export class User {
   @Prop({ type: Number, default: 0 })
   totalCommunityPosts: number;
 
+  @Prop({ type: Number, default: 0 })
+  totalXP: number;
+
+  @Prop({ type: Number, default: 1 })
+  level: number;
+
+  @Prop({ type: Number, default: 0 })
+  globalRank: number;
+
+  @Prop({ type: String, default: 'bronze' })
+  currentTier: string;
+
+  @Prop({ type: Number, default: 0 })
+  tierProgress: number;
+
   @Prop({ type: Boolean, default: false })
   isActive: boolean;
 
