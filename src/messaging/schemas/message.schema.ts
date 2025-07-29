@@ -52,6 +52,10 @@ export class Message {
 
   @Prop({ type: Date, default: null })
   deletedAt: Date;
+
+  // Timestamps automatiques ajoutés par MongoDB
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
