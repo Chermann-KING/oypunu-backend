@@ -129,14 +129,14 @@ export class WordAudioService {
           // Enregistrer l'activité d'ajout audio
           try {
             await this.activityService.logAudioAdded(
-              userId,
+              user._id,
               wordId,
-              audioFile.url,
+              audioResult.url,
               { 
                 wordTitle: word.word,
                 language: word.language,
-                fileSize: audioFile.size,
-                duration: audioFile.duration
+                fileSize: fileBuffer.length,
+                accent: accent
               }
             );
           } catch (error) {
@@ -221,9 +221,9 @@ export class WordAudioService {
           // Enregistrer l'activité de suppression audio
           try {
             await this.activityService.logAudioDeleted(
-              userId,
+              user._id,
               wordId,
-              existingAudio.url,
+              audioFile.url,
               { 
                 wordTitle: word.word,
                 language: word.language,
@@ -404,7 +404,7 @@ export class WordAudioService {
           const successCount = results.filter(r => r.status !== 'error').length;
           if (successCount > 0) {
             await this.activityService.logAudioBulkUpdated(
-              userId,
+              user._id,
               wordId,
               'updated',
               successCount,

@@ -292,7 +292,7 @@ export class WordCoreService {
         // Enregistrer l'activité de mise à jour
         try {
           await this.activityService.logWordUpdated(
-            userId,
+            user._id,
             id,
             Object.keys(updateData),
             { 
@@ -343,7 +343,7 @@ export class WordCoreService {
         // Enregistrer l'activité de suppression
         try {
           await this.activityService.logWordDeleted(
-            userId,
+            user._id,
             id,
             word.word,
             { 
