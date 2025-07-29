@@ -1,11 +1,29 @@
-import { WordView } from '../../users/schemas/word-view.schema';
+import { WordView } from "../../users/schemas/word-view.schema";
+
+export interface WordViewStats {
+  totalViews: number;
+  uniqueUsers: number;
+  uniqueWords: number;
+  averageViewsPerUser: number;
+  averageViewsPerWord: number;
+  topLanguages: Array<{
+    language: string;
+    viewCount: number;
+    uniqueUsers: number;
+  }>;
+  viewsByType: {
+    search: number;
+    detail: number;
+    favorite: number;
+  };
+}
 
 export interface CreateWordViewData {
   userId: string;
   wordId: string;
   word: string;
   language: string;
-  viewType?: 'search' | 'detail' | 'favorite';
+  viewType?: "search" | "detail" | "favorite";
   sessionId?: string;
   metadata?: {
     searchQuery?: string;
@@ -17,7 +35,7 @@ export interface CreateWordViewData {
 export interface UpdateWordViewData {
   viewCount?: number;
   lastViewedAt?: Date;
-  viewType?: 'search' | 'detail' | 'favorite';
+  viewType?: "search" | "detail" | "favorite";
   metadata?: {
     searchQuery?: string;
     category?: string;
@@ -27,151 +45,168 @@ export interface UpdateWordViewData {
 
 /**
  * 👁️ INTERFACE WORD VIEW REPOSITORY
- * 
+ *
  * Contrat abstrait pour l'accès aux données des vues de mots.
  * Gestion du tracking des consultations et analytics utilisateurs.
  */
 export interface IWordViewRepository {
   // ========== CRUD DE BASE ==========
-  
+
   /**
    * Créer une nouvelle vue de mot
    */
   create(viewData: CreateWordViewData): Promise<WordView>;
-  
+
   /**
    * Récupérer une vue par ID
    */
   findById(id: string): Promise<WordView | null>;
-  
+
   /**
    * Mettre à jour une vue
    */
   update(id: string, updateData: UpdateWordViewData): Promise<WordView | null>;
-  
+
   /**
    * Supprimer une vue
    */
   delete(id: string): Promise<boolean>;
-  
+
   // ========== RECHERCHE ET FILTRAGE ==========
-  
+
   /**
    * Récupérer les vues d'un utilisateur
    */
-  findByUser(userId: string, options?: {
-    page?: number;
-    limit?: number;
-    sortBy?: 'viewedAt' | 'viewCount' | 'word';
-    sortOrder?: 'asc' | 'desc';
-    language?: string;
-    viewType?: 'search' | 'detail' | 'favorite';
-  }): Promise<{
+  findByUser(
+    userId: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      sortBy?: "viewedAt" | "viewCount" | "word";
+      sortOrder?: "asc" | "desc";
+      language?: string;
+      viewType?: "search" | "detail" | "favorite";
+    }
+  ): Promise<{
     views: WordView[];
     total: number;
     page: number;
     limit: number;
   }>;
-  
+
   /**
    * Récupérer les vues d'un mot
    */
-  findByWord(wordId: string, options?: {
-    page?: number;
-    limit?: number;
-    userId?: string;
-    viewType?: 'search' | 'detail' | 'favorite';
-  }): Promise<{
+  findByWord(
+    wordId: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      userId?: string;
+      viewType?: "search" | "detail" | "favorite";
+    }
+  ): Promise<{
     views: WordView[];
     total: number;
     page: number;
     limit: number;
   }>;
-  
+
   /**
    * Récupérer une vue spécifique utilisateur-mot
    */
   findByUserAndWord(userId: string, wordId: string): Promise<WordView | null>;
-  
+
   /**
    * Récupérer les vues récentes d'un utilisateur
    */
   findRecentByUser(userId: string, limit?: number): Promise<WordView[]>;
-  
+
   /**
    * Rechercher des vues par mot
    */
-  searchByWord(wordQuery: string, options?: {
-    userId?: string;
-    language?: string;
-    limit?: number;
-  }): Promise<WordView[]>;
-  
+  searchByWord(
+    wordQuery: string,
+    options?: {
+      userId?: string;
+      language?: string;
+      limit?: number;
+    }
+  ): Promise<WordView[]>;
+
   // ========== STATISTIQUES ==========
-  
+
   /**
    * Compter les vues d'un utilisateur
    */
-  countByUser(userId: string, options?: {
-    language?: string;
-    viewType?: 'search' | 'detail' | 'favorite';
-    startDate?: Date;
-    endDate?: Date;
-  }): Promise<number>;
-  
+  countByUser(
+    userId: string,
+    options?: {
+      language?: string;
+      viewType?: "search" | "detail" | "favorite";
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<number>;
+
   /**
    * Compter les vues d'un mot
    */
-  countByWord(wordId: string, options?: {
-    uniqueUsers?: boolean;
-    viewType?: 'search' | 'detail' | 'favorite';
-    startDate?: Date;
-    endDate?: Date;
-  }): Promise<number>;
-  
+  countByWord(
+    wordId: string,
+    options?: {
+      uniqueUsers?: boolean;
+      viewType?: "search" | "detail" | "favorite";
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<number>;
+
   /**
    * Compter les vues totales
    */
   countTotal(options?: {
     uniqueUsers?: boolean;
     language?: string;
-    viewType?: 'search' | 'detail' | 'favorite';
+    viewType?: "search" | "detail" | "favorite";
     startDate?: Date;
     endDate?: Date;
   }): Promise<number>;
-  
+
   /**
    * Obtenir les mots les plus vus
    */
   getMostViewedWords(options?: {
     language?: string;
-    viewType?: 'search' | 'detail' | 'favorite';
-    timeframe?: 'day' | 'week' | 'month' | 'all';
+    viewType?: "search" | "detail" | "favorite";
+    timeframe?: "day" | "week" | "month" | "all";
     limit?: number;
-  }): Promise<Array<{
-    wordId: string;
-    word: string;
-    language: string;
-    viewCount: number;
-    uniqueUsers: number;
-  }>>;
-  
+  }): Promise<
+    Array<{
+      wordId: string;
+      word: string;
+      language: string;
+      viewCount: number;
+      uniqueUsers: number;
+    }>
+  >;
+
   /**
    * Obtenir les utilisateurs les plus actifs
    */
   getMostActiveUsers(options?: {
     language?: string;
-    timeframe?: 'day' | 'week' | 'month' | 'all';
+    timeframe?: "day" | "week" | "month" | "all";
     limit?: number;
-  }): Promise<Array<{
-    userId: string;
-    viewCount: number;
-    uniqueWords: number;
-    lastActivity: Date;
-  }>>;
-  
-  // ========== ANALYTICS ==========
-  
+  }): Promise<
+    Array<{
+      userId: string;
+      viewCount: number;
+      uniqueWords: number;
+      lastActivity: Date;
+    }>
+  >;
+
   /**
    * Obtenir les statistiques d'activité d'un utilisateur
    */
@@ -192,7 +227,7 @@ export interface IWordViewRepository {
       favorite: number;
     };
   }>;
-  
+
   /**
    * Obtenir les statistiques globales des vues
    */
@@ -213,19 +248,45 @@ export interface IWordViewRepository {
       favorite: number;
     };
   }>;
-  
+
+  /**
+   * Obtenir les statistiques pour une période donnée
+   */
+  getStatsByPeriod(startDate?: Date, endDate?: Date): Promise<WordViewStats>;
+
+  /**
+   * Exporter les données des vues de mots
+   */
+  exportData(
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<
+    Array<{
+      _id: string;
+      wordId: string;
+      word: string;
+      language: string;
+      userId: string;
+      username: string;
+      viewedAt: Date;
+      sessionId?: string;
+      ipAddress?: string;
+      userAgent?: string;
+    }>
+  >;
+
   // ========== NETTOYAGE ==========
-  
+
   /**
    * Supprimer les anciennes vues (plus de X jours)
    */
   deleteOldViews(daysOld: number): Promise<{ deletedCount: number }>;
-  
+
   /**
    * Nettoyer les vues orphelines (mots ou utilisateurs supprimés)
    */
   cleanupOrphanedViews(): Promise<{ deletedCount: number }>;
-  
+
   /**
    * Archiver les vues anciennes (marquer comme archivées)
    */
