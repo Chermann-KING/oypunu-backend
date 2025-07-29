@@ -29,6 +29,8 @@ export enum ActivityType {
   COMMUNITY_CREATED = 'community_created',
   XP_GAINED = 'xp_gained',
   ACHIEVEMENT_UNLOCKED = 'achievement_unlocked',
+  WORD_VOTED = 'word_voted',
+
 }
 
 export enum EntityType {

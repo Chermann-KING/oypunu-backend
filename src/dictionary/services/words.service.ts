@@ -498,7 +498,7 @@ export class WordsService {
       },
       limitations: {
         maxRevisionsPerDay: 10,
-        currentRevisions: await this.revisionHistoryRepository.countTodayRevisions(userId),
+        currentRevisions: await this.revisionHistoryRepository.countTodayRevisions(user?._id || 'unknown'),
         cooldownRemaining: 0,
       },
     };

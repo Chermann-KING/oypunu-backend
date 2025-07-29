@@ -166,7 +166,9 @@ export interface IRevisionHistoryRepository {
    * Compter les révisions faites aujourd'hui par un utilisateur
    */
   countTodayRevisions(userId: string): Promise<number>;
-}
+
+  /**
+   * Obtenir les révisions en attente par priorité
    */
   getPendingByPriority(
     priority?: "low" | "medium" | "high" | "urgent"

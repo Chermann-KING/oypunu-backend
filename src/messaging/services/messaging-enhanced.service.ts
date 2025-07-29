@@ -601,9 +601,11 @@ export class MessagingEnhancedService {
               let uploadResult;
               
               if (file.mimetype.startsWith('audio/')) {
-                uploadResult = await this.audioService.uploadBuffer(
+                uploadResult = await this.audioService.uploadPhoneticAudio(
+                  'audio_message',
+                  'audio',
                   file.buffer,
-                  `messaging/audio/${Date.now()}-${file.originalname}`,
+                  'standard',
                   'auto'
                 );
               } else if (file.mimetype.startsWith('image/')) {
@@ -695,9 +697,11 @@ export class MessagingEnhancedService {
         // Sauvegarder le fichier vocal avec Cloudinary
         let voiceMetadata;
         try {
-          const uploadResult = await this.audioService.uploadBuffer(
+          const uploadResult = await this.audioService.uploadPhoneticAudio(
+            'voice_message',
+            'voice',
             voiceFile.buffer,
-            `messaging/voice/${Date.now()}-${voiceFile.originalname}`,
+            'standard',
             'auto'
           );
           
@@ -706,8 +710,8 @@ export class MessagingEnhancedService {
             mimeType: voiceFile.mimetype,
             size: voiceFile.size,
             duration: uploadResult.duration || messageData.duration || 0,
-            url: uploadResult.secure_url,
-            publicId: uploadResult.public_id,
+            url: uploadResult.url,
+            publicId: uploadResult.cloudinaryId,
             uploadedAt: new Date(),
             uploadStatus: 'success',
             format: uploadResult.format

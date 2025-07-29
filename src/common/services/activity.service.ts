@@ -735,11 +735,6 @@ export class ActivityService {
     const typeMap: Record<string, ActivityType> = {
       word_favorited: ActivityType.WORD_FAVORITED,
       word_unfavorited: ActivityType.WORD_UNFAVORITED,
-      word_updated: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
-      word_deleted: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
-      audio_added: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
-      audio_deleted: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
-      audio_bulk_updated: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
       translation_added: ActivityType.TRANSLATION_ADDED,
       vote_action: ActivityType.WORD_VOTED,
       achievement_unlocked: ActivityType.ACHIEVEMENT_UNLOCKED,
@@ -753,6 +748,7 @@ export class ActivityService {
       audio_added: ActivityType.AUDIO_ADDED,
       audio_deleted: ActivityType.AUDIO_DELETED,
       audio_bulk_updated: ActivityType.AUDIO_UPDATED,
+      xp_gained: ActivityType.XP_GAINED,
     };
 
     return typeMap[activityType] || ActivityType.WORD_CREATED; // Fallback par défaut

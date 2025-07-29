@@ -593,7 +593,7 @@ export class SocialRecommendationsService {
     }
 
     // Utiliser les catégories et langues des favoris pour trouver des mots similaires
-    const categories = [...new Set(favorites.favorites.map(f => f.wordDetails?.category || 'general').filter(Boolean))];
+    const categories = [...new Set(favorites.favorites.map(f => 'general').filter(Boolean))];
     const languages = [...new Set(favorites.favorites.map(f => f.wordDetails?.language).filter(Boolean))];
     
     if (categories.length > 0 && languages.length > 0) {

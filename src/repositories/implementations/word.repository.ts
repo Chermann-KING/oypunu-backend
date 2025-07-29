@@ -768,7 +768,7 @@ export class WordRepository implements IWordRepository {
       `translation-${translationId}`
     );
   }
-
+  
   async findByTranslationGroupId(groupId: string): Promise<Word[]> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
@@ -885,6 +885,49 @@ export class WordRepository implements IWordRepository {
     );
   }
 
+  /**
+   * Compter les mots avec filtres
+   */
+  async count(filters?: {
+    status?: string;
+    hasAudio?: boolean;
+    language?: string;
+    categoryId?: string;
+  }): Promise<number> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        const query: any = {};
+
+        if (filters?.status) {
+          query.status = filters.status;
+        }
+
+        if (filters?.hasAudio !== undefined) {
+          if (filters.hasAudio) {
+            query.audioFiles = { $exists: true, $ne: {} };
+          } else {
+            query.$or = [
+              { audioFiles: { $exists: false } },
+              { audioFiles: {} }
+            ];
+          }
+        }
+
+        if (filters?.language) {
+          query.language = filters.language;
+        }
+
+        if (filters?.categoryId) {
+          query.categoryId = filters.categoryId;
+        }
+
+        return await this.wordModel.countDocuments(query).exec();
+      },
+      'Word',
+      'count-filtered'
+    );
+  }
+  
   /**
    * 🔒 Échappe les caractères spéciaux regex pour prévenir les attaques ReDoS
    *
