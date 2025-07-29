@@ -346,4 +346,14 @@ export interface IWordRepository {
    * Compter le nombre de références d'un mot
    */
   countReferences(wordId: string): Promise<number>;
+
+  /**
+   * Compter les mots avec filtres
+   */
+  count(filters?: {
+    status?: string;
+    hasAudio?: boolean;
+    language?: string;
+    categoryId?: string;
+  }): Promise<number>;
 }

@@ -223,4 +223,38 @@ export interface IFavoriteWordRepository {
    * Obtenir les statistiques globales des favoris
    */
   getGlobalFavoritesStats(): Promise<FavoriteWordStats>;
+
+  /**
+   * Alias pour getUserFavorites (pour compatibilité)
+   */
+  findByUser(
+    userId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      page?: number;
+      sortBy?: 'createdAt' | 'word' | 'language';
+      sortOrder?: 'asc' | 'desc';
+    }
+  ): Promise<{
+    favorites: Array<FavoriteWord & {
+      wordDetails?: {
+        id: string;
+        word: string;
+        language: string;
+        definition: string;
+      };
+    }>;
+    total: number;
+  }>;
+
+  /**
+   * Compter les favoris pour un mot spécifique
+   */
+  countByWord(wordId: string): Promise<number>;
+
+  /**
+   * Alias pour isFavorite (pour compatibilité)
+   */
+  isFavorited(userId: string, wordId: string): Promise<boolean>;
 }
