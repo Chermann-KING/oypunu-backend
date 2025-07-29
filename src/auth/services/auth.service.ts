@@ -34,7 +34,7 @@ export class AuthService {
   private readonly _logger = new Logger(AuthService.name);
 
   constructor(
-    @Inject('IUserRepository') private userRepository: IUserRepository,
+    @Inject("IUserRepository") private userRepository: IUserRepository,
     private _jwtService: JwtService,
     private configService: ConfigService,
     private _mailService: MailService,
@@ -154,7 +154,10 @@ export class AuthService {
 
     // Marquer l'email comme vérifié et vider le token
     await this.userRepository.markEmailAsVerified((user as any)._id);
-    await this.userRepository.updateEmailVerificationToken((user as any)._id, '');
+    await this.userRepository.updateEmailVerificationToken(
+      (user as any)._id,
+      ""
+    );
 
     return {
       message:
@@ -177,7 +180,10 @@ export class AuthService {
     const verificationToken = uuidv4();
 
     // Mettre à jour le token de vérification
-    await this.userRepository.updateEmailVerificationToken((user as any)._id, verificationToken);
+    await this.userRepository.updateEmailVerificationToken(
+      (user as any)._id,
+      verificationToken
+    );
 
     try {
       // Envoi de l'email
@@ -338,7 +344,11 @@ export class AuthService {
 
     // Mise à jour du mot de passe et réinitialisation du token
     await this.userRepository.updatePassword((user as any)._id, hashedPassword);
-    await this.userRepository.updatePasswordResetToken((user as any)._id, "", new Date(0));
+    await this.userRepository.updatePasswordResetToken(
+      (user as any)._id,
+      "",
+      new Date(0)
+    );
 
     return { message: "Mot de passe réinitialisé avec succès" };
   }
@@ -432,10 +442,13 @@ export class AuthService {
   async validateSocialLogin(socialUser: SocialUser) {
     // Recherche d'un utilisateur existant avec le même email ou la même combinaison provider/providerId
     let user = await this.userRepository.findByEmail(socialUser.email);
-    
+
     // Si pas trouvé par email, chercher par social provider
     if (!user) {
-      user = await this.userRepository.findBySocialProvider(socialUser.provider, socialUser.providerId);
+      user = await this.userRepository.findBySocialProvider(
+        socialUser.provider,
+        socialUser.providerId
+      );
     }
 
     if (user) {
@@ -495,13 +508,11 @@ export class AuthService {
       // Créer l'utilisateur social via le repository
       user = await this.userRepository.createSocialUser({
         email: socialUser.email,
-        username,
-        firstName: socialUser.firstName,
-        lastName: socialUser.lastName,
+        username: socialUser.username,
+        fullName: socialUser.firstName,
         profilePicture: socialUser.profilePicture,
         provider: socialUser.provider,
         providerId: socialUser.providerId,
-        isEmailVerified: true, // L'authentification sociale vérifie l'email
       });
     }
 
@@ -542,11 +553,13 @@ export class AuthService {
    * Génère un token STANDARD pour l'authentification sociale
    * PHASE 1 - STANDARDISATION: Utilise le même système que login/register
    */
-  async generateSocialAuthToken(userData: { user: { id: string } }): Promise<string> {
+  async generateSocialAuthToken(userData: {
+    user: { id: string };
+  }): Promise<string> {
     // 🔍 Rechercher l'utilisateur pour obtenir les infos complètes
     const user = await this.userRepository.findById(userData.user.id);
     if (!user) {
-      throw new UnauthorizedException('Utilisateur non trouvé');
+      throw new UnauthorizedException("Utilisateur non trouvé");
     }
 
     // 🔐 Créer payload JWT standard
@@ -584,7 +597,7 @@ export class AuthService {
       // 🔍 Rechercher l'utilisateur
       const user = await this.userRepository.findById(userId);
       if (!user) {
-        throw new UnauthorizedException('Utilisateur non trouvé');
+        throw new UnauthorizedException("Utilisateur non trouvé");
       }
 
       // 🔑 Créer payload JWT standard
@@ -615,11 +628,11 @@ export class AuthService {
           nativeLanguage: user.nativeLanguageId,
           learningLanguages: user.learningLanguageIds,
           profilePicture: user.profilePicture,
-      },
-    };
+        },
+      };
     } catch (error) {
-      this._logger.error('Erreur validation token social:', error);
-      throw new UnauthorizedException('Token social invalide ou expiré');
+      this._logger.error("Erreur validation token social:", error);
+      throw new UnauthorizedException("Token social invalide ou expiré");
     }
   }
 }

@@ -1,83 +1,69 @@
-import { Injectable, UnauthorizedException, Logger, Inject } from '@nestjs/common';
-import { Types } from 'mongoose';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { v4 as uuidv4 } from 'uuid';
-import * as crypto from 'crypto';
-import { RefreshToken } from '../schemas/refresh-token.schema';
-import { IRefreshTokenRepository } from '../../repositories/interfaces/refresh-token.repository.interface';
-
-export interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  Inject,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { randomBytes, createHash } from "crypto";
+import {
+  IRefreshTokenRepository,
+  RefreshToken as RefreshTokenInterface,
+  CreateRefreshTokenData,
+} from "../../repositories/interfaces/refresh-token.repository.interface";
 
 export interface TokenMetadata {
   ipAddress?: string;
   userAgent?: string;
+  deviceId?: string;
+  sessionId?: string;
+}
+
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
 }
 
 @Injectable()
 export class RefreshTokenService {
   private readonly logger = new Logger(RefreshTokenService.name);
-  private readonly REFRESH_TOKEN_EXPIRY_DAYS = 7; // 7 jours
-  private readonly ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
 
   constructor(
-    @Inject('IRefreshTokenRepository')
-    private refreshTokenRepository: IRefreshTokenRepository,
-    private jwtService: JwtService,
-    private configService: ConfigService,
+    @Inject("IRefreshTokenRepository")
+    private readonly refreshTokenRepository: IRefreshTokenRepository,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
-   * Génère une paire de tokens (access + refresh) pour un utilisateur
+   * Crée un nouveau refresh token
    */
-  async generateTokenPair(
+  async createRefreshToken(
     userId: string,
-    userPayload: any,
-    metadata?: TokenMetadata,
-  ): Promise<TokenPair> {
-    const accessToken = this.generateAccessToken(userPayload);
-    const refreshToken = await this.createRefreshToken(userId, metadata);
-
-    return {
-      accessToken,
-      refreshToken: refreshToken.token,
-    };
-  }
-
-  /**
-   * Génère un access token JWT
-   */
-  private generateAccessToken(payload: any): string {
-    return this.jwtService.sign(payload, {
-      expiresIn: this.ACCESS_TOKEN_EXPIRY,
-    });
-  }
-
-  /**
-   * Crée un nouveau refresh token en base
-   */
-  private async createRefreshToken(
-    userId: string,
-    metadata?: TokenMetadata,
-  ): Promise<RefreshToken> {
-    // Générer un token cryptographiquement sécurisé
-    const token = this.generateSecureToken();
-    const hashedToken = this.hashToken(token);
+    metadata?: TokenMetadata
+  ): Promise<RefreshTokenInterface> {
+    const tokenValue = this.generateSecureToken();
+    const hashedToken = this.hashToken(tokenValue);
 
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);
+    expiresAt.setDate(
+      expiresAt.getDate() +
+        this.configService.get<number>("jwt.refreshTokenExpirationDays", 30)
+    );
 
-    const refreshToken = await this.refreshTokenRepository.create({
+    const tokenData: CreateRefreshTokenData = {
       userId,
-      token,
+      token: tokenValue,
       hashedToken,
       expiresAt,
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,
-    });
+      isRevoked: false,
+    };
+
+    const refreshToken = await this.refreshTokenRepository.create(tokenData);
 
     this.logger.log(`Refresh token créé pour l'utilisateur ${userId}`);
     return refreshToken;
@@ -88,21 +74,23 @@ export class RefreshTokenService {
    */
   async refreshTokens(
     refreshTokenValue: string,
-    metadata?: TokenMetadata,
+    metadata?: TokenMetadata
   ): Promise<TokenPair> {
     const refreshToken = await this.validateRefreshToken(refreshTokenValue);
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token invalide');
+      throw new UnauthorizedException("Refresh token invalide");
     }
 
-    // Mettre à jour la date de dernière utilisation
-    refreshToken.lastUsedAt = new Date();
-    await refreshToken.save();
+    // Mettre à jour la date de dernière utilisation via le repository
+    await this.refreshTokenRepository.updateLastUsed(
+      refreshToken._id,
+      metadata?.ipAddress
+    );
 
     // Générer le payload pour le nouvel access token
     const userPayload = {
-      sub: refreshToken.userId.toString(),
+      sub: refreshToken.userId,
       // Note: Récupérer les autres données utilisateur depuis la DB si nécessaire
     };
 
@@ -110,11 +98,11 @@ export class RefreshTokenService {
     const newTokenPair = await this.rotateRefreshToken(
       refreshToken,
       userPayload,
-      metadata,
+      metadata
     );
 
     this.logger.log(
-      `Tokens rafraîchis pour l'utilisateur ${refreshToken.userId}`,
+      `Tokens rafraîchis pour l'utilisateur ${refreshToken.userId}`
     );
 
     return newTokenPair;
@@ -124,26 +112,28 @@ export class RefreshTokenService {
    * Rotation sécurisée du refresh token
    */
   private async rotateRefreshToken(
-    oldToken: RefreshTokenDocument,
+    oldToken: RefreshTokenInterface,
     userPayload: any,
-    metadata?: TokenMetadata,
+    metadata?: TokenMetadata
   ): Promise<TokenPair> {
     // Créer le nouveau refresh token
     const newRefreshToken = await this.createRefreshToken(
-      oldToken.userId.toString(),
-      metadata,
+      oldToken.userId,
+      metadata
     );
 
-    // Marquer l'ancien token comme remplacé
-    oldToken.isRevoked = true;
-    oldToken.revokedAt = new Date();
-    oldToken.revokedReason = 'Replaced by rotation';
-    oldToken.replacedByToken = newRefreshToken._id as any;
-    await oldToken.save();
+    // Marquer l'ancien token comme remplacé via le repository
+    await this.refreshTokenRepository.update(oldToken._id, {
+      isRevoked: true,
+      revokedAt: new Date(),
+      revokedReason: "Replaced by rotation",
+      replacedBy: newRefreshToken._id,
+    });
 
-    // Lier le nouveau token à l'ancien
-    newRefreshToken.replacesToken = oldToken._id as any;
-    await newRefreshToken.save();
+    // Lier le nouveau token à l'ancien via le repository
+    await this.refreshTokenRepository.update(newRefreshToken._id, {
+      lastUsedAt: new Date(),
+    });
 
     // Générer le nouvel access token
     const accessToken = this.generateAccessToken(userPayload);
@@ -151,23 +141,49 @@ export class RefreshTokenService {
     return {
       accessToken,
       refreshToken: newRefreshToken.token,
+      expiresIn: this.configService.get<number>(
+        "jwt.accessTokenExpirationTime",
+        3600
+      ),
     };
   }
 
   /**
    * Valide un refresh token
    */
-  private async validateRefreshToken(
-    token: string,
-  ): Promise<RefreshToken | null> {
-    const refreshToken = await this.refreshTokenRepository.findValidToken(token);
+  async validateRefreshToken(
+    tokenValue: string
+  ): Promise<RefreshTokenInterface | null> {
+    try {
+      // Utiliser le repository pour trouver un token valide
+      const refreshToken =
+        await this.refreshTokenRepository.findValidToken(tokenValue);
 
-    if (!refreshToken) {
-      this.logger.warn(`Tentative d'utilisation d'un refresh token invalide`);
+      if (!refreshToken) {
+        this.logger.warn(`Tentative d'utilisation d'un refresh token invalide`);
+        return null;
+      }
+
+      // Détecter la réutilisation de tokens
+      const reuseDetection =
+        await this.refreshTokenRepository.detectTokenReuse(tokenValue);
+      if (reuseDetection.isReused) {
+        this.logger.error(`Réutilisation détectée du refresh token`);
+        // Révoquer toute la chaîne de tokens par sécurité
+        await this.refreshTokenRepository.revokeTokenChain(
+          refreshToken._id,
+          "Token reuse detected"
+        );
+        throw new UnauthorizedException("Token compromis détecté");
+      }
+
+      return refreshToken;
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la validation du refresh token: ${error.message}`
+      );
       return null;
     }
-
-    return refreshToken;
   }
 
   /**
@@ -175,9 +191,12 @@ export class RefreshTokenService {
    */
   async revokeRefreshToken(
     token: string,
-    reason: string = 'Manual revocation',
+    reason: string = "Manual revocation"
   ): Promise<void> {
-    const success = await this.refreshTokenRepository.revokeToken(token, reason);
+    const success = await this.refreshTokenRepository.revokeToken(
+      token,
+      reason
+    );
 
     if (success) {
       this.logger.log(`Refresh token révoqué: ${reason}`);
@@ -189,12 +208,15 @@ export class RefreshTokenService {
    */
   async revokeAllUserTokens(
     userId: string,
-    reason: string = 'Revoke all tokens',
+    reason: string = "Revoke all tokens"
   ): Promise<void> {
-    const revokedCount = await this.refreshTokenRepository.revokeAllUserTokens(userId, reason);
+    const revokedCount = await this.refreshTokenRepository.revokeAllUserTokens(
+      userId,
+      reason
+    );
 
     this.logger.log(
-      `${revokedCount} refresh tokens révoqués pour l'utilisateur ${userId}: ${reason}`,
+      `${revokedCount} refresh tokens révoqués pour l'utilisateur ${userId}: ${reason}`
     );
   }
 
@@ -208,44 +230,74 @@ export class RefreshTokenService {
   }
 
   /**
-   * Génère un token cryptographiquement sécurisé
+   * Génère un access token JWT
    */
-  private generateSecureToken(): string {
-    const randomBytes = crypto.randomBytes(32);
-    const timestamp = Date.now().toString();
-    const uuid = uuidv4().replace(/-/g, '');
-
-    return crypto
-      .createHash('sha256')
-      .update(randomBytes + timestamp + uuid)
-      .digest('hex');
+  private generateAccessToken(payload: any): string {
+    return this.jwtService.sign(payload, {
+      expiresIn: this.configService.get<string>(
+        "jwt.accessTokenExpirationTime",
+        "15m"
+      ),
+    });
   }
 
   /**
-   * Hash un token pour le stockage sécurisé
+   * Génère un token cryptographiquement sécurisé
+   */
+  private generateSecureToken(): string {
+    const randomBytesValue = randomBytes(32);
+    const timestamp = Date.now().toString();
+    const uuid = randomBytes(16).toString("hex");
+
+    return createHash("sha256")
+      .update(randomBytesValue.toString("hex") + timestamp + uuid)
+      .digest("hex");
+  }
+
+  /**
+   * Hache un token pour le stockage sécurisé
    */
   private hashToken(token: string): string {
-    return crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    return createHash("sha256").update(token).digest("hex");
+  }
+
+  /**
+   * Génère une paire de tokens (access + refresh) pour un utilisateur
+   */
+  async generateTokenPair(
+    userId: string,
+    userPayload: any,
+    metadata?: TokenMetadata
+  ): Promise<TokenPair> {
+    const accessToken = this.generateAccessToken(userPayload);
+    const refreshToken = await this.createRefreshToken(userId, metadata);
+
+    return {
+      accessToken,
+      refreshToken: refreshToken.token,
+      expiresIn: this.configService.get<number>(
+        "jwt.accessTokenExpirationTime",
+        3600
+      ),
+    };
   }
 
   /**
    * Détecte une potentielle attaque par réutilisation de token
    */
   async detectTokenReuse(token: string): Promise<boolean> {
-    const reuseResult = await this.refreshTokenRepository.detectTokenReuse(token);
+    const reuseResult =
+      await this.refreshTokenRepository.detectTokenReuse(token);
 
     if (reuseResult.isReused && reuseResult.revokedToken) {
       this.logger.error(
-        `SÉCURITÉ: Tentative de réutilisation d'un refresh token révoqué pour l'utilisateur ${reuseResult.revokedToken.userId}`,
+        `SÉCURITÉ: Tentative de réutilisation d'un refresh token révoqué pour l'utilisateur ${reuseResult.revokedToken.userId}`
       );
 
       // Révoquer tous les tokens de cet utilisateur par mesure de sécurité
       await this.revokeAllUserTokens(
         reuseResult.revokedToken.userId,
-        'Token reuse detected - security measure',
+        "Token reuse detected - security measure"
       );
 
       return true;
