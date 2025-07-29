@@ -30,6 +30,7 @@ export enum ActivityType {
   XP_GAINED = 'xp_gained',
   ACHIEVEMENT_UNLOCKED = 'achievement_unlocked',
   WORD_VOTED = 'word_voted',
+
 }
 
 export enum EntityType {
