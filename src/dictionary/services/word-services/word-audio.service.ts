@@ -126,8 +126,22 @@ export class WordAudioService {
             );
           }
 
-          // Enregistrer l'activité - Note: pas de méthode logAudioAdded, on skip pour maintenant
-          // L'ajout d'audio pourra être trackée plus tard si nécessaire
+          // Enregistrer l'activité d'ajout audio
+          try {
+            await this.activityService.logAudioAdded(
+              userId,
+              wordId,
+              audioFile.url,
+              { 
+                wordTitle: word.word,
+                language: word.language,
+                fileSize: audioFile.size,
+                duration: audioFile.duration
+              }
+            );
+          } catch (error) {
+            console.warn('Failed to log audio addition activity:', error);
+          }
 
           console.log('✅ === FIN addAudioFile ===');
           return updatedWord;
@@ -204,8 +218,22 @@ export class WordAudioService {
             );
           }
 
-          // Enregistrer l'activité - Note: pas de méthode logAudioDeleted, on skip pour maintenant
-          // La suppression d'audio pourra être trackée plus tard si nécessaire
+          // Enregistrer l'activité de suppression audio
+          try {
+            await this.activityService.logAudioDeleted(
+              userId,
+              wordId,
+              existingAudio.url,
+              { 
+                wordTitle: word.word,
+                language: word.language,
+                accent: accent,
+                reason: 'Suppression par utilisateur'
+              }
+            );
+          } catch (error) {
+            console.warn('Failed to log audio deletion activity:', error);
+          }
 
           return updatedWord;
         } catch (error) {
@@ -371,8 +399,25 @@ export class WordAudioService {
           );
         }
 
-        // Enregistrer l'activité - Note: pas de méthode logAudioBulkUpdated, on skip pour maintenant
-        // L'update en masse d'audio pourra être trackée plus tard si nécessaire
+        // Enregistrer l'activité de mise à jour en bulk
+        try {
+          const successCount = results.filter(r => r.status !== 'error').length;
+          if (successCount > 0) {
+            await this.activityService.logAudioBulkUpdated(
+              userId,
+              wordId,
+              'updated',
+              successCount,
+              { 
+                wordTitle: word.word,
+                language: word.language,
+                operations: results.map(r => ({ accent: r.accent, status: r.status }))
+              }
+            );
+          }
+        } catch (error) {
+          console.warn('Failed to log bulk audio update activity:', error);
+        }
 
         return updatedWord;
       },

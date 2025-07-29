@@ -43,6 +43,14 @@ import { WordCoreService } from './services/word-services/word-core.service';
 import { WordsController } from './controllers/words.controller';
 import { CategoriesController } from './controllers/categories.controller';
 import { FavoriteWordsController } from './controllers/favorite-words.controller';
+
+// PHASE 3-1: Contrôleurs spécialisés (split du WordsController god class)
+import { WordsCoreController } from './controllers/words-core.controller';
+import { WordsAdminController } from './controllers/words-admin.controller';
+import { WordsAnalyticsController } from './controllers/words-analytics.controller';
+import { WordsRevisionController } from './controllers/words-revision.controller';
+import { WordsPermissionController } from './controllers/words-permission.controller';
+import { WordsTranslationController } from './controllers/words-translation.controller';
 import { UsersModule } from 'src/users/users.module';
 // ✨ NOUVEL IMPORT pour l'intégration de la détection automatique
 import { TranslationModule } from '../translation/translation.module';
@@ -67,7 +75,19 @@ import { RepositoriesModule } from '../repositories/repositories.module';
     ActivityModule,
     RepositoriesModule, // Already imported - Repository Pattern support
   ],
-  controllers: [WordsController, CategoriesController, FavoriteWordsController],
+  controllers: [
+    // Contrôleurs existants
+    WordsController, 
+    CategoriesController, 
+    FavoriteWordsController,
+    // PHASE 3-1: Contrôleurs spécialisés (split du WordsController god class)
+    WordsCoreController,
+    WordsAdminController,
+    WordsAnalyticsController,
+    WordsRevisionController,
+    WordsPermissionController,
+    WordsTranslationController,
+  ],
   providers: [
     WordsService, 
     CategoriesService, 

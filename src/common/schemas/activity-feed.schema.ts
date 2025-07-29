@@ -27,6 +27,8 @@ export enum ActivityType {
   USER_LOGGED_IN = 'user_logged_in',
   COMMUNITY_JOINED = 'community_joined',
   COMMUNITY_CREATED = 'community_created',
+  XP_GAINED = 'xp_gained',
+  ACHIEVEMENT_UNLOCKED = 'achievement_unlocked',
 }
 
 export enum EntityType {
@@ -37,6 +39,7 @@ export enum EntityType {
   USER = 'user',
   COMMUNITY = 'community',
   AUDIO = 'audio',
+  ACHIEVEMENT = 'achievement',
 }
 
 @Schema({ timestamps: true })

@@ -10,17 +10,18 @@ import {
   Request,
   HttpStatus,
   HttpCode,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-} from '@nestjs/swagger';
-import { MessagingService } from '../services/messaging.service';
-import { SendMessageDto } from '../dto/send-message.dto';
-import { GetMessagesDto } from '../dto/get-messages.dto';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+} from "@nestjs/swagger";
+import { MessagingService } from "../services/messaging.service";
+import { MessagingEnhancedService } from "../services/messaging-enhanced.service";
+import { SendMessageDto } from "../dto/send-message.dto";
+import { GetMessagesDto } from "../dto/get-messages.dto";
+import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -30,66 +31,75 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-@ApiTags('messaging')
+@ApiTags("messaging")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('messaging')
+@Controller("messaging")
 export class MessagingController {
-  constructor(private readonly messagingService: MessagingService) {}
+  constructor(
+    private readonly messagingService: MessagingService, // 👈 Garde l'ancien pour compatibilité
+    private readonly messagingEnhancedService: MessagingEnhancedService // 👈 Ajoute le nouveau
+  ) {}
 
-  @Post('send')
+  @Post("send")
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Envoyer un message' })
-  @ApiResponse({ status: 201, description: 'Message envoyé avec succès' })
-  @ApiResponse({ status: 400, description: 'Données invalides' })
-  @ApiResponse({ status: 404, description: 'Destinataire introuvable' })
+  @ApiOperation({ summary: "Envoyer un message" })
+  @ApiResponse({ status: 201, description: "Message envoyé avec succès" })
+  @ApiResponse({ status: 400, description: "Données invalides" })
+  @ApiResponse({ status: 404, description: "Destinataire introuvable" })
   async sendMessage(
     @Request() req: AuthenticatedRequest,
-    @Body() sendMessageDto: SendMessageDto,
+    @Body() sendMessageDto: SendMessageDto
   ) {
-    const message = await this.messagingService.sendMessage(
+    // 🚀 Utilise le nouveau service Enhanced en maintenant la compatibilité
+    const result = await this.messagingEnhancedService.sendSimpleMessage(
       req.user.userId,
-      sendMessageDto,
+      sendMessageDto.receiverId,
+      sendMessageDto.content
     );
     return {
       success: true,
-      message: 'Message envoyé avec succès',
-      data: message,
+      message: "Message envoyé avec succès",
+      data: result.data,
     };
   }
 
-  @Get('conversations')
+  @Get("conversations")
   @ApiOperation({ summary: "Récupérer les conversations de l'utilisateur" })
   @ApiResponse({
     status: 200,
-    description: 'Conversations récupérées avec succès',
+    description: "Conversations récupérées avec succès",
   })
   async getUserConversations(@Request() req: AuthenticatedRequest) {
-    const conversations = await this.messagingService.getUserConversations(
-      req.user.userId,
+    // 🚀 Utilise le nouveau service Enhanced
+    const result = await this.messagingEnhancedService.getUserConversations(
+      req.user.userId
     );
     return {
       success: true,
-      data: conversations,
+      data: result.conversations,
     };
   }
 
-  @Get('messages')
+  @Get("messages")
   @ApiOperation({ summary: "Récupérer les messages d'une conversation" })
-  @ApiResponse({ status: 200, description: 'Messages récupérés avec succès' })
-  @ApiResponse({ status: 400, description: 'ID de conversation requis' })
+  @ApiResponse({ status: 200, description: "Messages récupérés avec succès" })
+  @ApiResponse({ status: 400, description: "ID de conversation requis" })
   @ApiResponse({
     status: 403,
-    description: 'Accès interdit à cette conversation',
+    description: "Accès interdit à cette conversation",
   })
-  @ApiResponse({ status: 404, description: 'Conversation introuvable' })
+  @ApiResponse({ status: 404, description: "Conversation introuvable" })
   async getMessages(
     @Request() req: AuthenticatedRequest,
-    @Query() getMessagesDto: GetMessagesDto,
+    @Query() getMessagesDto: GetMessagesDto
   ) {
-    const result = await this.messagingService.getMessages(
+    // 🚀 Utilise le nouveau service Enhanced
+    const result = await this.messagingEnhancedService.getConversationMessages(
       req.user.userId,
-      getMessagesDto,
+      getMessagesDto.conversationId,
+      getMessagesDto.page,
+      getMessagesDto.limit
     );
     return {
       success: true,
@@ -97,24 +107,25 @@ export class MessagingController {
     };
   }
 
-  @Patch('conversations/:conversationId/read')
+  @Patch("conversations/:conversationId/read")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Marquer les messages d'une conversation comme lus",
   })
-  @ApiResponse({ status: 200, description: 'Messages marqués comme lus' })
+  @ApiResponse({ status: 200, description: "Messages marqués comme lus" })
   @ApiResponse({
     status: 403,
-    description: 'Accès interdit à cette conversation',
+    description: "Accès interdit à cette conversation",
   })
-  @ApiResponse({ status: 404, description: 'Conversation introuvable' })
+  @ApiResponse({ status: 404, description: "Conversation introuvable" })
   async markMessagesAsRead(
     @Request() req: AuthenticatedRequest,
-    @Param('conversationId') conversationId: string,
+    @Param("conversationId") conversationId: string
   ) {
-    const result = await this.messagingService.markMessagesAsRead(
+    // 🚀 Utilise le nouveau service Enhanced
+    const result = await this.messagingEnhancedService.markMessagesAsRead(
       req.user.userId,
-      conversationId,
+      conversationId
     );
     return {
       success: true,
@@ -123,15 +134,16 @@ export class MessagingController {
     };
   }
 
-  @Get('unread-count')
-  @ApiOperation({ summary: 'Récupérer le nombre de messages non lus' })
+  @Get("unread-count")
+  @ApiOperation({ summary: "Récupérer le nombre de messages non lus" })
   @ApiResponse({
     status: 200,
-    description: 'Nombre de messages non lus récupéré',
+    description: "Nombre de messages non lus récupéré",
   })
   async getUnreadMessagesCount(@Request() req: AuthenticatedRequest) {
-    const count = await this.messagingService.getUnreadMessagesCount(
-      req.user.userId,
+    // 🚀 Utilise le nouveau service Enhanced
+    const count = await this.messagingEnhancedService.getUnreadMessagesCount(
+      req.user.userId
     );
     return {
       success: true,

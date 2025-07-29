@@ -23,6 +23,8 @@ import {
   ContributorRequestFiltersDto,
 } from "../dto/review-contributor-request.dto";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 
 export interface ContributorRequestListResponse {
   requests: ContributorRequest[];
@@ -63,6 +65,10 @@ export class ContributorRequestService {
     private contributorRequestRepository: IContributorRequestRepository,
     @Inject('IUserRepository')
     private userRepository: IUserRepository,
+    @InjectModel(ContributorRequest.name)
+    private contributorRequestModel: Model<ContributorRequest>,
+    @InjectModel(User.name)
+    private userModel: Model<User>,
     private eventEmitter: EventEmitter2
   ) {}
 
@@ -138,7 +144,7 @@ export class ContributorRequestService {
 
     // Émettre un événement pour notifications
     this.eventEmitter.emit("contributor.request.created", {
-      requestId: savedRequest._id,
+      requestId: (savedRequest as any)._id?.toString(),
       userId,
       username: user.username,
       priority: savedRequest.priority,
@@ -225,11 +231,15 @@ export class ContributorRequestService {
     const requests = await this.contributorRequestModel
       .find(query)
       .populate("userId", "username email profilePicture lastActive")
-      .populate("reviewedBy", "username email")
+      .populate("reviewedBy", "username email")  
       .populate("recommendedBy", "username email")
       .skip(skip)
       .limit(limit)
-      .sort({ priority: -1, createdAt: -1 })
+      .sort({ 
+        priority: -1, 
+        createdAt: -1,
+        updatedAt: -1 
+      })
       .exec();
 
     // Calculer les statistiques

@@ -1,19 +1,19 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Word } from '../../dictionary/schemas/word.schema';
-import { CreateWordDto } from '../../dictionary/dto/create-word.dto';
-import { UpdateWordDto } from '../../dictionary/dto/update-word.dto';
-import { SearchWordsDto } from '../../dictionary/dto/search-words.dto';
-import { IWordRepository } from '../interfaces/word.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import { Word } from "../../dictionary/schemas/word.schema";
+import { CreateWordDto } from "../../dictionary/dto/create-word.dto";
+import { UpdateWordDto } from "../../dictionary/dto/update-word.dto";
+import { SearchWordsDto } from "../../dictionary/dto/search-words.dto";
+import { IWordRepository } from "../interfaces/word.repository.interface";
+import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
 
 /**
  * 📚 REPOSITORY WORD - IMPLÉMENTATION MONGOOSE
- * 
+ *
  * Implémentation concrète du repository Word utilisant Mongoose.
  * Toutes les opérations de base de données centralisées ici.
- * 
+ *
  * Fonctionnalités :
  * ✅ CRUD complet avec validation
  * ✅ Recherche avancée avec filtres multiples
@@ -23,13 +23,15 @@ import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.
  */
 @Injectable()
 export class WordRepository implements IWordRepository {
-  constructor(
-    @InjectModel(Word.name) private wordModel: Model<Word>,
-  ) {}
+  constructor(@InjectModel(Word.name) private wordModel: Model<Word>) {}
 
   // ========== CRUD DE BASE ==========
 
-  async create(wordData: CreateWordDto, userId: string, status: string = 'pending'): Promise<Word> {
+  async create(
+    wordData: CreateWordDto,
+    userId: string,
+    status: string = "pending"
+  ): Promise<Word> {
     const word = new this.wordModel({
       ...wordData,
       createdBy: new Types.ObjectId(userId),
@@ -66,15 +68,15 @@ export class WordRepository implements IWordRepository {
     const skip = (page - 1) * limit;
 
     const filter: any = {};
-    
+
     if (options.status) {
       filter.status = options.status;
     }
-    
+
     if (options.language) {
       filter.language = options.language;
     }
-    
+
     if (options.categoryId) {
       filter.categoryId = options.categoryId;
     }
@@ -101,7 +103,7 @@ export class WordRepository implements IWordRepository {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
-    
+
     const updatedData = {
       ...updateData,
       updatedAt: new Date(),
@@ -116,12 +118,31 @@ export class WordRepository implements IWordRepository {
     if (!Types.ObjectId.isValid(id)) {
       return false;
     }
-    
+
     const result = await this.wordModel.findByIdAndDelete(id).exec();
     return !!result;
   }
 
   // ========== RECHERCHE AVANCÉE ==========
+
+  async findByTranslationId(translationId: string): Promise<Word | null> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(translationId)) {
+          return null;
+        }
+
+        // Rechercher dans les traductions embedded
+        const word = await this.wordModel.findOne({
+          'translations._id': new Types.ObjectId(translationId)
+        }).exec();
+
+        return word;
+      },
+      'Word',
+      `translation-${translationId}`
+    );
+  }
 
   async search(searchParams: SearchWordsDto): Promise<{
     words: Word[];
@@ -133,16 +154,23 @@ export class WordRepository implements IWordRepository {
     const limit = searchParams.limit || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = { status: 'approved' };
+    const filter: any = { status: "approved" };
 
     // Recherche textuelle sécurisée (protection contre ReDoS)
     if (searchParams.query && searchParams.query.trim()) {
-      const escapedQuery = this.escapeRegexCharacters(searchParams.query.trim());
+      const escapedQuery = this.escapeRegexCharacters(
+        searchParams.query.trim()
+      );
       filter.$or = [
-        { word: { $regex: escapedQuery, $options: 'i' } },
-        { 'meanings.definition': { $regex: escapedQuery, $options: 'i' } },
-        { 'meanings.example': { $regex: escapedQuery, $options: 'i' } },
-        { 'translations.translatedWord': { $regex: escapedQuery, $options: 'i' } },
+        { word: { $regex: escapedQuery, $options: "i" } },
+        { "meanings.definition": { $regex: escapedQuery, $options: "i" } },
+        { "meanings.example": { $regex: escapedQuery, $options: "i" } },
+        {
+          "translations.translatedWord": {
+            $regex: escapedQuery,
+            $options: "i",
+          },
+        },
       ];
     }
 
@@ -163,7 +191,7 @@ export class WordRepository implements IWordRepository {
 
     // Filtrer par classes grammaticales
     if (searchParams.partsOfSpeech && searchParams.partsOfSpeech.length > 0) {
-      filter['meanings.partOfSpeech'] = { $in: searchParams.partsOfSpeech };
+      filter["meanings.partOfSpeech"] = { $in: searchParams.partsOfSpeech };
     }
 
     const [words, total] = await Promise.all([
@@ -185,12 +213,12 @@ export class WordRepository implements IWordRepository {
   }
 
   async existsByWordAndLanguage(
-    word: string, 
-    language: string, 
+    word: string,
+    language: string,
     languageId?: string
   ): Promise<boolean> {
     const filter: any = {
-      word: { $regex: `^${word}$`, $options: 'i' },
+      word: { $regex: `^${word}$`, $options: "i" },
       language,
     };
 
@@ -203,7 +231,7 @@ export class WordRepository implements IWordRepository {
   }
 
   async findByStatus(
-    status: string, 
+    status: string,
     options?: { limit?: number; offset?: number }
   ): Promise<Word[]> {
     let query = this.wordModel.find({ status });
@@ -221,9 +249,9 @@ export class WordRepository implements IWordRepository {
 
   async findFeatured(limit: number = 10): Promise<Word[]> {
     return this.wordModel
-      .find({ 
-        isFeatured: true, 
-        status: 'approved' 
+      .find({
+        isFeatured: true,
+        status: "approved",
       })
       .limit(limit)
       .sort({ featuredAt: -1, viewCount: -1 })
@@ -234,26 +262,26 @@ export class WordRepository implements IWordRepository {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
         const result = await this.wordModel.aggregate([
-          { $match: { status: 'approved' } },
+          { $match: { status: "approved" } },
           { $sample: { size: limit } },
           {
             $lookup: {
-              from: 'users',
-              localField: 'createdBy',
-              foreignField: '_id',
-              as: 'createdBy',
+              from: "users",
+              localField: "createdBy",
+              foreignField: "_id",
+              as: "createdBy",
             },
           },
           {
             $unwind: {
-              path: '$createdBy',
+              path: "$createdBy",
               preserveNullAndEmptyArrays: true,
             },
           },
         ]);
         return result;
       },
-      'Word',
+      "Word",
       `random-${limit}`
     );
   }
@@ -267,7 +295,7 @@ export class WordRepository implements IWordRepository {
   async countAddedToday(): Promise<number> {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -281,18 +309,213 @@ export class WordRepository implements IWordRepository {
       .exec();
   }
 
-  async getAvailableLanguages(): Promise<Array<{ 
-    language: string; 
-    count: number; 
-    languageId?: string 
-  }>> {
+  // ========== NOUVELLES MÉTHODES STATISTIQUES ==========
+
+  async countByUser(userId: string): Promise<number> {
+    return this.wordModel.countDocuments({ createdBy: userId }).exec();
+  }
+
+  async countByUserAndStatus(userId: string, status: string): Promise<number> {
+    return this.wordModel
+      .countDocuments({
+        createdBy: userId,
+        status,
+      })
+      .exec();
+  }
+
+  async countByDateRange(startDate: Date, endDate: Date): Promise<number> {
+    return this.wordModel
+      .countDocuments({
+        createdAt: { $gte: startDate, $lte: endDate },
+      })
+      .exec();
+  }
+
+  async countByUserAndDateRange(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<number> {
+    return this.wordModel
+      .countDocuments({
+        createdBy: userId,
+        createdAt: { $gte: startDate, $lte: endDate },
+      })
+      .exec();
+  }
+
+  async countByCreatorAndStatus(
+    creatorId: string,
+    status: string
+  ): Promise<number> {
+    return this.wordModel
+      .countDocuments({
+        createdBy: creatorId,
+        status,
+      })
+      .exec();
+  }
+
+  async getUserLanguageStats(userId: string): Promise<
+    Array<{
+      language: string;
+      languageId: string;
+      count: number;
+      percentage: number;
+    }>
+  > {
+    const pipeline = [
+      { $match: { createdBy: new Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: { language: "$language", languageId: "$languageId" },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "languages",
+          localField: "_id.languageId",
+          foreignField: "_id",
+          as: "languageData",
+        },
+      },
+      {
+        $project: {
+          language: "$_id.language",
+          languageId: { $toString: "$_id.languageId" },
+          count: 1,
+          percentage: {
+            $multiply: [{ $divide: ["$count", { $sum: "$count" }] }, 100],
+          },
+        },
+      },
+    ];
+
+    return this.wordModel.aggregate(pipeline as any).exec();
+  }
+
+  async getLanguageStatsByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<
+    Array<{
+      language: string;
+      languageId: string;
+      currentCount: number;
+      previousCount: number;
+      growth: number;
+      growthPercentage: number;
+    }>
+  > {
+    const currentPipeline = [
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: { language: "$language", languageId: "$languageId" },
+          currentCount: { $sum: 1 },
+        },
+      },
+    ];
+
+    const currentStats = await this.wordModel
+      .aggregate(currentPipeline as any)
+      .exec();
+
+    // Pour simplifier, on retourne les stats actuelles avec previousCount = 0
+    return currentStats.map((stat: any) => ({
+      language: stat._id.language,
+      languageId: stat._id.languageId?.toString() || "",
+      currentCount: stat.currentCount,
+      previousCount: 0,
+      growth: stat.currentCount,
+      growthPercentage: 100,
+    }));
+  }
+
+  async exportData(
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<
+    Array<{
+      _id: string;
+      word: string;
+      language: string;
+      languageId: string;
+      status: string;
+      createdBy: string;
+      createdAt: Date;
+      meanings: any[];
+      pronunciations: any[];
+      categoryId: string;
+      viewCount: number;
+      translationCount: number;
+    }>
+  > {
+    const filter: any = {};
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = startDate;
+      if (endDate) filter.createdAt.$lte = endDate;
+    }
+
+    return this.wordModel
+      .find(filter)
+      .select(
+        "word language languageId status createdBy createdAt meanings pronunciations categoryId viewCount translationCount"
+      )
+      .lean()
+      .exec() as any;
+  }
+
+  async findByCreator(
+    creatorId: string,
+    options?: {
+      status?: string;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<Word[]> {
+    const query = this.wordModel.find({ createdBy: creatorId });
+
+    if (options?.status) {
+      query.where("status", options.status);
+    }
+
+    if (options?.offset) {
+      query.skip(options.offset);
+    }
+
+    if (options?.limit) {
+      query.limit(options.limit);
+    }
+
+    return query.exec();
+  }
+
+  async getDistinctLanguagesByCreator(creatorId: string): Promise<string[]> {
+    return this.wordModel.distinct("language", { createdBy: creatorId }).exec();
+  }
+
+  async getAvailableLanguages(): Promise<
+    Array<{
+      language: string;
+      count: number;
+      languageId?: string;
+    }>
+  > {
     const result = await this.wordModel
       .aggregate([
         {
           $group: {
             _id: {
-              language: '$language',
-              languageId: '$languageId',
+              language: "$language",
+              languageId: "$languageId",
             },
             count: { $sum: 1 },
           },
@@ -300,8 +523,8 @@ export class WordRepository implements IWordRepository {
         {
           $project: {
             _id: 0,
-            language: '$_id.language',
-            languageId: '$_id.languageId',
+            language: "$_id.language",
+            languageId: "$_id.languageId",
             count: 1,
           },
         },
@@ -329,21 +552,21 @@ export class WordRepository implements IWordRepository {
       wordsByLanguage,
     ] = await Promise.all([
       this.wordModel.countDocuments().exec(),
-      this.wordModel.countDocuments({ status: 'approved' }).exec(),
-      this.wordModel.countDocuments({ status: 'pending' }).exec(),
-      this.wordModel.countDocuments({ status: 'rejected' }).exec(),
+      this.wordModel.countDocuments({ status: "approved" }).exec(),
+      this.wordModel.countDocuments({ status: "pending" }).exec(),
+      this.wordModel.countDocuments({ status: "rejected" }).exec(),
       this.wordModel
         .aggregate([
           {
             $group: {
-              _id: '$language',
+              _id: "$language",
               count: { $sum: 1 },
             },
           },
           {
             $project: {
               _id: 0,
-              language: '$_id',
+              language: "$_id",
               count: 1,
             },
           },
@@ -366,11 +589,11 @@ export class WordRepository implements IWordRepository {
   // ========== RELATIONS ==========
 
   async findByUserId(
-    userId: string, 
+    userId: string,
     options?: { status?: string; limit?: number; offset?: number }
   ): Promise<Word[]> {
     const filter: any = { userId };
-    
+
     if (options?.status) {
       filter.status = options.status;
     }
@@ -389,7 +612,7 @@ export class WordRepository implements IWordRepository {
   }
 
   async findByCategoryId(
-    categoryId: string, 
+    categoryId: string,
     options?: { limit?: number; offset?: number }
   ): Promise<Word[]> {
     let query = this.wordModel.find({ categoryId });
@@ -406,8 +629,8 @@ export class WordRepository implements IWordRepository {
   }
 
   async updateStatus(
-    id: string, 
-    status: string, 
+    id: string,
+    status: string,
     adminId?: string
   ): Promise<Word | null> {
     if (!Types.ObjectId.isValid(id)) {
@@ -437,7 +660,7 @@ export class WordRepository implements IWordRepository {
     await this.wordModel
       .updateOne(
         { _id: id },
-        { 
+        {
           $inc: { viewCount: 1 },
           lastViewedAt: new Date(),
         }
@@ -453,7 +676,7 @@ export class WordRepository implements IWordRepository {
     await this.wordModel
       .updateOne(
         { _id: id },
-        { 
+        {
           translationCount: count,
           updatedAt: new Date(),
         }
@@ -464,22 +687,22 @@ export class WordRepository implements IWordRepository {
   // ========== OPÉRATIONS EN MASSE ==========
 
   async deleteMany(ids: string[]): Promise<number> {
-    const validIds = ids.filter(id => Types.ObjectId.isValid(id));
-    
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
     const result = await this.wordModel
       .deleteMany({ _id: { $in: validIds } })
       .exec();
-    
+
     return result.deletedCount || 0;
   }
 
   async updateManyStatus(
-    ids: string[], 
-    status: string, 
+    ids: string[],
+    status: string,
     adminId?: string
   ): Promise<number> {
-    const validIds = ids.filter(id => Types.ObjectId.isValid(id));
-    
+    const validIds = ids.filter((id) => Types.ObjectId.isValid(id));
+
     const updateData: any = {
       status,
       updatedAt: new Date(),
@@ -491,25 +714,22 @@ export class WordRepository implements IWordRepository {
     }
 
     const result = await this.wordModel
-      .updateMany(
-        { _id: { $in: validIds } },
-        updateData
-      )
+      .updateMany({ _id: { $in: validIds } }, updateData)
       .exec();
-    
+
     return result.modifiedCount || 0;
   }
 
   async searchByText(
-    query: string, 
+    query: string,
     options?: { languages?: string[]; limit?: number; offset?: number }
   ): Promise<Word[]> {
     const filter: any = {
       $or: [
-        { word: { $regex: query, $options: 'i' } },
-        { definition: { $regex: query, $options: 'i' } },
-        { example: { $regex: query, $options: 'i' } },
-        { 'translations.translation': { $regex: query, $options: 'i' } },
+        { word: { $regex: query, $options: "i" } },
+        { definition: { $regex: query, $options: "i" } },
+        { example: { $regex: query, $options: "i" } },
+        { "translations.translation": { $regex: query, $options: "i" } },
       ],
     };
 
@@ -538,11 +758,13 @@ export class WordRepository implements IWordRepository {
         if (!Types.ObjectId.isValid(translationId)) {
           return null;
         }
-        return this.wordModel.findOne({
-          'translations._id': translationId,
-        }).exec();
+        return this.wordModel
+          .findOne({
+            "translations._id": translationId,
+          })
+          .exec();
       },
-      'Word',
+      "Word",
       `translation-${translationId}`
     );
   }
@@ -553,11 +775,13 @@ export class WordRepository implements IWordRepository {
         if (!Types.ObjectId.isValid(groupId)) {
           return [];
         }
-        return this.wordModel.find({
-          'translations.translationGroupId': groupId,
-        }).exec();
+        return this.wordModel
+          .find({
+            "translations.translationGroupId": groupId,
+          })
+          .exec();
       },
-      'Word',
+      "Word",
       `group-${groupId}`
     );
   }
@@ -570,11 +794,11 @@ export class WordRepository implements IWordRepository {
         }
         return this.wordModel
           .findById(wordId)
-          .populate('translations.createdBy', 'username')
-          .populate('translations.validatedBy', 'username')
+          .populate("translations.createdBy", "username")
+          .populate("translations.validatedBy", "username")
           .exec();
       },
-      'Word',
+      "Word",
       wordId
     );
   }
@@ -600,32 +824,75 @@ export class WordRepository implements IWordRepository {
 
         if (excludeIds.length > 0) {
           const validExcludeIds = excludeIds
-            .filter(id => Types.ObjectId.isValid(id))
-            .map(id => new Types.ObjectId(id));
-          
+            .filter((id) => Types.ObjectId.isValid(id))
+            .map((id) => new Types.ObjectId(id));
+
           if (validExcludeIds.length > 0) {
             query._id = { $nin: validExcludeIds };
           }
         }
 
-        return this.wordModel
-          .find(query)
-          .limit(limit)
-          .exec();
+        return this.wordModel.find(query).limit(limit).exec();
+      },
+      "Word",
+      `category-${categoryId}-lang-${language}`
+    );
+  }
+
+  // ========== MÉTHODES POUR STATISTIQUES SOCIALES ==========
+
+  /**
+   * Compter le nombre de traductions d'un mot
+   */
+  async countTranslations(wordId: string): Promise<number> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(wordId)) {
+          return 0;
+        }
+
+        const word = await this.wordModel.findById(wordId).exec();
+        if (!word) {
+          return 0;
+        }
+
+        return word.translations?.length || 0;
       },
       'Word',
-      `category-${categoryId}-lang-${language}`
+      wordId
+    );
+  }
+
+  /**
+   * Compter le nombre de références d'un mot
+   */
+  async countReferences(wordId: string): Promise<number> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        if (!Types.ObjectId.isValid(wordId)) {
+          return 0;
+        }
+
+        // Compter combien de mots référencent ce mot dans leurs traductions
+        const count = await this.wordModel.countDocuments({
+          'translations.wordId': wordId
+        }).exec();
+
+        return count;
+      },
+      'Word',
+      wordId
     );
   }
 
   /**
    * 🔒 Échappe les caractères spéciaux regex pour prévenir les attaques ReDoS
-   * 
+   *
    * @param input - Chaîne d'entrée à échapper
    * @returns Chaîne sécurisée pour utilisation dans regex
    */
   private escapeRegexCharacters(input: string): string {
     // Échapper tous les caractères spéciaux regex : . * + ? ^ $ { } ( ) | [ ] \
-    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }

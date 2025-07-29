@@ -1,16 +1,19 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { WordVote, WordVoteDocument } from '../../social/schemas/word-vote.schema';
-import { IWordVoteRepository } from '../interfaces/word-vote.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import {
+  WordVote,
+  WordVoteDocument,
+} from "../../social/schemas/word-vote.schema";
+import { IWordVoteRepository } from "../interfaces/word-vote.repository.interface";
+import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
 
 /**
  * 🗳️ REPOSITORY WORD VOTE - IMPLÉMENTATION MONGOOSE
- * 
+ *
  * Implémentation sophistiquée du repository WordVote avec système
  * de réactions multiples, scoring pondéré et contexte spécifique.
- * 
+ *
  * Fonctionnalités avancées :
  * - Gestion de 8 types de réactions différentes
  * - Système de poids basé sur réputation utilisateur
@@ -22,7 +25,7 @@ import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.
 @Injectable()
 export class WordVoteRepository implements IWordVoteRepository {
   constructor(
-    @InjectModel(WordVote.name) private wordVoteModel: Model<WordVoteDocument>,
+    @InjectModel(WordVote.name) private wordVoteModel: Model<WordVoteDocument>
   ) {}
 
   // ========== CRUD DE BASE ==========
@@ -30,29 +33,43 @@ export class WordVoteRepository implements IWordVoteRepository {
   async create(voteData: {
     userId: string;
     wordId: string;
-    reactionType: 'like' | 'love' | 'helpful' | 'accurate' | 'clear' | 'funny' | 'insightful' | 'disagree';
-    context?: 'word' | 'definition' | 'pronunciation' | 'etymology' | 'example' | 'translation';
+    reactionType:
+      | "like"
+      | "love"
+      | "helpful"
+      | "accurate"
+      | "clear"
+      | "funny"
+      | "insightful"
+      | "disagree";
+    context?:
+      | "word"
+      | "definition"
+      | "pronunciation"
+      | "etymology"
+      | "example"
+      | "translation";
     contextId?: string;
     weight?: number;
     comment?: string;
     userAgent?: string;
     ipAddress?: string;
   }): Promise<WordVote> {
-    return DatabaseErrorHandler.handleCreateOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(voteData.userId) || !Types.ObjectId.isValid(voteData.wordId)) {
-          throw new Error('Invalid ObjectId format');
-        }
+    return DatabaseErrorHandler.handleCreateOperation(async () => {
+      if (
+        !Types.ObjectId.isValid(voteData.userId) ||
+        !Types.ObjectId.isValid(voteData.wordId)
+      ) {
+        throw new Error("Invalid ObjectId format");
+      }
 
-        const newVote = new this.wordVoteModel({
-          ...voteData,
-          context: voteData.context || 'word',
-          weight: voteData.weight || 1,
-        });
-        return newVote.save();
-      },
-      'WordVote'
-    );
+      const newVote = new this.wordVoteModel({
+        ...voteData,
+        context: voteData.context || "word",
+        weight: voteData.weight || 1,
+      });
+      return newVote.save();
+    }, "WordVote");
   }
 
   async findById(id: string): Promise<WordVote | null> {
@@ -63,16 +80,19 @@ export class WordVoteRepository implements IWordVoteRepository {
         }
         return this.wordVoteModel
           .findById(id)
-          .populate('userId', 'username email reputation')
-          .populate('wordId', 'word language')
+          .populate("userId", "username email reputation")
+          .populate("wordId", "word language")
           .exec();
       },
-      'WordVote',
+      "WordVote",
       id
     );
   }
 
-  async update(id: string, updateData: Partial<WordVote>): Promise<WordVote | null> {
+  async update(
+    id: string,
+    updateData: Partial<WordVote>
+  ): Promise<WordVote | null> {
     return DatabaseErrorHandler.handleUpdateOperation(
       async () => {
         if (!Types.ObjectId.isValid(id)) {
@@ -80,11 +100,11 @@ export class WordVoteRepository implements IWordVoteRepository {
         }
         return this.wordVoteModel
           .findByIdAndUpdate(id, updateData, { new: true })
-          .populate('userId', 'username email reputation')
-          .populate('wordId', 'word language')
+          .populate("userId", "username email reputation")
+          .populate("wordId", "word language")
           .exec();
       },
-      'WordVote',
+      "WordVote",
       id
     );
   }
@@ -98,7 +118,7 @@ export class WordVoteRepository implements IWordVoteRepository {
         const result = await this.wordVoteModel.findByIdAndDelete(id).exec();
         return result !== null;
       },
-      'WordVote',
+      "WordVote",
       id
     );
   }
@@ -106,14 +126,17 @@ export class WordVoteRepository implements IWordVoteRepository {
   // ========== GESTION DES VOTES ==========
 
   async findUserVote(
-    userId: string, 
-    wordId: string, 
-    context?: string, 
+    userId: string,
+    wordId: string,
+    context?: string,
     contextId?: string
   ): Promise<WordVote | null> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(wordId)) {
+        if (
+          !Types.ObjectId.isValid(userId) ||
+          !Types.ObjectId.isValid(wordId)
+        ) {
           return null;
         }
 
@@ -123,45 +146,56 @@ export class WordVoteRepository implements IWordVoteRepository {
 
         return this.wordVoteModel
           .findOne(filter)
-          .populate('userId', 'username email reputation')
+          .populate("userId", "username email reputation")
           .exec();
       },
-      'WordVote',
+      "WordVote",
       `${userId}-${wordId}-${context}-${contextId}`
     );
   }
 
   async hasUserVoted(
-    userId: string, 
-    wordId: string, 
-    context?: string, 
+    userId: string,
+    wordId: string,
+    context?: string,
     contextId?: string
   ): Promise<boolean> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(wordId)) {
-          return false;
-        }
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(wordId)) {
+        return false;
+      }
 
-        const filter: any = { userId, wordId };
-        if (context) filter.context = context;
-        if (contextId) filter.contextId = contextId;
+      const filter: any = { userId, wordId };
+      if (context) filter.context = context;
+      if (contextId) filter.contextId = contextId;
 
-        const vote = await this.wordVoteModel
-          .findOne(filter)
-          .select('_id')
-          .exec();
-        return vote !== null;
-      },
-      'WordVote'
-    );
+      const vote = await this.wordVoteModel
+        .findOne(filter)
+        .select("_id")
+        .exec();
+      return vote !== null;
+    }, "WordVote");
   }
 
   async vote(
     userId: string,
     wordId: string,
-    reactionType: 'like' | 'love' | 'helpful' | 'accurate' | 'clear' | 'funny' | 'insightful' | 'disagree',
-    context?: 'word' | 'definition' | 'pronunciation' | 'etymology' | 'example' | 'translation',
+    reactionType:
+      | "like"
+      | "love"
+      | "helpful"
+      | "accurate"
+      | "clear"
+      | "funny"
+      | "insightful"
+      | "disagree",
+    context?:
+      | "word"
+      | "definition"
+      | "pronunciation"
+      | "etymology"
+      | "example"
+      | "translation",
     contextId?: string,
     options?: {
       weight?: number;
@@ -171,16 +205,24 @@ export class WordVoteRepository implements IWordVoteRepository {
     }
   ): Promise<{
     vote: WordVote;
-    action: 'created' | 'updated' | 'removed';
+    action: "created" | "updated" | "removed";
     previousReaction?: string;
   }> {
     return DatabaseErrorHandler.handleUpdateOperation(
       async () => {
-        if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(wordId)) {
-          throw new Error('Invalid ObjectId format');
+        if (
+          !Types.ObjectId.isValid(userId) ||
+          !Types.ObjectId.isValid(wordId)
+        ) {
+          throw new Error("Invalid ObjectId format");
         }
 
-        const existingVote = await this.findUserVote(userId, wordId, context, contextId);
+        const existingVote = await this.findUserVote(
+          userId,
+          wordId,
+          context,
+          contextId
+        );
 
         if (!existingVote) {
           // Créer un nouveau vote
@@ -195,45 +237,48 @@ export class WordVoteRepository implements IWordVoteRepository {
             userAgent: options?.userAgent,
             ipAddress: options?.ipAddress,
           });
-          return { vote: newVote, action: 'created' as const };
+          return { vote: newVote, action: "created" as const };
         }
 
         if (existingVote.reactionType === reactionType) {
           // Même réaction : supprimer
-          await this.delete(existingVote._id.toString());
-          return { 
-            vote: existingVote, 
-            action: 'removed' as const, 
-            previousReaction: existingVote.reactionType 
+          await this.delete((existingVote as any).id);
+          return {
+            vote: existingVote,
+            action: "removed" as const,
+            previousReaction: existingVote.reactionType,
           };
         } else {
           // Changer la réaction
-          const updatedVote = await this.update(existingVote._id.toString(), {
+          const updatedVote = await this.update((existingVote as any).id, {
             reactionType,
             comment: options?.comment,
             updatedAt: new Date(),
           });
-          return { 
-            vote: updatedVote!, 
-            action: 'updated' as const, 
-            previousReaction: existingVote.reactionType 
+          return {
+            vote: updatedVote!,
+            action: "updated" as const,
+            previousReaction: existingVote.reactionType,
           };
         }
       },
-      'WordVote',
+      "WordVote",
       `${userId}-${wordId}-${reactionType}`
     );
   }
 
   async removeUserVote(
-    userId: string, 
-    wordId: string, 
-    context?: string, 
+    userId: string,
+    wordId: string,
+    context?: string,
     contextId?: string
   ): Promise<boolean> {
     return DatabaseErrorHandler.handleDeleteOperation(
       async () => {
-        if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(wordId)) {
+        if (
+          !Types.ObjectId.isValid(userId) ||
+          !Types.ObjectId.isValid(wordId)
+        ) {
           return false;
         }
 
@@ -241,12 +286,10 @@ export class WordVoteRepository implements IWordVoteRepository {
         if (context) filter.context = context;
         if (contextId) filter.contextId = contextId;
 
-        const result = await this.wordVoteModel
-          .findOneAndDelete(filter)
-          .exec();
+        const result = await this.wordVoteModel.findOneAndDelete(filter).exec();
         return result !== null;
       },
-      'WordVote',
+      "WordVote",
       `${userId}-${wordId}-${context}-${contextId}`
     );
   }
@@ -254,13 +297,24 @@ export class WordVoteRepository implements IWordVoteRepository {
   async changeVoteReaction(
     userId: string,
     wordId: string,
-    newReactionType: 'like' | 'love' | 'helpful' | 'accurate' | 'clear' | 'funny' | 'insightful' | 'disagree',
+    newReactionType:
+      | "like"
+      | "love"
+      | "helpful"
+      | "accurate"
+      | "clear"
+      | "funny"
+      | "insightful"
+      | "disagree",
     context?: string,
     contextId?: string
   ): Promise<WordVote | null> {
     return DatabaseErrorHandler.handleUpdateOperation(
       async () => {
-        if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(wordId)) {
+        if (
+          !Types.ObjectId.isValid(userId) ||
+          !Types.ObjectId.isValid(wordId)
+        ) {
           return null;
         }
 
@@ -274,108 +328,108 @@ export class WordVoteRepository implements IWordVoteRepository {
             { reactionType: newReactionType, updatedAt: new Date() },
             { new: true }
           )
-          .populate('userId', 'username email reputation')
+          .populate("userId", "username email reputation")
           .exec();
       },
-      'WordVote',
+      "WordVote",
       `${userId}-${wordId}-${newReactionType}`
     );
   }
 
   // ========== STATISTIQUES ET SCORES ==========
 
-  async findByWord(wordId: string, options?: {
-    reactionType?: string;
-    context?: string;
-    page?: number;
-    limit?: number;
-    sortBy?: 'createdAt' | 'weight';
-    sortOrder?: 'asc' | 'desc';
-  }): Promise<{
+  async findByWord(
+    wordId: string,
+    options?: {
+      reactionType?: string;
+      context?: string;
+      page?: number;
+      limit?: number;
+      sortBy?: "createdAt" | "weight";
+      sortOrder?: "asc" | "desc";
+    }
+  ): Promise<{
     votes: WordVote[];
     total: number;
     page: number;
     limit: number;
   }> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(wordId)) {
-          return { votes: [], total: 0, page: 1, limit: 20 };
-        }
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      if (!Types.ObjectId.isValid(wordId)) {
+        return { votes: [], total: 0, page: 1, limit: 20 };
+      }
 
-        const {
-          reactionType,
-          context,
-          page = 1,
-          limit = 20,
-          sortBy = 'createdAt',
-          sortOrder = 'desc'
-        } = options || {};
+      const {
+        reactionType,
+        context,
+        page = 1,
+        limit = 20,
+        sortBy = "createdAt",
+        sortOrder = "desc",
+      } = options || {};
 
-        const filter: any = { wordId };
-        if (reactionType) filter.reactionType = reactionType;
-        if (context) filter.context = context;
+      const filter: any = { wordId };
+      if (reactionType) filter.reactionType = reactionType;
+      if (context) filter.context = context;
 
-        const sort: any = {};
-        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      const sort: any = {};
+      sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
-        const skip = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-        const [votes, total] = await Promise.all([
-          this.wordVoteModel
-            .find(filter)
-            .populate('userId', 'username email reputation')
-            .sort(sort)
-            .skip(skip)
-            .limit(limit)
-            .exec(),
-          this.wordVoteModel.countDocuments(filter).exec(),
-        ]);
+      const [votes, total] = await Promise.all([
+        this.wordVoteModel
+          .find(filter)
+          .populate("userId", "username email reputation")
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.wordVoteModel.countDocuments(filter).exec(),
+      ]);
 
-        return { votes, total, page, limit };
-      },
-      'WordVote'
-    );
+      return { votes, total, page, limit };
+    }, "WordVote");
   }
 
-  async countByWord(wordId: string, options?: {
-    reactionType?: string;
-    context?: string;
-  }): Promise<{
+  async countByWord(
+    wordId: string,
+    options?: {
+      reactionType?: string;
+      context?: string;
+    }
+  ): Promise<{
     [reactionType: string]: number;
     total: number;
   }> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(wordId)) {
-          return { total: 0 };
-        }
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      if (!Types.ObjectId.isValid(wordId)) {
+        return { total: 0 };
+      }
 
-        const filter: any = { wordId };
-        if (options?.context) filter.context = options.context;
+      const filter: any = { wordId };
+      if (options?.context) filter.context = options.context;
 
-        const pipeline = [
-          { $match: filter },
-          {
-            $group: {
-              _id: '$reactionType',
-              count: { $sum: 1 }
-            }
-          }
-        ];
+      const pipeline = [
+        { $match: filter },
+        {
+          $group: {
+            _id: "$reactionType",
+            count: { $sum: 1 },
+          },
+        },
+      ];
 
-        const results = await this.wordVoteModel.aggregate(pipeline).exec();
-        
-        const counts: any = { total: 0 };
-        results.forEach(result => {
-          counts[result._id] = result.count;
-          counts.total += result.count;
-        });
+      const results = await this.wordVoteModel.aggregate(pipeline).exec();
 
-        return counts;
-      },
-      'WordVote'
-    );
+      const counts: any = { total: 0 };
+      results.forEach((result) => {
+        counts[result._id] = result.count;
+        counts.total += result.count;
+      });
+
+      return counts;
+    }, "WordVote");
   }
 
   async getWordScore(wordId: string): Promise<{
@@ -401,12 +455,12 @@ export class WordVoteRepository implements IWordVoteRepository {
           { $match: { wordId: new Types.ObjectId(wordId) } },
           {
             $group: {
-              _id: '$reactionType',
+              _id: "$reactionType",
               count: { $sum: 1 },
-              totalWeight: { $sum: '$weight' },
-              avgWeight: { $avg: '$weight' }
-            }
-          }
+              totalWeight: { $sum: "$weight" },
+              avgWeight: { $avg: "$weight" },
+            },
+          },
         ];
 
         const results = await this.wordVoteModel.aggregate(pipeline).exec();
@@ -417,26 +471,27 @@ export class WordVoteRepository implements IWordVoteRepository {
         let qualityPoints = 0;
 
         // Calcul des scores par réaction
-        results.forEach(result => {
+        results.forEach((result) => {
           reactions[result._id] = {
             count: result.count,
-            weight: result.totalWeight
+            weight: result.totalWeight,
           };
           totalVotes += result.count;
           totalWeight += result.totalWeight;
 
           // Points de qualité selon le type de réaction
           const qualityMultipliers: { [key: string]: number } = {
-            'accurate': 3,
-            'clear': 2.5,
-            'helpful': 2,
-            'insightful': 2.5,
-            'love': 1.5,
-            'like': 1,
-            'funny': 0.5,
-            'disagree': -1
+            accurate: 3,
+            clear: 2.5,
+            helpful: 2,
+            insightful: 2.5,
+            love: 1.5,
+            like: 1,
+            funny: 0.5,
+            disagree: -1,
           };
-          qualityPoints += result.totalWeight * (qualityMultipliers[result._id] || 1);
+          qualityPoints +=
+            result.totalWeight * (qualityMultipliers[result._id] || 1);
         });
 
         const averageWeight = totalVotes > 0 ? totalWeight / totalVotes : 0;
@@ -451,12 +506,15 @@ export class WordVoteRepository implements IWordVoteRepository {
           qualityScore,
         };
       },
-      'WordVote',
+      "WordVote",
       wordId
     );
   }
 
-  async getWeightedScore(wordId: string, context?: string): Promise<{
+  async getWeightedScore(
+    wordId: string,
+    context?: string
+  ): Promise<{
     positiveScore: number;
     negativeScore: number;
     neutralScore: number;
@@ -485,38 +543,67 @@ export class WordVoteRepository implements IWordVoteRepository {
               scoreType: {
                 $switch: {
                   branches: [
-                    { case: { $in: ['$reactionType', ['love', 'helpful', 'accurate', 'clear', 'insightful']] }, then: 'positive' },
-                    { case: { $eq: ['$reactionType', 'disagree'] }, then: 'negative' },
-                    { case: { $in: ['$reactionType', ['like', 'funny']] }, then: 'neutral' }
+                    {
+                      case: {
+                        $in: [
+                          "$reactionType",
+                          [
+                            "love",
+                            "helpful",
+                            "accurate",
+                            "clear",
+                            "insightful",
+                          ],
+                        ],
+                      },
+                      then: "positive",
+                    },
+                    {
+                      case: { $eq: ["$reactionType", "disagree"] },
+                      then: "negative",
+                    },
+                    {
+                      case: { $in: ["$reactionType", ["like", "funny"]] },
+                      then: "neutral",
+                    },
                   ],
-                  default: 'neutral'
-                }
-              }
-            }
+                  default: "neutral",
+                },
+              },
+            },
           },
           {
             $group: {
-              _id: '$scoreType',
-              totalWeight: { $sum: '$weight' },
-              count: { $sum: 1 }
-            }
-          }
+              _id: "$scoreType",
+              totalWeight: { $sum: "$weight" },
+              count: { $sum: 1 },
+            },
+          },
         ];
 
         const results = await this.wordVoteModel.aggregate(pipeline).exec();
 
-        let positiveScore = 0, negativeScore = 0, neutralScore = 0;
-        results.forEach(result => {
+        let positiveScore = 0,
+          negativeScore = 0,
+          neutralScore = 0;
+        results.forEach((result) => {
           switch (result._id) {
-            case 'positive': positiveScore = result.totalWeight; break;
-            case 'negative': negativeScore = result.totalWeight; break;
-            case 'neutral': neutralScore = result.totalWeight; break;
+            case "positive":
+              positiveScore = result.totalWeight;
+              break;
+            case "negative":
+              negativeScore = result.totalWeight;
+              break;
+            case "neutral":
+              neutralScore = result.totalWeight;
+              break;
           }
         });
 
-        const overallScore = positiveScore - negativeScore + (neutralScore * 0.5);
+        const overallScore = positiveScore - negativeScore + neutralScore * 0.5;
         const totalWeight = positiveScore + negativeScore + neutralScore;
-        const weightedAverage = totalWeight > 0 ? overallScore / totalWeight : 0;
+        const weightedAverage =
+          totalWeight > 0 ? overallScore / totalWeight : 0;
 
         return {
           positiveScore,
@@ -526,7 +613,7 @@ export class WordVoteRepository implements IWordVoteRepository {
           weightedAverage,
         };
       },
-      'WordVote',
+      "WordVote",
       wordId
     );
   }
@@ -536,325 +623,342 @@ export class WordVoteRepository implements IWordVoteRepository {
   async getMostReacted(options?: {
     reactionType?: string;
     context?: string;
-    timeframe?: 'hour' | 'day' | 'week' | 'month' | 'all';
+    timeframe?: "hour" | "day" | "week" | "month" | "all";
     limit?: number;
     minVotes?: number;
-  }): Promise<Array<{
-    wordId: string;
-    reactions: { [reactionType: string]: number };
-    totalScore: number;
-    qualityScore: number;
-  }>> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        const { limit = 10, minVotes = 5, timeframe = 'all' } = options || {};
+  }): Promise<
+    Array<{
+      wordId: string;
+      reactions: { [reactionType: string]: number };
+      totalScore: number;
+      qualityScore: number;
+    }>
+  > {
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      const { limit = 10, minVotes = 5, timeframe = "all" } = options || {};
 
-        const filter: any = {};
-        if (options?.reactionType) filter.reactionType = options.reactionType;
-        if (options?.context) filter.context = options.context;
+      const filter: any = {};
+      if (options?.reactionType) filter.reactionType = options.reactionType;
+      if (options?.context) filter.context = options.context;
 
-        // Filtrage temporel
-        if (timeframe !== 'all') {
-          const timeMap = {
-            'hour': 1 * 60 * 60 * 1000,
-            'day': 24 * 60 * 60 * 1000,
-            'week': 7 * 24 * 60 * 60 * 1000,
-            'month': 30 * 24 * 60 * 60 * 1000,
-          };
-          filter.createdAt = { $gte: new Date(Date.now() - timeMap[timeframe]) };
-        }
+      // Filtrage temporel
+      if (timeframe !== "all") {
+        const timeMap = {
+          hour: 1 * 60 * 60 * 1000,
+          day: 24 * 60 * 60 * 1000,
+          week: 7 * 24 * 60 * 60 * 1000,
+          month: 30 * 24 * 60 * 60 * 1000,
+        };
+        filter.createdAt = { $gte: new Date(Date.now() - timeMap[timeframe]) };
+      }
 
-        const pipeline = [
-          { $match: filter },
-          {
-            $group: {
-              _id: {
-                wordId: '$wordId',
-                reactionType: '$reactionType'
+      const pipeline = [
+        { $match: filter },
+        {
+          $group: {
+            _id: {
+              wordId: "$wordId",
+              reactionType: "$reactionType",
+            },
+            count: { $sum: 1 },
+            totalWeight: { $sum: "$weight" },
+          },
+        },
+        {
+          $group: {
+            _id: "$_id.wordId",
+            reactions: {
+              $push: {
+                k: "$_id.reactionType",
+                v: "$count",
               },
-              count: { $sum: 1 },
-              totalWeight: { $sum: '$weight' }
-            }
+            },
+            totalScore: { $sum: "$totalWeight" },
+            totalVotes: { $sum: "$count" },
           },
-          {
-            $group: {
-              _id: '$_id.wordId',
-              reactions: {
-                $push: {
-                  k: '$_id.reactionType',
-                  v: '$count'
-                }
-              },
-              totalScore: { $sum: '$totalWeight' },
-              totalVotes: { $sum: '$count' }
-            }
+        },
+        {
+          $match: { totalVotes: { $gte: minVotes } },
+        },
+        {
+          $addFields: {
+            wordId: { $toString: "$_id" },
+            reactions: { $arrayToObject: "$reactions" },
           },
-          {
-            $match: { totalVotes: { $gte: minVotes } }
-          },
-          {
-            $addFields: {
-              wordId: { $toString: '$_id' },
-              reactions: { $arrayToObject: '$reactions' }
-            }
-          },
-          { $sort: { totalScore: -1 } },
-          { $limit: limit }
-        ];
+        },
+        { $sort: { totalScore: -1 as const } },
+        { $limit: limit },
+      ];
 
-        const results = await this.wordVoteModel.aggregate(pipeline).exec();
-        
-        // Calculer qualityScore pour chaque résultat
-        return results.map(result => ({
-          ...result,
-          qualityScore: this.calculateQualityScore(result.reactions)
-        }));
-      },
-      'WordVote'
-    );
+      const results = await this.wordVoteModel.aggregate(pipeline).exec();
+
+      // Calculer qualityScore pour chaque résultat
+      return results.map((result) => ({
+        ...result,
+        qualityScore: this.calculateQualityScore(result.reactions),
+      }));
+    }, "WordVote");
   }
 
   async getTopQualityWords(options?: {
-    timeframe?: 'day' | 'week' | 'month' | 'all';
+    timeframe?: "day" | "week" | "month" | "all";
     limit?: number;
     minVotes?: number;
-  }): Promise<Array<{
-    wordId: string;
-    qualityScore: number;
-    accurateVotes: number;
-    clearVotes: number;
-    helpfulVotes: number;
-  }>> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        const { limit = 10, minVotes = 3, timeframe = 'all' } = options || {};
+  }): Promise<
+    Array<{
+      wordId: string;
+      qualityScore: number;
+      accurateVotes: number;
+      clearVotes: number;
+      helpfulVotes: number;
+    }>
+  > {
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      const { limit = 10, minVotes = 3, timeframe = "all" } = options || {};
 
-        const filter: any = {
-          reactionType: { $in: ['accurate', 'clear', 'helpful', 'insightful'] }
+      const filter: any = {
+        reactionType: { $in: ["accurate", "clear", "helpful", "insightful"] },
+      };
+
+      if (timeframe !== "all") {
+        const timeMap = {
+          day: 24 * 60 * 60 * 1000,
+          week: 7 * 24 * 60 * 60 * 1000,
+          month: 30 * 24 * 60 * 60 * 1000,
         };
+        filter.createdAt = { $gte: new Date(Date.now() - timeMap[timeframe]) };
+      }
 
-        if (timeframe !== 'all') {
-          const timeMap = {
-            'day': 24 * 60 * 60 * 1000,
-            'week': 7 * 24 * 60 * 60 * 1000,
-            'month': 30 * 24 * 60 * 60 * 1000,
-          };
-          filter.createdAt = { $gte: new Date(Date.now() - timeMap[timeframe]) };
-        }
+      const pipeline = [
+        { $match: filter },
+        {
+          $group: {
+            _id: "$wordId",
+            accurateVotes: {
+              $sum: {
+                $cond: [{ $eq: ["$reactionType", "accurate"] }, "$weight", 0],
+              },
+            },
+            clearVotes: {
+              $sum: {
+                $cond: [{ $eq: ["$reactionType", "clear"] }, "$weight", 0],
+              },
+            },
+            helpfulVotes: {
+              $sum: {
+                $cond: [{ $eq: ["$reactionType", "helpful"] }, "$weight", 0],
+              },
+            },
+            insightfulVotes: {
+              $sum: {
+                $cond: [{ $eq: ["$reactionType", "insightful"] }, "$weight", 0],
+              },
+            },
+            totalVotes: { $sum: 1 },
+          },
+        },
+        {
+          $match: { totalVotes: { $gte: minVotes } },
+        },
+        {
+          $addFields: {
+            wordId: { $toString: "$_id" },
+            qualityScore: {
+              $add: [
+                { $multiply: ["$accurateVotes", 3] },
+                { $multiply: ["$clearVotes", 2.5] },
+                { $multiply: ["$helpfulVotes", 2] },
+                { $multiply: ["$insightfulVotes", 2.5] },
+              ],
+            },
+          },
+        },
+        { $sort: { qualityScore: -1 as const } },
+        { $limit: limit },
+      ];
 
-        const pipeline = [
-          { $match: filter },
-          {
-            $group: {
-              _id: '$wordId',
-              accurateVotes: {
-                $sum: { $cond: [{ $eq: ['$reactionType', 'accurate'] }, '$weight', 0] }
-              },
-              clearVotes: {
-                $sum: { $cond: [{ $eq: ['$reactionType', 'clear'] }, '$weight', 0] }
-              },
-              helpfulVotes: {
-                $sum: { $cond: [{ $eq: ['$reactionType', 'helpful'] }, '$weight', 0] }
-              },
-              insightfulVotes: {
-                $sum: { $cond: [{ $eq: ['$reactionType', 'insightful'] }, '$weight', 0] }
-              },
-              totalVotes: { $sum: 1 }
-            }
-          },
-          {
-            $match: { totalVotes: { $gte: minVotes } }
-          },
-          {
-            $addFields: {
-              wordId: { $toString: '$_id' },
-              qualityScore: {
-                $add: [
-                  { $multiply: ['$accurateVotes', 3] },
-                  { $multiply: ['$clearVotes', 2.5] },
-                  { $multiply: ['$helpfulVotes', 2] },
-                  { $multiply: ['$insightfulVotes', 2.5] }
-                ]
-              }
-            }
-          },
-          { $sort: { qualityScore: -1 } },
-          { $limit: limit }
-        ];
-
-        return this.wordVoteModel.aggregate(pipeline).exec();
-      },
-      'WordVote'
-    );
+      return this.wordVoteModel.aggregate(pipeline).exec();
+    }, "WordVote");
   }
 
   async getTrendingWords(options?: {
-    timeframe?: 'hour' | 'day' | 'week';
+    timeframe?: "hour" | "day" | "week";
     limit?: number;
-  }): Promise<Array<{
-    wordId: string;
-    trendScore: number;
-    recentVotes: number;
-    growth: number;
-  }>> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        const { timeframe = 'day', limit = 10 } = options || {};
+  }): Promise<
+    Array<{
+      wordId: string;
+      trendScore: number;
+      recentVotes: number;
+      growth: number;
+    }>
+  > {
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      const { timeframe = "day", limit = 10 } = options || {};
 
-        const timeMap = {
-          'hour': 1 * 60 * 60 * 1000,
-          'day': 24 * 60 * 60 * 1000,
-          'week': 7 * 24 * 60 * 60 * 1000,
-        };
+      const timeMap = {
+        hour: 1 * 60 * 60 * 1000,
+        day: 24 * 60 * 60 * 1000,
+        week: 7 * 24 * 60 * 60 * 1000,
+      };
 
-        const recentTime = new Date(Date.now() - timeMap[timeframe]);
-        const previousTime = new Date(Date.now() - timeMap[timeframe] * 2);
+      const recentTime = new Date(Date.now() - timeMap[timeframe]);
+      const previousTime = new Date(Date.now() - timeMap[timeframe] * 2);
 
-        const pipeline = [
-          {
-            $facet: {
-              recent: [
-                { $match: { createdAt: { $gte: recentTime } } },
-                {
-                  $group: {
-                    _id: '$wordId',
-                    recentVotes: { $sum: 1 },
-                    recentWeight: { $sum: '$weight' }
-                  }
-                }
-              ],
-              previous: [
-                { $match: { createdAt: { $gte: previousTime, $lt: recentTime } } },
-                {
-                  $group: {
-                    _id: '$wordId',
-                    previousVotes: { $sum: 1 },
-                    previousWeight: { $sum: '$weight' }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            $project: {
-              combined: {
-                $setUnion: [
-                  { $map: { input: '$recent', as: 'r', in: '$$r._id' } },
-                  { $map: { input: '$previous', as: 'p', in: '$$p._id' } }
-                ]
+      const pipeline = [
+        {
+          $facet: {
+            recent: [
+              { $match: { createdAt: { $gte: recentTime } } },
+              {
+                $group: {
+                  _id: "$wordId",
+                  recentVotes: { $sum: 1 },
+                  recentWeight: { $sum: "$weight" },
+                },
               },
-              recent: '$recent',
-              previous: '$previous'
-            }
+            ],
+            previous: [
+              {
+                $match: { createdAt: { $gte: previousTime, $lt: recentTime } },
+              },
+              {
+                $group: {
+                  _id: "$wordId",
+                  previousVotes: { $sum: 1 },
+                  previousWeight: { $sum: "$weight" },
+                },
+              },
+            ],
           },
-          { $unwind: '$combined' },
-          {
-            $lookup: {
-              from: 'combined',
-              let: { wordId: '$combined' },
-              pipeline: [
-                {
-                  $project: {
-                    wordId: '$$wordId',
-                    recentData: {
-                      $arrayElemAt: [
-                        { $filter: { input: '$recent', cond: { $eq: ['$$this._id', '$$wordId'] } } },
-                        0
-                      ]
-                    },
-                    previousData: {
-                      $arrayElemAt: [
-                        { $filter: { input: '$previous', cond: { $eq: ['$$this._id', '$$wordId'] } } },
-                        0
-                      ]
-                    }
-                  }
-                }
+        },
+        {
+          $project: {
+            combined: {
+              $setUnion: [
+                { $map: { input: "$recent", as: "r", in: "$$r._id" } },
+                { $map: { input: "$previous", as: "p", in: "$$p._id" } },
               ],
-              as: 'data'
-            }
-          }
-        ];
-
-        // Implémentation simplifiée pour MVP
-        const simpleResults = await this.wordVoteModel
-          .aggregate([
-            { $match: { createdAt: { $gte: recentTime } } },
-            {
-              $group: {
-                _id: '$wordId',
-                recentVotes: { $sum: 1 },
-                trendScore: { $sum: '$weight' }
-              }
             },
-            {
-              $addFields: {
-                wordId: { $toString: '$_id' },
-                growth: { $multiply: ['$recentVotes', 10] } // Simplified growth calculation
-              }
-            },
-            { $sort: { trendScore: -1 } },
-            { $limit: limit }
-          ])
-          .exec();
+            recent: "$recent",
+            previous: "$previous",
+          },
+        },
+        { $unwind: "$combined" },
+        {
+          $lookup: {
+            from: "combined",
+            let: { wordId: "$combined" },
+            pipeline: [
+              {
+                $project: {
+                  wordId: "$$wordId",
+                  recentData: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$recent",
+                          cond: { $eq: ["$$this._id", "$$wordId"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                  previousData: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$previous",
+                          cond: { $eq: ["$$this._id", "$$wordId"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+            ],
+            as: "data",
+          },
+        },
+      ];
 
-        return simpleResults;
-      },
-      'WordVote'
-    );
+      // Implémentation simplifiée pour MVP
+      const simpleResults = await this.wordVoteModel
+        .aggregate([
+          { $match: { createdAt: { $gte: recentTime } } },
+          {
+            $group: {
+              _id: "$wordId",
+              recentVotes: { $sum: 1 },
+              trendScore: { $sum: "$weight" },
+            },
+          },
+          {
+            $addFields: {
+              wordId: { $toString: "$_id" },
+              growth: { $multiply: ["$recentVotes", 10] }, // Simplified growth calculation
+            },
+          },
+          { $sort: { trendScore: -1 } },
+          { $limit: limit },
+        ])
+        .exec();
+
+      return simpleResults;
+    }, "WordVote");
   }
 
   // ========== MÉTRIQUES UTILISATEUR ==========
 
-  async findByUser(userId: string, options?: {
-    reactionType?: string;
-    page?: number;
-    limit?: number;
-    sortBy?: 'createdAt';
-    sortOrder?: 'asc' | 'desc';
-  }): Promise<{
+  async findByUser(
+    userId: string,
+    options?: {
+      reactionType?: string;
+      page?: number;
+      limit?: number;
+      sortBy?: "createdAt";
+      sortOrder?: "asc" | "desc";
+    }
+  ): Promise<{
     votes: WordVote[];
     total: number;
     page: number;
     limit: number;
   }> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(userId)) {
-          return { votes: [], total: 0, page: 1, limit: 20 };
-        }
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      if (!Types.ObjectId.isValid(userId)) {
+        return { votes: [], total: 0, page: 1, limit: 20 };
+      }
 
-        const {
-          reactionType,
-          page = 1,
-          limit = 20,
-          sortBy = 'createdAt',
-          sortOrder = 'desc'
-        } = options || {};
+      const {
+        reactionType,
+        page = 1,
+        limit = 20,
+        sortBy = "createdAt",
+        sortOrder = "desc",
+      } = options || {};
 
-        const filter: any = { userId };
-        if (reactionType) filter.reactionType = reactionType;
+      const filter: any = { userId };
+      if (reactionType) filter.reactionType = reactionType;
 
-        const sort: any = {};
-        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      const sort: any = {};
+      sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
-        const skip = (page - 1) * limit;
+      const skip = (page - 1) * limit;
 
-        const [votes, total] = await Promise.all([
-          this.wordVoteModel
-            .find(filter)
-            .populate('wordId', 'word language')
-            .sort(sort)
-            .skip(skip)
-            .limit(limit)
-            .exec(),
-          this.wordVoteModel.countDocuments(filter).exec(),
-        ]);
+      const [votes, total] = await Promise.all([
+        this.wordVoteModel
+          .find(filter)
+          .populate("wordId", "word language")
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.wordVoteModel.countDocuments(filter).exec(),
+      ]);
 
-        return { votes, total, page, limit };
-      },
-      'WordVote'
-    );
+      return { votes, total, page, limit };
+    }, "WordVote");
   }
 
   async getUserVotingStats(userId: string): Promise<{
@@ -879,11 +983,11 @@ export class WordVoteRepository implements IWordVoteRepository {
             { $match: { userId: new Types.ObjectId(userId) } },
             {
               $group: {
-                _id: '$reactionType',
+                _id: "$reactionType",
                 count: { $sum: 1 },
-                totalWeight: { $sum: '$weight' }
-              }
-            }
+                totalWeight: { $sum: "$weight" },
+              },
+            },
           ])
           .exec();
 
@@ -891,14 +995,17 @@ export class WordVoteRepository implements IWordVoteRepository {
         let totalVotes = 0;
         let totalWeight = 0;
 
-        stats.forEach(stat => {
+        stats.forEach((stat) => {
           reactionBreakdown[stat._id] = stat.count;
           totalVotes += stat.count;
           totalWeight += stat.totalWeight;
         });
 
         const averageWeight = totalVotes > 0 ? totalWeight / totalVotes : 0;
-        const contributionScore = this.calculateContributionScore(reactionBreakdown, totalWeight);
+        const contributionScore = this.calculateContributionScore(
+          reactionBreakdown,
+          totalWeight
+        );
 
         return {
           totalVotes,
@@ -907,23 +1014,25 @@ export class WordVoteRepository implements IWordVoteRepository {
           contributionScore,
         };
       },
-      'WordVote',
+      "WordVote",
       userId
     );
   }
 
   // ========== MÉTHODES UTILITAIRES PRIVÉES ==========
 
-  private calculateQualityScore(reactions: { [reactionType: string]: number }): number {
+  private calculateQualityScore(reactions: {
+    [reactionType: string]: number;
+  }): number {
     const qualityMultipliers: { [key: string]: number } = {
-      'accurate': 3,
-      'clear': 2.5,
-      'helpful': 2,
-      'insightful': 2.5,
-      'love': 1.5,
-      'like': 1,
-      'funny': 0.5,
-      'disagree': -1
+      accurate: 3,
+      clear: 2.5,
+      helpful: 2,
+      insightful: 2.5,
+      love: 1.5,
+      like: 1,
+      funny: 0.5,
+      disagree: -1,
     };
 
     let score = 0;
@@ -935,13 +1044,15 @@ export class WordVoteRepository implements IWordVoteRepository {
   }
 
   private calculateContributionScore(
-    reactionBreakdown: { [reactionType: string]: number }, 
+    reactionBreakdown: { [reactionType: string]: number },
     totalWeight: number
   ): number {
-    const qualityReactions = ['accurate', 'clear', 'helpful', 'insightful'];
-    const qualityVotes = qualityReactions.reduce((sum, reaction) => 
-      sum + (reactionBreakdown[reaction] || 0), 0);
-    
+    const qualityReactions = ["accurate", "clear", "helpful", "insightful"];
+    const qualityVotes = qualityReactions.reduce(
+      (sum, reaction) => sum + (reactionBreakdown[reaction] || 0),
+      0
+    );
+
     const qualityRatio = totalWeight > 0 ? qualityVotes / totalWeight : 0;
     return Math.round(totalWeight * qualityRatio * 10) / 10;
   }
@@ -971,7 +1082,10 @@ export class WordVoteRepository implements IWordVoteRepository {
     return {};
   }
 
-  async getDefinitionQuality(wordId: string, definitionId: string): Promise<any> {
+  async getDefinitionQuality(
+    wordId: string,
+    definitionId: string
+  ): Promise<any> {
     return {
       accurateVotes: 0,
       clearVotes: 0,
@@ -990,9 +1104,11 @@ export class WordVoteRepository implements IWordVoteRepository {
 
   async cleanupOldVotes(days: number): Promise<number> {
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const result = await this.wordVoteModel.deleteMany({ 
-      createdAt: { $lt: cutoffDate } 
-    }).exec();
+    const result = await this.wordVoteModel
+      .deleteMany({
+        createdAt: { $lt: cutoffDate },
+      })
+      .exec();
     return result.deletedCount || 0;
   }
 

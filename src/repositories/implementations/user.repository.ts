@@ -1,16 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { User } from '../../users/schemas/user.schema';
-import { RegisterDto } from '../../users/dto/register.dto';
-import { IUserRepository } from '../interfaces/user.repository.interface';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import { User } from "../../users/schemas/user.schema";
+import { RegisterDto } from "../../users/dto/register.dto";
+import { IUserRepository } from "../interfaces/user.repository.interface";
 
 /**
  * 👤 REPOSITORY USER - IMPLÉMENTATION MONGOOSE
- * 
+ *
  * Implémentation concrète du repository User utilisant Mongoose.
  * Sépare complètement l'accès aux données de la logique métier.
- * 
+ *
  * Avantages :
  * ✅ Tests unitaires faciles (mockage de l'interface)
  * ✅ Migration DB simplifiée (changer l'implémentation)
@@ -19,9 +19,7 @@ import { IUserRepository } from '../interfaces/user.repository.interface';
  */
 @Injectable()
 export class UserRepository implements IUserRepository {
-  constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-  ) {}
+  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
   // ========== CRUD DE BASE ==========
 
@@ -65,7 +63,10 @@ export class UserRepository implements IUserRepository {
     return count > 0;
   }
 
-  async findBySocialProvider(provider: string, providerId: string): Promise<User | null> {
+  async findBySocialProvider(
+    provider: string,
+    providerId: string
+  ): Promise<User | null> {
     return this.userModel
       .findOne({
         [`socialProviders.${provider}.id`]: providerId,
@@ -85,30 +86,213 @@ export class UserRepository implements IUserRepository {
 
   async markEmailAsVerified(id: string): Promise<boolean> {
     const result = await this.userModel
-      .updateOne(
-        { _id: id },
-        { 
-          isEmailVerified: true, 
-          emailVerifiedAt: new Date(),
-          emailVerificationToken: null 
-        }
-      )
+      .findByIdAndUpdate(id, { isEmailVerified: true })
       .exec();
-    return result.modifiedCount > 0;
+    return !!result;
+  }
+
+  // ========== AUTHENTIFICATION AVANCÉE ==========
+
+  async findByEmailVerificationToken(token: string): Promise<User | null> {
+    return this.userModel.findOne({ emailVerificationToken: token }).exec();
+  }
+
+  async updateEmailVerificationToken(
+    userId: string,
+    token: string
+  ): Promise<boolean> {
+    const result = await this.userModel
+      .findByIdAndUpdate(userId, { emailVerificationToken: token })
+      .exec();
+    return !!result;
+  }
+
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    return this.userModel
+      .findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: new Date() },
+      })
+      .exec();
+  }
+
+  async updatePasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date
+  ): Promise<boolean> {
+    const result = await this.userModel
+      .findByIdAndUpdate(userId, {
+        passwordResetToken: token,
+        passwordResetExpires: expiresAt,
+      })
+      .exec();
+    return !!result;
+  }
+
+  async updateLastActive(userId: string): Promise<boolean> {
+    const result = await this.userModel
+      .findByIdAndUpdate(userId, { lastActivity: new Date() })
+      .exec();
+    return !!result;
+  }
+
+  async createSocialUser(userData: {
+    email: string;
+    username: string;
+    fullName?: string;
+    profilePicture?: string;
+    provider: string;
+    providerId: string;
+  }): Promise<User> {
+    const user = new this.userModel({
+      ...userData,
+      isEmailVerified: true, // Les comptes sociaux sont pré-vérifiés
+      socialAccounts: [
+        {
+          provider: userData.provider,
+          providerId: userData.providerId,
+        },
+      ],
+    });
+    return user.save();
+  }
+
+  async incrementWordCount(userId: string): Promise<boolean> {
+    const result = await this.userModel
+      .findByIdAndUpdate(userId, { $inc: { wordsCount: 1 } })
+      .exec();
+    return !!result;
+  }
+
+  // ========== STATISTIQUES ==========
+
+  async countTotal(): Promise<number> {
+    return this.userModel.countDocuments().exec();
+  }
+
+  async countByDateRange(startDate: Date, endDate: Date): Promise<number> {
+    return this.userModel
+      .countDocuments({
+        createdAt: { $gte: startDate, $lte: endDate },
+      })
+      .exec();
+  }
+
+  async getTopContributors(limit: number): Promise<
+    Array<{
+      _id: string;
+      username: string;
+      wordsCount: number;
+      contributionScore: number;
+    }>
+  > {
+    return this.userModel
+      .aggregate([
+        { $match: { isActive: true } },
+        {
+          $project: {
+            username: 1,
+            wordsCount: { $ifNull: ["$wordsCount", 0] },
+            contributionScore: {
+              $multiply: [
+                { $ifNull: ["$wordsCount", 0] },
+                { $cond: [{ $eq: ["$role", "admin"] }, 1.5, 1] },
+              ],
+            },
+          },
+        },
+        { $sort: { contributionScore: -1 as const } },
+        { $limit: limit },
+      ])
+      .exec();
+  }
+
+  async countActiveUsers(days: number): Promise<number> {
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - days);
+
+    return this.userModel
+      .countDocuments({
+        lastActivity: { $gte: sinceDate },
+        isActive: true,
+      })
+      .exec();
+  }
+
+  async getUserRank(userId: string): Promise<{
+    rank: number;
+    totalUsers: number;
+    score: number;
+  }> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException("Utilisateur non trouvé");
+    }
+
+    const userScore = (user as any).wordsCount || 0;
+    const higherRanked = await this.userModel
+      .countDocuments({
+        wordsCount: { $gt: userScore },
+        isActive: true,
+      })
+      .exec();
+
+    const totalUsers = await this.userModel
+      .countDocuments({ isActive: true })
+      .exec();
+
+    return {
+      rank: higherRanked + 1,
+      totalUsers,
+      score: userScore,
+    };
+  }
+
+  async exportData(
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<
+    Array<{
+      _id: string;
+      username: string;
+      email: string;
+      fullName: string;
+      role: string;
+      createdAt: Date;
+      lastActivity: Date;
+      wordsCount: number;
+      isEmailVerified: boolean;
+    }>
+  > {
+    const filter: any = {};
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = startDate;
+      if (endDate) filter.createdAt.$lte = endDate;
+    }
+
+    return this.userModel
+      .find(filter)
+      .select(
+        "username email fullName role createdAt lastActivity wordsCount isEmailVerified"
+      )
+      .lean()
+      .exec() as any;
   }
 
   // ========== PROFIL ET PRÉFÉRENCES ==========
 
   async updateLanguagePreferences(
-    id: string, 
+    id: string,
     data: { nativeLanguageId?: string; learningLanguageIds?: string[] }
   ): Promise<User | null> {
     const updateData: any = {};
-    
+
     if (data.nativeLanguageId !== undefined) {
       updateData.nativeLanguageId = data.nativeLanguageId;
     }
-    
+
     if (data.learningLanguageIds !== undefined) {
       updateData.learningLanguageIds = data.learningLanguageIds;
     }
@@ -126,7 +310,7 @@ export class UserRepository implements IUserRepository {
   }
 
   async updateNotificationSettings(
-    id: string, 
+    id: string,
     settings: Record<string, boolean>
   ): Promise<boolean> {
     const result = await this.userModel
@@ -136,10 +320,6 @@ export class UserRepository implements IUserRepository {
   }
 
   // ========== STATISTIQUES ==========
-
-  async count(): Promise<number> {
-    return this.userModel.countDocuments().exec();
-  }
 
   async countByRole(role: string): Promise<number> {
     return this.userModel.countDocuments({ role }).exec();
@@ -152,14 +332,14 @@ export class UserRepository implements IUserRepository {
     return this.userModel
       .find({
         isActive: true,
-        lastLoginAt: { $gte: cutoffDate }
+        lastLoginAt: { $gte: cutoffDate },
       })
       .sort({ lastLoginAt: -1 })
       .exec();
   }
 
   async findByNativeLanguage(
-    languageId: string, 
+    languageId: string,
     options?: { limit?: number; offset?: number }
   ): Promise<User[]> {
     let query = this.userModel.find({ nativeLanguageId: languageId });
@@ -178,15 +358,15 @@ export class UserRepository implements IUserRepository {
   // ========== RECHERCHE ET FILTRAGE ==========
 
   async search(
-    query: string, 
+    query: string,
     options?: { limit?: number; offset?: number; role?: string }
   ): Promise<User[]> {
     const searchFilter: any = {
       $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } },
-        { firstName: { $regex: query, $options: 'i' } },
-        { lastName: { $regex: query, $options: 'i' } },
+        { username: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } },
+        { firstName: { $regex: query, $options: "i" } },
+        { lastName: { $regex: query, $options: "i" } },
       ],
     };
 
@@ -223,11 +403,11 @@ export class UserRepository implements IUserRepository {
     const skip = (page - 1) * limit;
 
     const filter: any = {};
-    
+
     if (options?.role) {
       filter.role = options.role;
     }
-    
+
     if (options?.isEmailVerified !== undefined) {
       filter.isEmailVerified = options.isEmailVerified;
     }
@@ -252,9 +432,9 @@ export class UserRepository implements IUserRepository {
 
   async findAdmins(): Promise<User[]> {
     return this.userModel
-      .find({ 
-        role: { $in: ['admin', 'superadmin'] },
-        isActive: true 
+      .find({
+        role: { $in: ["admin", "superadmin"] },
+        isActive: true,
       })
       .sort({ role: -1, createdAt: 1 })
       .exec();
@@ -269,18 +449,24 @@ export class UserRepository implements IUserRepository {
     }
 
     const [wordsCount, postsCount] = await Promise.all([
-      this.userModel.aggregate([
-        { $match: { _id: new Types.ObjectId(userId) } },
-        { $project: { totalWordsAdded: { $ifNull: ["$totalWordsAdded", 0] } } },
-      ]).exec(),
-      this.userModel.aggregate([
-        { $match: { _id: new Types.ObjectId(userId) } },
-        {
-          $project: {
-            totalCommunityPosts: { $ifNull: ["$totalCommunityPosts", 0] },
+      this.userModel
+        .aggregate([
+          { $match: { _id: new Types.ObjectId(userId) } },
+          {
+            $project: { totalWordsAdded: { $ifNull: ["$totalWordsAdded", 0] } },
           },
-        },
-      ]).exec(),
+        ])
+        .exec(),
+      this.userModel
+        .aggregate([
+          { $match: { _id: new Types.ObjectId(userId) } },
+          {
+            $project: {
+              totalCommunityPosts: { $ifNull: ["$totalCommunityPosts", 0] },
+            },
+          },
+        ])
+        .exec(),
     ]);
 
     return {
@@ -293,12 +479,14 @@ export class UserRepository implements IUserRepository {
     // Compter seulement les utilisateurs vraiment actifs :
     // - Email vérifié OU connexion sociale
     // - ET compte actif
-    return this.userModel.countDocuments({
-      isActive: true,
-      $or: [
-        { isEmailVerified: true },
-        { socialProviders: { $ne: {}, $exists: true } }
-      ]
-    }).exec();
+    return this.userModel
+      .countDocuments({
+        isActive: true,
+        $or: [
+          { isEmailVerified: true },
+          { socialProviders: { $ne: {}, $exists: true } },
+        ],
+      })
+      .exec();
   }
 }

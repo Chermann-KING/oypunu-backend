@@ -1,11 +1,11 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { IWordRepository } from '../../repositories/interfaces/word.repository.interface';
-import { IWordViewRepository } from '../../repositories/interfaces/word-view.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { Injectable, Inject } from "@nestjs/common";
+import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
+import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
+import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
 
 export interface SearchSuggestion {
   text: string;
-  type: 'word' | 'category' | 'recent' | 'popular';
+  type: "word" | "category" | "recent" | "popular";
   language: string;
   frequency: number;
   metadata?: {
@@ -97,8 +97,9 @@ export class SearchService {
   }> = [];
 
   constructor(
-    @Inject('IWordRepository') private wordRepository: IWordRepository,
-    @Inject('IWordViewRepository') private wordViewRepository: IWordViewRepository,
+    @Inject("IWordRepository") private wordRepository: IWordRepository,
+    @Inject("IWordViewRepository")
+    private wordViewRepository: IWordViewRepository
   ) {}
 
   async getSuggestions(
@@ -126,21 +127,22 @@ export class SearchService {
         }
 
         // 1. Suggestions basées sur les mots existants
-        const wordSuggestions = await this.wordRepository.searchWords(query, {
+        const wordSuggestions = await this.wordRepository.search({
+          query,
+          languages: options.language ? [options.language] : undefined,
+          page: 1,
           limit: Math.floor(options.limit * 0.6),
-          language: options.language,
-          status: 'approved',
         });
 
         for (const word of wordSuggestions.words) {
           suggestions.push({
             text: word.word,
-            type: 'word',
+            type: "word",
             language: word.language,
-            frequency: word.viewCount || 0,
+            frequency: word.translationCount || 0,
             metadata: {
               wordId: word._id,
-              category: word.categoryId,
+              category: word.categoryId?.toString(),
               partOfSpeech: word.meanings?.[0]?.partOfSpeech,
             },
           });
@@ -150,12 +152,14 @@ export class SearchService {
         if (options.userId) {
           const userHistory = this.searchHistory.get(options.userId) || [];
           const recentQueries = userHistory
-            .filter(entry => entry.query.toLowerCase().includes(query.toLowerCase()))
+            .filter((entry) =>
+              entry.query.toLowerCase().includes(query.toLowerCase())
+            )
             .slice(0, Math.floor(options.limit * 0.2))
-            .map(entry => ({
+            .map((entry) => ({
               text: entry.query,
-              type: 'recent' as const,
-              language: options.language || 'all',
+              type: "recent" as const,
+              language: options.language || "all",
               frequency: entry.resultsCount,
             }));
 
@@ -174,15 +178,25 @@ export class SearchService {
         const sortedSuggestions = suggestions
           .sort((a, b) => {
             // Priorité : correspondance exacte > début de mot > contient > fréquence
-            const aExact = a.text.toLowerCase() === query.toLowerCase() ? 1000 : 0;
-            const bExact = b.text.toLowerCase() === query.toLowerCase() ? 1000 : 0;
-            
-            const aStartsWith = a.text.toLowerCase().startsWith(query.toLowerCase()) ? 100 : 0;
-            const bStartsWith = b.text.toLowerCase().startsWith(query.toLowerCase()) ? 100 : 0;
-            
+            const aExact =
+              a.text.toLowerCase() === query.toLowerCase() ? 1000 : 0;
+            const bExact =
+              b.text.toLowerCase() === query.toLowerCase() ? 1000 : 0;
+
+            const aStartsWith = a.text
+              .toLowerCase()
+              .startsWith(query.toLowerCase())
+              ? 100
+              : 0;
+            const bStartsWith = b.text
+              .toLowerCase()
+              .startsWith(query.toLowerCase())
+              ? 100
+              : 0;
+
             const scoreA = aExact + aStartsWith + a.frequency;
             const scoreB = bExact + bStartsWith + b.frequency;
-            
+
             return scoreB - scoreA;
           })
           .slice(0, options.limit);
@@ -193,8 +207,8 @@ export class SearchService {
           hasMore: suggestions.length > options.limit,
         };
       },
-      'Search',
-      `suggestions-${query}`,
+      "Search",
+      `suggestions-${query}`
     );
   }
 
@@ -213,8 +227,8 @@ export class SearchService {
         let userHistory = this.searchHistory.get(userId) || [];
 
         if (options.language) {
-          userHistory = userHistory.filter(entry => 
-            entry.filters?.language === options.language
+          userHistory = userHistory.filter(
+            (entry) => entry.filters?.language === options.language
           );
         }
 
@@ -227,8 +241,8 @@ export class SearchService {
           total: userHistory.length,
         };
       },
-      'Search',
-      userId,
+      "Search",
+      userId
     );
   }
 
@@ -255,8 +269,8 @@ export class SearchService {
 
         return savedSearch;
       },
-      'Search',
-      userId,
+      "Search",
+      userId
     );
   }
 
@@ -267,31 +281,37 @@ export class SearchService {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
         const userSavedSearches = this.savedSearches.get(userId) || [];
-        const sortedSearches = userSavedSearches
-          .sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
+        const sortedSearches = userSavedSearches.sort(
+          (a, b) => b.savedAt.getTime() - a.savedAt.getTime()
+        );
 
         return {
           savedSearches: sortedSearches,
           total: sortedSearches.length,
         };
       },
-      'Search',
-      userId,
+      "Search",
+      userId
     );
   }
 
-  async deleteHistoryEntry(userId: string, historyId: string): Promise<{ success: boolean }> {
+  async deleteHistoryEntry(
+    userId: string,
+    historyId: string
+  ): Promise<{ success: boolean }> {
     return DatabaseErrorHandler.handleDeleteOperation(
       async () => {
         const userHistory = this.searchHistory.get(userId) || [];
-        const filteredHistory = userHistory.filter(entry => entry.id !== historyId);
+        const filteredHistory = userHistory.filter(
+          (entry) => entry.id !== historyId
+        );
         this.searchHistory.set(userId, filteredHistory);
 
         return { success: true };
       },
-      'Search',
+      "Search",
       userId,
-      historyId,
+      historyId
     );
   }
 
@@ -301,28 +321,33 @@ export class SearchService {
         this.searchHistory.set(userId, []);
         return { success: true };
       },
-      'Search',
-      userId,
+      "Search",
+      userId
     );
   }
 
-  async deleteSavedSearch(userId: string, savedSearchId: string): Promise<{ success: boolean }> {
+  async deleteSavedSearch(
+    userId: string,
+    savedSearchId: string
+  ): Promise<{ success: boolean }> {
     return DatabaseErrorHandler.handleDeleteOperation(
       async () => {
         const userSavedSearches = this.savedSearches.get(userId) || [];
-        const filteredSavedSearches = userSavedSearches.filter(search => search.id !== savedSearchId);
+        const filteredSavedSearches = userSavedSearches.filter(
+          (search) => search.id !== savedSearchId
+        );
         this.savedSearches.set(userId, filteredSavedSearches);
 
         return { success: true };
       },
-      'Search',
+      "Search",
       userId,
-      savedSearchId,
+      savedSearchId
     );
   }
 
   async getTrendingSearches(options: {
-    timeframe: 'hour' | 'day' | 'week' | 'month';
+    timeframe: "hour" | "day" | "week" | "month";
     language?: string;
     limit: number;
   }): Promise<{
@@ -336,34 +361,38 @@ export class SearchService {
         let cutoffDate: Date;
 
         switch (options.timeframe) {
-          case 'hour':
+          case "hour":
             cutoffDate = new Date(now.getTime() - 60 * 60 * 1000);
             break;
-          case 'day':
+          case "day":
             cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
             break;
-          case 'week':
+          case "week":
             cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             break;
-          case 'month':
+          case "month":
             cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             break;
         }
 
         // Analyser les recherches récentes
-        const recentSearches = this.searchTracker.filter(search => 
-          search.timestamp >= cutoffDate &&
-          (!options.language || search.language === options.language)
+        const recentSearches = this.searchTracker.filter(
+          (search) =>
+            search.timestamp >= cutoffDate &&
+            (!options.language || search.language === options.language)
         );
 
         // Grouper par requête et calculer les statistiques
-        const searchGroups = new Map<string, {
-          count: number;
-          uniqueUsers: Set<string>;
-          languages: Set<string>;
-        }>();
+        const searchGroups = new Map<
+          string,
+          {
+            count: number;
+            uniqueUsers: Set<string>;
+            languages: Set<string>;
+          }
+        >();
 
-        recentSearches.forEach(search => {
+        recentSearches.forEach((search) => {
           const key = search.query.toLowerCase();
           if (!searchGroups.has(key)) {
             searchGroups.set(key, {
@@ -390,7 +419,8 @@ export class SearchService {
             searchCount: stats.count,
             uniqueUsers: stats.uniqueUsers.size,
             growth: this.calculateGrowth(query, options.timeframe), // Calculer la croissance
-            language: options.language || Array.from(stats.languages)[0] || 'all',
+            language:
+              options.language || Array.from(stats.languages)[0] || "all",
           }))
           .sort((a, b) => b.searchCount - a.searchCount)
           .slice(0, options.limit);
@@ -401,8 +431,8 @@ export class SearchService {
           generatedAt: now,
         };
       },
-      'Search',
-      'trending',
+      "Search",
+      "trending"
     );
   }
 
@@ -441,19 +471,19 @@ export class SearchService {
 
           const userHistory = this.searchHistory.get(userId) || [];
           userHistory.unshift(historyEntry);
-          
+
           // Garder seulement les 100 dernières recherches
           if (userHistory.length > 100) {
             userHistory.splice(100);
           }
-          
+
           this.searchHistory.set(userId, userHistory);
         }
 
         return { tracked: true };
       },
-      'Search',
-      userId || 'anonymous',
+      "Search",
+      userId || "anonymous"
     );
   }
 
@@ -468,13 +498,16 @@ export class SearchService {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
         // Analyser les recherches pour identifier les termes populaires
-        const termCounts = new Map<string, {
-          count: number;
-          languages: Set<string>;
-          recent: boolean;
-        }>();
+        const termCounts = new Map<
+          string,
+          {
+            count: number;
+            languages: Set<string>;
+            recent: boolean;
+          }
+        >();
 
-        this.searchTracker.forEach(search => {
+        this.searchTracker.forEach((search) => {
           const query = search.query.toLowerCase();
           if (!options.language || search.language === options.language) {
             if (!termCounts.has(query)) {
@@ -490,7 +523,7 @@ export class SearchService {
             if (search.language) {
               term.languages.add(search.language);
             }
-            
+
             // Marquer comme récent si dans les dernières 24h
             const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
             if (search.timestamp >= dayAgo) {
@@ -503,7 +536,8 @@ export class SearchService {
           .map(([term, stats]) => ({
             term,
             frequency: stats.count,
-            language: options.language || Array.from(stats.languages)[0] || 'all',
+            language:
+              options.language || Array.from(stats.languages)[0] || "all",
             trending: stats.recent && stats.count > 1,
           }))
           .sort((a, b) => b.frequency - a.frequency)
@@ -514,31 +548,38 @@ export class SearchService {
           total: termCounts.size,
         };
       },
-      'Search',
-      'popular-terms',
+      "Search",
+      "popular-terms"
     );
   }
 
   async getSearchAnalytics(
     userId: string,
-    timeframe: 'week' | 'month' | 'quarter' | 'year'
+    timeframe: "week" | "month" | "quarter" | "year"
   ): Promise<SearchAnalytics> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
         const userHistory = this.searchHistory.get(userId) || [];
         const cutoffDate = this.getCutoffDate(timeframe);
-        
-        const relevantHistory = userHistory.filter(entry => entry.searchedAt >= cutoffDate);
+
+        const relevantHistory = userHistory.filter(
+          (entry) => entry.searchedAt >= cutoffDate
+        );
 
         // Calculer les statistiques
         const totalSearches = relevantHistory.length;
-        const uniqueQueries = new Set(relevantHistory.map(h => h.query.toLowerCase())).size;
-        const averageResultsPerSearch = relevantHistory.length > 0 ? 
-          relevantHistory.reduce((sum, h) => sum + h.resultsCount, 0) / relevantHistory.length : 0;
+        const uniqueQueries = new Set(
+          relevantHistory.map((h) => h.query.toLowerCase())
+        ).size;
+        const averageResultsPerSearch =
+          relevantHistory.length > 0
+            ? relevantHistory.reduce((sum, h) => sum + h.resultsCount, 0) /
+              relevantHistory.length
+            : 0;
 
         // Termes les plus recherchés
         const termCounts = new Map<string, number>();
-        relevantHistory.forEach(entry => {
+        relevantHistory.forEach((entry) => {
           const term = entry.query.toLowerCase();
           termCounts.set(term, (termCounts.get(term) || 0) + 1);
         });
@@ -550,21 +591,22 @@ export class SearchService {
 
         // Distribution par langue
         const languageCounts = new Map<string, number>();
-        relevantHistory.forEach(entry => {
-          const lang = entry.filters?.language || 'all';
+        relevantHistory.forEach((entry) => {
+          const lang = entry.filters?.language || "all";
           languageCounts.set(lang, (languageCounts.get(lang) || 0) + 1);
         });
 
-        const languageDistribution = Array.from(languageCounts.entries())
-          .map(([language, count]) => ({
+        const languageDistribution = Array.from(languageCounts.entries()).map(
+          ([language, count]) => ({
             language,
             searchCount: count,
             percentage: Math.round((count / totalSearches) * 100 * 100) / 100,
-          }));
+          })
+        );
 
         // Patterns de recherche
         const hourCounts = new Array(24).fill(0);
-        relevantHistory.forEach(entry => {
+        relevantHistory.forEach((entry) => {
           const hour = entry.searchedAt.getHours();
           hourCounts[hour]++;
         });
@@ -573,13 +615,14 @@ export class SearchService {
           .map((count, hour) => ({ hour, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 3)
-          .map(item => item.hour);
+          .map((item) => item.hour);
 
         return {
           searchStats: {
             totalSearches,
             uniqueQueries,
-            averageResultsPerSearch: Math.round(averageResultsPerSearch * 100) / 100,
+            averageResultsPerSearch:
+              Math.round(averageResultsPerSearch * 100) / 100,
             mostSearchedTerms,
           },
           languageDistribution,
@@ -590,8 +633,8 @@ export class SearchService {
           },
         };
       },
-      'Search',
-      userId,
+      "Search",
+      userId
     );
   }
 
@@ -615,33 +658,38 @@ export class SearchService {
         });
 
         // TODO: Utiliser le feedback pour améliorer l'algorithme de recherche
-        
+
         return {
           success: true,
-          message: 'Thank you for your feedback! It helps us improve search results.',
+          message:
+            "Thank you for your feedback! It helps us improve search results.",
         };
       },
-      'Search',
-      userId || 'anonymous',
+      "Search",
+      userId || "anonymous"
     );
   }
 
-  private getPopularSuggestionsFor(query: string, options: {
-    limit: number;
-    language?: string;
-  }): SearchSuggestion[] {
+  private getPopularSuggestionsFor(
+    query: string,
+    options: {
+      limit: number;
+      language?: string;
+    }
+  ): SearchSuggestion[] {
     // Analyser les recherches récentes pour des suggestions populaires
     const recentSearches = this.searchTracker
-      .filter(search => 
-        search.query.toLowerCase().includes(query.toLowerCase()) &&
-        (!options.language || search.language === options.language)
+      .filter(
+        (search) =>
+          search.query.toLowerCase().includes(query.toLowerCase()) &&
+          (!options.language || search.language === options.language)
       )
       .slice(0, options.limit);
 
-    return recentSearches.map(search => ({
+    return recentSearches.map((search) => ({
       text: search.query,
-      type: 'popular' as const,
-      language: search.language || 'all',
+      type: "popular" as const,
+      language: search.language || "all",
       frequency: search.resultsCount,
     }));
   }
@@ -652,16 +700,18 @@ export class SearchService {
     return Math.round((Math.random() - 0.5) * 100 * 100) / 100;
   }
 
-  private getCutoffDate(timeframe: 'week' | 'month' | 'quarter' | 'year'): Date {
+  private getCutoffDate(
+    timeframe: "week" | "month" | "quarter" | "year"
+  ): Date {
     const now = new Date();
     switch (timeframe) {
-      case 'week':
+      case "week":
         return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case 'month':
+      case "month":
         return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      case 'quarter':
+      case "quarter":
         return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      case 'year':
+      case "year":
         return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
     }
   }

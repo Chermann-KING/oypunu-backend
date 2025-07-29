@@ -88,6 +88,21 @@ export class User {
   @Prop({ type: Number, default: 0 })
   totalCommunityPosts: number;
 
+  @Prop({ type: Number, default: 0 })
+  totalXP: number;
+
+  @Prop({ type: Number, default: 1 })
+  level: number;
+
+  @Prop({ type: Number, default: 0 })
+  globalRank: number;
+
+  @Prop({ type: String, default: 'bronze' })
+  currentTier: string;
+
+  @Prop({ type: Number, default: 0 })
+  tierProgress: number;
+
   @Prop({ type: Boolean, default: false })
   isActive: boolean;
 
@@ -140,6 +155,10 @@ export class User {
 
   @Prop({ type: String })
   consentUserAgent?: string; // User-Agent lors du consentement
+
+  // Timestamps automatiques ajoutés par MongoDB
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

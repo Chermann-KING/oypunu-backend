@@ -685,9 +685,8 @@ export class AchievementsService {
           similarUsers: [], // TODO: Utilisateurs avec progrès similaire
         };
       },
-      'Achievements',
-      achievementId,
-      userId,
+'Achievements',
+      `achievement-${achievementId}`
     );
   }
 

@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { Language } from '../../languages/schemas/language.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Schema as MongooseSchema } from "mongoose";
+import { Language } from "../../languages/schemas/language.schema";
 
 export type CategoryDocument = Category & Document;
 
@@ -13,12 +13,18 @@ export class Category {
   description?: string;
 
   // NOUVEAU: Référence vers la collection Languages
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Language', index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "Language", index: true })
   languageId?: Language;
 
   // DURANT LA MIGRATION: Ancien champ pour compatibilité (à supprimer après migration)
   @Prop({ index: true })
   language?: string;
+
+  @Prop({ default: true })
+  isActive?: boolean;
+
+  @Prop({ default: 0 })
+  order?: number;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

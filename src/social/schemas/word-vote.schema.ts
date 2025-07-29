@@ -1,16 +1,16 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { User } from '../../users/schemas/user.schema';
-import { Word } from '../../dictionary/schemas/word.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Schema as MongooseSchema } from "mongoose";
+import { User } from "../../users/schemas/user.schema";
+import { Word } from "../../dictionary/schemas/word.schema";
 
 export type WordVoteDocument = WordVote & Document;
 
 /**
  * 🗳️ SCHÉMA VOTE SUR MOT
- * 
+ *
  * Système de votes sophistiqué pour les mots du dictionnaire,
  * inspiré du système communauté mais adapté au contexte linguistique.
- * 
+ *
  * Fonctionnalités :
  * - Réactions variées (like, love, helpful, accurate, clear)
  * - Système de poids basé sur réputation utilisateur
@@ -19,27 +19,27 @@ export type WordVoteDocument = WordVote & Document;
  */
 @Schema({
   timestamps: true,
-  collection: 'word_votes',
+  collection: "word_votes",
 })
 export class WordVote {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User", required: true })
   userId: User;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Word', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "Word", required: true })
   wordId: Word;
 
   @Prop({
     type: String,
     required: true,
     enum: [
-      'like',        // J'aime général
-      'love',        // J'adore (engagement fort)
-      'helpful',     // Utile/instructif
-      'accurate',    // Précis/correct
-      'clear',       // Clair/bien expliqué
-      'funny',       // Amusant/drôle
-      'insightful',  // Perspicace/éclairant
-      'disagree',    // Pas d'accord (équivalent dislike constructif)
+      "like", // J'aime général
+      "love", // J'adore (engagement fort)
+      "helpful", // Utile/instructif
+      "accurate", // Précis/correct
+      "clear", // Clair/bien expliqué
+      "funny", // Amusant/drôle
+      "insightful", // Perspicace/éclairant
+      "disagree", // Pas d'accord (équivalent dislike constructif)
     ],
   })
   reactionType: string;
@@ -47,14 +47,14 @@ export class WordVote {
   @Prop({
     type: String,
     enum: [
-      'word',           // Réaction sur le mot global
-      'definition',     // Réaction sur une définition spécifique
-      'pronunciation',  // Réaction sur la prononciation
-      'etymology',      // Réaction sur l'étymologie
-      'example',        // Réaction sur un exemple d'usage
-      'translation',    // Réaction sur une traduction
+      "word", // Réaction sur le mot global
+      "definition", // Réaction sur une définition spécifique
+      "pronunciation", // Réaction sur la prononciation
+      "etymology", // Réaction sur l'étymologie
+      "example", // Réaction sur un exemple d'usage
+      "translation", // Réaction sur une traduction
     ],
-    default: 'word',
+    default: "word",
   })
   context: string;
 
@@ -84,7 +84,10 @@ export class WordVote {
 export const WordVoteSchema = SchemaFactory.createForClass(WordVote);
 
 // Index unique pour éviter votes multiples sur même contexte
-WordVoteSchema.index({ userId: 1, wordId: 1, context: 1, contextId: 1 }, { unique: true });
+WordVoteSchema.index(
+  { userId: 1, wordId: 1, context: 1, contextId: 1 },
+  { unique: true }
+);
 
 // Index pour requêtes fréquentes
 WordVoteSchema.index({ wordId: 1, reactionType: 1 });
@@ -93,28 +96,28 @@ WordVoteSchema.index({ wordId: 1, createdAt: -1 });
 WordVoteSchema.index({ reactionType: 1, weight: -1 });
 
 // Middleware pour mise à jour automatique
-WordVoteSchema.pre('save', function(next) {
+WordVoteSchema.pre("save", function (next) {
   this.updatedAt = new Date();
   next();
 });
 
 // Méthodes statiques pour calculs
-WordVoteSchema.statics.calculateWordScore = async function(wordId: string) {
+WordVoteSchema.statics.calculateWordScore = async function (wordId: string) {
   const pipeline = [
     { $match: { wordId: wordId } },
     {
       $group: {
-        _id: '$reactionType',
-        totalWeight: { $sum: '$weight' },
+        _id: "$reactionType",
+        totalWeight: { $sum: "$weight" },
         count: { $sum: 1 },
       },
     },
   ];
-  
+
   return this.aggregate(pipeline);
 };
 
-WordVoteSchema.statics.getTopReactedWords = async function(
+WordVoteSchema.statics.getTopReactedWords = async function (
   reactionType: string,
   limit: number = 10,
   timeframe?: Date
@@ -128,23 +131,23 @@ WordVoteSchema.statics.getTopReactedWords = async function(
     { $match: matchStage },
     {
       $group: {
-        _id: '$wordId',
-        totalWeight: { $sum: '$weight' },
+        _id: "$wordId",
+        totalWeight: { $sum: "$weight" },
         count: { $sum: 1 },
-        avgWeight: { $avg: '$weight' },
+        avgWeight: { $avg: "$weight" },
       },
     },
-    { $sort: { totalWeight: -1 } },
+    { $sort: { totalWeight: -1 as const } },
     { $limit: limit },
     {
       $lookup: {
-        from: 'words',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'word',
+        from: "words",
+        localField: "_id",
+        foreignField: "_id",
+        as: "wordData",
       },
     },
   ];
 
-  return this.aggregate(pipeline);
+  return this.aggregate(pipeline as any);
 };

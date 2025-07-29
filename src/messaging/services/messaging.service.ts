@@ -4,20 +4,21 @@ import {
   BadRequestException,
   ForbiddenException,
   Inject,
-} from '@nestjs/common';
-import { Conversation } from '../schemas/conversation.schema';
-import { SendMessageDto } from '../dto/send-message.dto';
-import { GetMessagesDto } from '../dto/get-messages.dto';
-import { IMessageRepository } from '../../repositories/interfaces/message.repository.interface';
-import { IConversationRepository } from '../../repositories/interfaces/conversation.repository.interface';
-import { IUserRepository } from '../../repositories/interfaces/user.repository.interface';
+} from "@nestjs/common";
+import { Conversation } from "../schemas/conversation.schema";
+import { SendMessageDto } from "../dto/send-message.dto";
+import { GetMessagesDto } from "../dto/get-messages.dto";
+import { IMessageRepository } from "../../repositories/interfaces/message.repository.interface";
+import { IConversationRepository } from "../../repositories/interfaces/conversation.repository.interface";
+import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 
 @Injectable()
 export class MessagingService {
   constructor(
-    @Inject('IMessageRepository') private messageRepository: IMessageRepository,
-    @Inject('IConversationRepository') private conversationRepository: IConversationRepository,
-    @Inject('IUserRepository') private userRepository: IUserRepository,
+    @Inject("IMessageRepository") private messageRepository: IMessageRepository,
+    @Inject("IConversationRepository")
+    private conversationRepository: IConversationRepository,
+    @Inject("IUserRepository") private userRepository: IUserRepository
   ) {}
 
   /**
@@ -25,7 +26,7 @@ export class MessagingService {
    */
   async sendMessage(
     senderId: string,
-    sendMessageDto: SendMessageDto,
+    sendMessageDto: SendMessageDto
   ): Promise<any> {
     const { receiverId, content, messageType, metadata } = sendMessageDto;
 
@@ -36,23 +37,23 @@ export class MessagingService {
     ]);
 
     if (!sender) {
-      throw new NotFoundException('Expéditeur introuvable');
+      throw new NotFoundException("Expéditeur introuvable");
     }
     if (!receiver) {
-      throw new NotFoundException('Destinataire introuvable');
+      throw new NotFoundException("Destinataire introuvable");
     }
 
     // Vérifier qu'on n'envoie pas un message à soi-même
     if (senderId === receiverId) {
       throw new BadRequestException(
-        'Vous ne pouvez pas vous envoyer un message à vous-même',
+        "Vous ne pouvez pas vous envoyer un message à vous-même"
       );
     }
 
     // Trouver ou créer une conversation
     const conversation = await this.findOrCreateConversation(
       senderId,
-      receiverId,
+      receiverId
     );
 
     // Créer le message
@@ -61,7 +62,8 @@ export class MessagingService {
       senderId,
       receiverId,
       content,
-      messageType: messageType || 'text',
+      messageType:
+        (messageType as "text" | "image" | "file" | "system") || "text",
       metadata,
     });
 
@@ -93,7 +95,7 @@ export class MessagingService {
    */
   async getMessages(
     userId: string,
-    getMessagesDto: GetMessagesDto,
+    getMessagesDto: GetMessagesDto
   ): Promise<{
     messages: any[];
     total: number;
@@ -103,29 +105,36 @@ export class MessagingService {
     const { page = 1, limit = 20, conversationId } = getMessagesDto;
 
     if (!conversationId) {
-      throw new BadRequestException('ID de conversation requis');
+      throw new BadRequestException("ID de conversation requis");
     }
 
     // Vérifier que l'utilisateur fait partie de la conversation
-    const conversation = await this.conversationRepository.findById(conversationId);
+    const conversation =
+      await this.conversationRepository.findById(conversationId);
     if (!conversation) {
-      throw new NotFoundException('Conversation introuvable');
+      throw new NotFoundException("Conversation introuvable");
     }
 
-    const isParticipant = await this.conversationRepository.isParticipant(conversationId, userId);
+    const isParticipant = await this.conversationRepository.isParticipant(
+      conversationId,
+      userId
+    );
     if (!isParticipant) {
       throw new ForbiddenException(
-        "Vous n'avez pas accès à cette conversation",
+        "Vous n'avez pas accès à cette conversation"
       );
     }
 
     const skip = (page - 1) * limit;
 
-    const result = await this.messageRepository.findByConversation(conversationId, {
-      page,
-      limit,
-      sortOrder: 'desc'
-    });
+    const result = await this.messageRepository.findByConversation(
+      conversationId,
+      {
+        page,
+        limit,
+        sortOrder: "desc",
+      }
+    );
 
     const { messages, total } = result;
 
@@ -168,28 +177,33 @@ export class MessagingService {
    */
   async getUserConversations(userId: string): Promise<any[]> {
     const result = await this.conversationRepository.findByUser(userId, {
-      sortBy: 'lastActivity',
-      sortOrder: 'desc',
+      sortBy: "lastMessage",
+      sortOrder: "desc",
       includeArchived: false,
     });
-    
+
     const conversations = result.conversations;
 
     // Transformer les _id en id pour la cohérence frontend et enrichir avec les données utilisateurs
     return Promise.all(
       conversations.map(async (conversation) => {
         const participants = await Promise.all(
-          (conversation as any).participants.map(async (participantId: string) => {
-            const participant = await this.userRepository.findById(participantId);
-            return {
-              ...participant,
-              id: (participant as any)?._id?.toString(),
-            };
-          })
+          (conversation as any).participants.map(
+            async (participantId: string) => {
+              const participant =
+                await this.userRepository.findById(participantId);
+              return {
+                ...participant,
+                id: (participant as any)?._id?.toString(),
+              };
+            }
+          )
         );
 
         const lastMessage = (conversation as any).lastMessageId
-          ? await this.messageRepository.findById((conversation as any).lastMessageId)
+          ? await this.messageRepository.findById(
+              (conversation as any).lastMessageId
+            )
           : null;
 
         return {
@@ -212,23 +226,30 @@ export class MessagingService {
    */
   async markMessagesAsRead(
     userId: string,
-    conversationId: string,
+    conversationId: string
   ): Promise<{ modifiedCount: number }> {
     // Vérifier l'accès à la conversation
-    const conversation = await this.conversationRepository.findById(conversationId);
+    const conversation =
+      await this.conversationRepository.findById(conversationId);
     if (!conversation) {
-      throw new NotFoundException('Conversation introuvable');
+      throw new NotFoundException("Conversation introuvable");
     }
 
-    const isParticipant = await this.conversationRepository.isParticipant(conversationId, userId);
+    const isParticipant = await this.conversationRepository.isParticipant(
+      conversationId,
+      userId
+    );
     if (!isParticipant) {
       throw new ForbiddenException(
-        "Vous n'avez pas accès à cette conversation",
+        "Vous n'avez pas accès à cette conversation"
       );
     }
 
     // Marquer comme lus tous les messages reçus dans cette conversation
-    const modifiedCount = await this.messageRepository.markConversationAsRead(conversationId, userId);
+    const modifiedCount = await this.messageRepository.markConversationAsRead(
+      conversationId,
+      userId
+    );
 
     return { modifiedCount };
   }
@@ -238,16 +259,19 @@ export class MessagingService {
    */
   private async findOrCreateConversation(
     userId1: string,
-    userId2: string,
+    userId2: string
   ): Promise<Conversation> {
     // Chercher une conversation existante
-    let conversation = await this.conversationRepository.findByParticipants([userId1, userId2]);
+    let conversation = await this.conversationRepository.findByParticipants([
+      userId1,
+      userId2,
+    ]);
 
     // Si pas trouvée, en créer une nouvelle
     if (!conversation) {
       conversation = await this.conversationRepository.create({
         participants: [userId1, userId2],
-        type: 'private',
+        type: "private",
         createdBy: userId1,
       });
     }

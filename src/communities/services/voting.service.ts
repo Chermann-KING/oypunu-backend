@@ -306,9 +306,9 @@ export class VotingService {
   }> {
     let document;
     if (targetType === 'community_post') {
-      document = await this.postModel.findById(targetId);
+      document = await this.postRepository.findById(targetId);
     } else {
-      document = await this.commentModel.findById(targetId);
+      document = await this.commentRepository.findById(targetId);
     }
 
     if (!document) {
