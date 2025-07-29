@@ -1,12 +1,11 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Injectable, Inject } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { ActivityType, EntityType } from "../schemas/activity-feed.schema";
 import {
+  IActivityFeedRepository,
   ActivityFeed,
-  ActivityType,
-  EntityType,
-} from '../schemas/activity-feed.schema';
-import { IActivityFeedRepository } from '../../repositories/interfaces/activity-feed.repository.interface';
-import { ILanguageRepository } from '../../repositories/interfaces/language.repository.interface';
+} from "../../repositories/interfaces/activity-feed.repository.interface";
+import { ILanguageRepository } from "../../repositories/interfaces/language.repository.interface";
 
 export interface CreateActivityData {
   userId: string;
@@ -38,33 +37,33 @@ const AFRICAN_LANGUAGES_MAP: Record<
   { region: string; country: string; flag: string; name: string }
 > = {
   // Langues principales d'Afrique de l'Ouest
-  yo: { region: 'africa', country: 'NG', flag: '🇳🇬', name: 'Yorùbá' }, // Yoruba (Nigeria)
-  ha: { region: 'africa', country: 'NG', flag: '🇳🇬', name: 'Hausa' }, // Hausa (Nigeria)
-  ig: { region: 'africa', country: 'NG', flag: '🇳🇬', name: 'Igbo' }, // Igbo (Nigeria)
-  ff: { region: 'africa', country: 'SN', flag: '🇸🇳', name: 'Fulfulde' }, // Fulfulde (Sénégal)
-  wo: { region: 'africa', country: 'SN', flag: '🇸🇳', name: 'Wolof' }, // Wolof (Sénégal)
-  bm: { region: 'africa', country: 'ML', flag: '🇲🇱', name: 'Bambara' }, // Bambara (Mali)
+  yo: { region: "africa", country: "NG", flag: "🇳🇬", name: "Yorùbá" }, // Yoruba (Nigeria)
+  ha: { region: "africa", country: "NG", flag: "🇳🇬", name: "Hausa" }, // Hausa (Nigeria)
+  ig: { region: "africa", country: "NG", flag: "🇳🇬", name: "Igbo" }, // Igbo (Nigeria)
+  ff: { region: "africa", country: "SN", flag: "🇸🇳", name: "Fulfulde" }, // Fulfulde (Sénégal)
+  wo: { region: "africa", country: "SN", flag: "🇸🇳", name: "Wolof" }, // Wolof (Sénégal)
+  bm: { region: "africa", country: "ML", flag: "🇲🇱", name: "Bambara" }, // Bambara (Mali)
 
   // Langues d'Afrique Centrale
-  ln: { region: 'africa', country: 'CD', flag: '🇨🇩', name: 'Lingala' }, // Lingala (RDC)
-  kg: { region: 'africa', country: 'CD', flag: '🇨🇩', name: 'Kikongo' }, // Kikongo (RDC)
-  sw: { region: 'africa', country: 'KE', flag: '🇰🇪', name: 'Kiswahili' }, // Swahili (Kenya)
-  rw: { region: 'africa', country: 'RW', flag: '🇷🇼', name: 'Kinyarwanda' }, // Kinyarwanda (Rwanda)
+  ln: { region: "africa", country: "CD", flag: "🇨🇩", name: "Lingala" }, // Lingala (RDC)
+  kg: { region: "africa", country: "CD", flag: "🇨🇩", name: "Kikongo" }, // Kikongo (RDC)
+  sw: { region: "africa", country: "KE", flag: "🇰🇪", name: "Kiswahili" }, // Swahili (Kenya)
+  rw: { region: "africa", country: "RW", flag: "🇷🇼", name: "Kinyarwanda" }, // Kinyarwanda (Rwanda)
 
   // Langues d'Afrique du Sud
-  zu: { region: 'africa', country: 'ZA', flag: '🇿🇦', name: 'isiZulu' }, // Zulu (Afrique du Sud)
-  xh: { region: 'africa', country: 'ZA', flag: '🇿🇦', name: 'isiXhosa' }, // Xhosa (Afrique du Sud)
-  af: { region: 'africa', country: 'ZA', flag: '🇿🇦', name: 'Afrikaans' }, // Afrikaans (Afrique du Sud)
+  zu: { region: "africa", country: "ZA", flag: "🇿🇦", name: "isiZulu" }, // Zulu (Afrique du Sud)
+  xh: { region: "africa", country: "ZA", flag: "🇿🇦", name: "isiXhosa" }, // Xhosa (Afrique du Sud)
+  af: { region: "africa", country: "ZA", flag: "🇿🇦", name: "Afrikaans" }, // Afrikaans (Afrique du Sud)
 
   // Langues d'Afrique du Nord
-  ar: { region: 'africa', country: 'EG', flag: '🇪🇬', name: 'العربية' }, // Arabe (Égypte)
-  ber: { region: 'africa', country: 'MA', flag: '🇲🇦', name: 'Tamazight' }, // Berbère (Maroc)
+  ar: { region: "africa", country: "EG", flag: "🇪🇬", name: "العربية" }, // Arabe (Égypte)
+  ber: { region: "africa", country: "MA", flag: "🇲🇦", name: "Tamazight" }, // Berbère (Maroc)
 
   // Autres langues africaines importantes
-  am: { region: 'africa', country: 'ET', flag: '🇪🇹', name: 'አማርኛ' }, // Amharique (Éthiopie)
-  om: { region: 'africa', country: 'ET', flag: '🇪🇹', name: 'Afaan Oromoo' }, // Oromo (Éthiopie)
-  so: { region: 'africa', country: 'SO', flag: '🇸🇴', name: 'Soomaali' }, // Somali (Somalie)
-  mg: { region: 'africa', country: 'MG', flag: '🇲🇬', name: 'Malagasy' }, // Malgache (Madagascar)
+  am: { region: "africa", country: "ET", flag: "🇪🇹", name: "አማርኛ" }, // Amharique (Éthiopie)
+  om: { region: "africa", country: "ET", flag: "🇪🇹", name: "Afaan Oromoo" }, // Oromo (Éthiopie)
+  so: { region: "africa", country: "SO", flag: "🇸🇴", name: "Soomaali" }, // Somali (Somalie)
+  mg: { region: "africa", country: "MG", flag: "🇲🇬", name: "Malagasy" }, // Malgache (Madagascar)
 };
 
 // Mapping pour les autres langues du monde
@@ -72,25 +71,27 @@ const WORLD_LANGUAGES_MAP: Record<
   string,
   { region: string; country: string; flag: string; name: string }
 > = {
-  fr: { region: 'europe', country: 'FR', flag: '🇫🇷', name: 'Français' },
-  en: { region: 'europe', country: 'GB', flag: '🇬🇧', name: 'English' },
-  es: { region: 'europe', country: 'ES', flag: '🇪🇸', name: 'Español' },
-  de: { region: 'europe', country: 'DE', flag: '🇩🇪', name: 'Deutsch' },
-  it: { region: 'europe', country: 'IT', flag: '🇮🇹', name: 'Italiano' },
-  pt: { region: 'europe', country: 'PT', flag: '🇵🇹', name: 'Português' },
-  ja: { region: 'asia', country: 'JP', flag: '🇯🇵', name: '日本語' },
-  ko: { region: 'asia', country: 'KR', flag: '🇰🇷', name: '한국어' },
-  zh: { region: 'asia', country: 'CN', flag: '🇨🇳', name: '中文' },
-  hi: { region: 'asia', country: 'IN', flag: '🇮🇳', name: 'हिन्दी' },
-  ru: { region: 'europe', country: 'RU', flag: '🇷🇺', name: 'Русский' },
+  fr: { region: "europe", country: "FR", flag: "🇫🇷", name: "Français" },
+  en: { region: "europe", country: "GB", flag: "🇬🇧", name: "English" },
+  es: { region: "europe", country: "ES", flag: "🇪🇸", name: "Español" },
+  de: { region: "europe", country: "DE", flag: "🇩🇪", name: "Deutsch" },
+  it: { region: "europe", country: "IT", flag: "🇮🇹", name: "Italiano" },
+  pt: { region: "europe", country: "PT", flag: "🇵🇹", name: "Português" },
+  ja: { region: "asia", country: "JP", flag: "🇯🇵", name: "日本語" },
+  ko: { region: "asia", country: "KR", flag: "🇰🇷", name: "한국어" },
+  zh: { region: "asia", country: "CN", flag: "🇨🇳", name: "中文" },
+  hi: { region: "asia", country: "IN", flag: "🇮🇳", name: "हिन्दी" },
+  ru: { region: "europe", country: "RU", flag: "🇷🇺", name: "Русский" },
 };
 
 @Injectable()
 export class ActivityService {
   constructor(
-    @Inject('IActivityFeedRepository') private activityFeedRepository: IActivityFeedRepository,
-    @Inject('ILanguageRepository') private languageRepository: ILanguageRepository,
-    private eventEmitter: EventEmitter2,
+    @Inject("IActivityFeedRepository")
+    private activityFeedRepository: IActivityFeedRepository,
+    @Inject("ILanguageRepository")
+    private languageRepository: ILanguageRepository,
+    private eventEmitter: EventEmitter2
   ) {}
 
   async createActivity(data: CreateActivityData): Promise<ActivityFeed> {
@@ -104,7 +105,7 @@ export class ActivityService {
         isPublic: data.isPublic !== false, // Par défaut public
       });
 
-      console.log('📊 Nouvelle activité créée:', {
+      console.log("📊 Nouvelle activité créée:", {
         type: data.activityType,
         user: data.username,
         language: enrichedData.metadata?.languageName,
@@ -112,8 +113,8 @@ export class ActivityService {
       });
 
       // Émettre l'événement pour diffusion temps réel
-      this.eventEmitter.emit('activity.created', {
-        activity: activity.toObject(),
+      this.eventEmitter.emit("activity.created", {
+        activity,
         userId: data.userId,
       });
 
@@ -125,7 +126,7 @@ export class ActivityService {
   }
 
   private async enrichWithLanguageInfo(
-    data: CreateActivityData,
+    data: CreateActivityData
   ): Promise<CreateActivityData> {
     const languageCode = data.metadata?.languageCode || data.metadata?.language;
 
@@ -150,7 +151,7 @@ export class ActivityService {
         };
       }
     } catch (error) {
-      console.error('Erreur lors de la recherche de langue:', error);
+      console.error("Erreur lors de la recherche de langue:", error);
     }
 
     // Fallback vers les mappings statiques
@@ -178,66 +179,66 @@ export class ActivityService {
     // Mapping des codes vers drapeaux principaux
     const flagMap: { [key: string]: string } = {
       // Langues africaines (priorité)
-      yo: '🇳🇬',
-      ha: '🇳🇬',
-      ig: '🇳🇬', // Nigeria
-      ff: '🇸🇳',
-      wo: '🇸🇳', // Sénégal
-      bm: '🇲🇱', // Mali
-      ln: '🇨🇩',
-      kg: '🇨🇩', // RDC
-      sw: '🇰🇪', // Kenya
-      rw: '🇷🇼', // Rwanda
-      zu: '🇿🇦',
-      xh: '🇿🇦',
-      af: '🇿🇦', // Afrique du Sud
-      ar: '🇪🇬', // Égypte
-      ber: '🇲🇦', // Maroc
-      am: '🇪🇹',
-      om: '🇪🇹', // Éthiopie
-      so: '🇸🇴', // Somalie
-      mg: '🇲🇬', // Madagascar
+      yo: "🇳🇬",
+      ha: "🇳🇬",
+      ig: "🇳🇬", // Nigeria
+      ff: "🇸🇳",
+      wo: "🇸🇳", // Sénégal
+      bm: "🇲🇱", // Mali
+      ln: "🇨🇩",
+      kg: "🇨🇩", // RDC
+      sw: "🇰🇪", // Kenya
+      rw: "🇷🇼", // Rwanda
+      zu: "🇿🇦",
+      xh: "🇿🇦",
+      af: "🇿🇦", // Afrique du Sud
+      ar: "🇪🇬", // Égypte
+      ber: "🇲🇦", // Maroc
+      am: "🇪🇹",
+      om: "🇪🇹", // Éthiopie
+      so: "🇸🇴", // Somalie
+      mg: "🇲🇬", // Madagascar
 
       // Autres langues du monde
-      fr: '🇫🇷',
-      en: '🇬🇧',
-      es: '🇪🇸',
-      de: '🇩🇪',
-      it: '🇮🇹',
-      pt: '🇵🇹',
-      ja: '🇯🇵',
-      ko: '🇰🇷',
-      zh: '🇨🇳',
-      hi: '🇮🇳',
-      ru: '🇷🇺',
+      fr: "🇫🇷",
+      en: "🇬🇧",
+      es: "🇪🇸",
+      de: "🇩🇪",
+      it: "🇮🇹",
+      pt: "🇵🇹",
+      ja: "🇯🇵",
+      ko: "🇰🇷",
+      zh: "🇨🇳",
+      hi: "🇮🇳",
+      ru: "🇷🇺",
     };
 
-    return flagMap[languageCode] || '🌍';
+    return flagMap[languageCode] || "🌍";
   }
 
   async getRecentActivities(
     limit: number = 10,
-    prioritizeAfrican: boolean = true,
+    prioritizeAfrican: boolean = true
   ): Promise<ActivityFeed[]> {
-    const sortBy = prioritizeAfrican ? 'languageRegion' : 'createdAt';
-    const sortOrder = prioritizeAfrican ? 'asc' : 'desc';
-    
+    const sortBy = prioritizeAfrican ? "languageRegion" : "createdAt";
+    const sortOrder = prioritizeAfrican ? "asc" : "desc";
+
     const result = await this.activityFeedRepository.findRecent({
       limit,
       isPublic: true,
       isVisible: true,
       sortBy,
       sortOrder,
-      secondarySortBy: 'createdAt',
-      secondarySortOrder: 'desc'
+      secondarySortBy: "createdAt",
+      secondarySortOrder: "desc",
     });
-    
+
     return result.activities;
   }
 
   async getActivitiesByType(
     activityType: ActivityType,
-    limit: number = 5,
+    limit: number = 5
   ): Promise<ActivityFeed[]> {
     return await this.activityFeedRepository.findByType(activityType, {
       limit,
@@ -254,7 +255,7 @@ export class ActivityService {
     username: string,
     wordId: string,
     wordName: string,
-    languageCode: string,
+    languageCode: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -277,7 +278,7 @@ export class ActivityService {
     wordName: string,
     translatedWord: string,
     sourceLanguageCode: string,
-    targetLanguageCode: string,
+    targetLanguageCode: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -300,7 +301,7 @@ export class ActivityService {
     wordId: string,
     wordName: string,
     synonymsCount: number,
-    languageCode: string,
+    languageCode: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -321,7 +322,7 @@ export class ActivityService {
     username: string,
     wordId: string,
     wordName: string,
-    languageCode: string,
+    languageCode: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -341,7 +342,7 @@ export class ActivityService {
     username: string,
     wordId: string,
     wordName: string,
-    languageCode: string,
+    languageCode: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -359,7 +360,7 @@ export class ActivityService {
   // === Activités liées aux utilisateurs ===
   async logUserRegistered(
     userId: string,
-    username: string,
+    username: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -373,7 +374,7 @@ export class ActivityService {
 
   async logUserLoggedIn(
     userId: string,
-    username: string,
+    username: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -390,7 +391,7 @@ export class ActivityService {
     userId: string,
     username: string,
     communityId: string,
-    communityName: string,
+    communityName: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -408,7 +409,7 @@ export class ActivityService {
     userId: string,
     username: string,
     communityId: string,
-    communityName: string,
+    communityName: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -428,7 +429,7 @@ export class ActivityService {
     postId: string,
     postTitle: string,
     communityId: string,
-    communityName: string,
+    communityName: string
   ): Promise<ActivityFeed> {
     return this.createActivity({
       userId,
@@ -456,7 +457,15 @@ export class ActivityService {
   }): Promise<ActivityFeed> {
     // Obtenir le username depuis le userId
     // Pour l'instant, on utilise une valeur par défaut car l'interface originale ne fournit pas le username
-    const username = 'Unknown User'; // TODO: Améliorer en récupérant depuis UserService
+    // Récupérer le username depuis UserService si possible
+    let username = "Unknown User";
+    try {
+      // Note: Injection du UserService serait nécessaire pour récupérer le username
+      // Pour l'instant, on utilise une valeur par défaut
+      username = `User-${data.userId.slice(-6)}`;
+    } catch (error) {
+      console.warn('Could not fetch username for activity logging:', error);
+    }
 
     // Mapper les types vers les enums ActivityType et EntityType
     const mappedActivityType = this.mapActivityType(data.activityType);
@@ -472,19 +481,278 @@ export class ActivityService {
     });
   }
 
+  // ========== MÉTHODES SPÉCIALISÉES D'ACTIVITY LOGGING ==========
+
+  /**
+   * Enregistrer la mise à jour d'un mot
+   */
+  async logWordUpdated(
+    userId: string,
+    wordId: string,
+    changes: string[],
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'word_updated',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        changes,
+        timestamp: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer la suppression d'un mot
+   */
+  async logWordDeleted(
+    userId: string,
+    wordId: string,
+    wordTitle: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'word_deleted',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        wordTitle,
+        deletedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer l'ajout d'un fichier audio
+   */
+  async logAudioAdded(
+    userId: string,
+    wordId: string,
+    audioUrl: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'audio_added',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        audioUrl,
+        addedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer la suppression d'un fichier audio
+   */
+  async logAudioDeleted(
+    userId: string,
+    wordId: string,
+    audioUrl: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'audio_deleted',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        audioUrl,
+        deletedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer une mise à jour en bulk des fichiers audio
+   */
+  async logAudioBulkUpdated(
+    userId: string,
+    wordId: string,
+    operation: 'added' | 'deleted' | 'updated',
+    count: number,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'audio_bulk_updated',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        operation,
+        count,
+        bulkUpdatedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer l'ajout d'une traduction
+   */
+  async logTranslationAdded(
+    userId: string,
+    wordId: string,
+    targetLanguage: string,
+    translatedWord: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'translation_added',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        targetLanguage,
+        translatedWord,
+        addedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer une action de vote
+   */
+  async logVoteAction(
+    userId: string,
+    targetType: 'word' | 'translation' | 'comment',
+    targetId: string,
+    voteType: 'like' | 'dislike' | 'helpful' | 'accurate',
+    action: 'created' | 'updated' | 'removed',
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'vote_action',
+      targetType,
+      targetId,
+      metadata: {
+        voteType,
+        action,
+        votedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer l'ajout aux favoris
+   */
+  async logFavoriteAdded(
+    userId: string,
+    wordId: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'word_favorited',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        favoritedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer la suppression des favoris
+   */
+  async logFavoriteRemoved(
+    userId: string,
+    wordId: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'word_unfavorited',
+      targetType: 'word',
+      targetId: wordId,
+      metadata: {
+        unfavoritedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer l'activation d'un achievement
+   */
+  async logAchievementUnlocked(
+    userId: string,
+    achievementId: string,
+    achievementName: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId,
+      activityType: 'achievement_unlocked',
+      targetType: 'achievement',
+      targetId: achievementId,
+      metadata: {
+        achievementName,
+        unlockedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
+  /**
+   * Enregistrer une action de modération
+   */
+  async logModerationAction(
+    moderatorId: string,
+    targetType: 'word' | 'user' | 'comment',
+    targetId: string,
+    action: 'approved' | 'rejected' | 'banned' | 'warned',
+    reason?: string,
+    metadata?: Record<string, any>
+  ): Promise<ActivityFeed> {
+    return this.recordActivity({
+      userId: moderatorId,
+      activityType: 'moderation_action',
+      targetType,
+      targetId,
+      metadata: {
+        action,
+        reason,
+        moderatedAt: new Date(),
+        ...metadata
+      }
+    });
+  }
+
   private mapActivityType(activityType: string): ActivityType {
     const typeMap: Record<string, ActivityType> = {
-      'word_favorited': ActivityType.WORD_FAVORITED,
-      'word_unfavorited': ActivityType.WORD_UNFAVORITED,
-      'word_shared': ActivityType.WORD_SHARED,
-      'word_received': ActivityType.WORD_RECEIVED,
-      'favorites_cleared': ActivityType.FAVORITES_CLEARED,
-      'word_created': ActivityType.WORD_CREATED,
-      'word_updated': ActivityType.WORD_UPDATED,
-      'word_deleted': ActivityType.WORD_DELETED,
-      'audio_added': ActivityType.AUDIO_ADDED,
-      'audio_deleted': ActivityType.AUDIO_DELETED,
-      'audio_bulk_updated': ActivityType.AUDIO_UPDATED,
+      word_favorited: ActivityType.WORD_FAVORITED,
+      word_unfavorited: ActivityType.WORD_UNFAVORITED,
+      word_updated: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
+      word_deleted: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
+      audio_added: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
+      audio_deleted: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
+      audio_bulk_updated: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
+      translation_added: ActivityType.TRANSLATION_ADDED,
+      vote_action: ActivityType.WORD_VOTED,
+      achievement_unlocked: ActivityType.ACHIEVEMENT_UNLOCKED,
+      moderation_action: ActivityType.WORD_CREATED, // Utiliser le plus proche existant
+      word_shared: ActivityType.WORD_SHARED,
+      word_received: ActivityType.WORD_RECEIVED,
+      favorites_cleared: ActivityType.FAVORITES_CLEARED,
+      word_created: ActivityType.WORD_CREATED,
+      word_updated: ActivityType.WORD_UPDATED,
+      word_deleted: ActivityType.WORD_DELETED,
+      audio_added: ActivityType.AUDIO_ADDED,
+      audio_deleted: ActivityType.AUDIO_DELETED,
+      audio_bulk_updated: ActivityType.AUDIO_UPDATED,
     };
 
     return typeMap[activityType] || ActivityType.WORD_CREATED; // Fallback par défaut
@@ -492,9 +760,9 @@ export class ActivityService {
 
   private mapEntityType(targetType: string): EntityType {
     const typeMap: Record<string, EntityType> = {
-      'word': EntityType.WORD,
-      'user': EntityType.USER,
-      'audio': EntityType.AUDIO,
+      word: EntityType.WORD,
+      user: EntityType.USER,
+      audio: EntityType.AUDIO,
     };
 
     return typeMap[targetType] || EntityType.WORD; // Fallback par défaut

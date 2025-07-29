@@ -8,9 +8,10 @@ import { IWordRepository } from "../../repositories/interfaces/word.repository.i
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject('IUserRepository') private userRepository: IUserRepository,
-    @Inject('IActivityFeedRepository') private activityFeedRepository: IActivityFeedRepository,
-    @Inject('IWordRepository') private wordRepository: IWordRepository,
+    @Inject("IUserRepository") private userRepository: IUserRepository,
+    @Inject("IActivityFeedRepository")
+    private activityFeedRepository: IActivityFeedRepository,
+    @Inject("IWordRepository") private wordRepository: IWordRepository
   ) {}
 
   async findById(id: string): Promise<User | null> {
@@ -18,7 +19,7 @@ export class UsersService {
       async () => {
         return this.userRepository.findById(id);
       },
-      'User',
+      "User",
       id
     );
   }
@@ -29,7 +30,7 @@ export class UsersService {
         // Note: Population will be handled in repository layer if needed
         return this.userRepository.findById(id);
       },
-      'User',
+      "User",
       id
     );
   }
@@ -39,7 +40,7 @@ export class UsersService {
       async () => {
         return this.userRepository.findByEmail(email);
       },
-      'User',
+      "User",
       email
     );
   }
@@ -49,7 +50,7 @@ export class UsersService {
       async () => {
         return this.userRepository.findByUsername(username);
       },
-      'User',
+      "User",
       username
     );
   }
@@ -62,65 +63,62 @@ export class UsersService {
       async () => {
         return this.userRepository.update(id, updateData);
       },
-      'User',
+      "User",
       id
     );
   }
 
   async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        console.log("[UsersService] Recherche d'utilisateurs");
-        console.log("[UsersService] Requête:", query);
-        console.log("[UsersService] Utilisateur à exclure:", excludeUserId);
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      console.log("[UsersService] Recherche d'utilisateurs");
+      console.log("[UsersService] Requête:", query);
+      console.log("[UsersService] Utilisateur à exclure:", excludeUserId);
 
-        const searchRegex = new RegExp(query, "i"); // Recherche insensible à la casse
-        console.log("[UsersService] Regex de recherche:", searchRegex);
+      const searchRegex = new RegExp(query, "i"); // Recherche insensible à la casse
+      console.log("[UsersService] Regex de recherche:", searchRegex);
 
-        const filter: any = {
-          $or: [
-            { username: { $regex: searchRegex } },
-            { email: { $regex: searchRegex } },
-          ],
-        };
+      const filter: any = {
+        $or: [
+          { username: { $regex: searchRegex } },
+          { email: { $regex: searchRegex } },
+        ],
+      };
 
-        // Exclure l'utilisateur connecté des résultats
-        if (excludeUserId) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          filter._id = { $ne: excludeUserId };
-        }
+      // Exclure l'utilisateur connecté des résultats
+      if (excludeUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        filter._id = { $ne: excludeUserId };
+      }
 
-        console.log(
-          "[UsersService] Filtre de recherche:",
-          JSON.stringify(filter, null, 2)
-        );
+      console.log(
+        "[UsersService] Filtre de recherche:",
+        JSON.stringify(filter, null, 2)
+      );
 
-        const users = await this.userRepository.search(query, {
-          limit: 10,
-          offset: excludeUserId ? 0 : undefined
-        });
-        
-        // Filter out excluded user if needed
-        const filteredUsers = excludeUserId 
-          ? users.filter(user => (user as any)._id.toString() !== excludeUserId)
-          : users;
+      const users = await this.userRepository.search(query, {
+        limit: 10,
+        offset: excludeUserId ? 0 : undefined,
+      });
 
-        console.log("[UsersService] Utilisateurs trouvés en base:", users.length);
-        console.log(
-          "[UsersService] Premier utilisateur (si existe):",
-          users[0]
-            ? {
-                id: users[0]._id,
-                username: users[0].username,
-                email: users[0].email,
-              }
-            : "Aucun"
-        );
+      // Filter out excluded user if needed
+      const filteredUsers = excludeUserId
+        ? users.filter((user) => (user as any)._id.toString() !== excludeUserId)
+        : users;
 
-        return filteredUsers;
-      },
-      'User'
-    );
+      console.log("[UsersService] Utilisateurs trouvés en base:", users.length);
+      console.log(
+        "[UsersService] Premier utilisateur (si existe):",
+        users[0]
+          ? {
+              id: users[0]._id,
+              username: users[0].username,
+              email: users[0].email,
+            }
+          : "Aucun"
+      );
+
+      return filteredUsers;
+    }, "User");
   }
 
   async getUserStats(userId: string): Promise<{
@@ -135,38 +133,35 @@ export class UsersService {
     activitiesThisWeek: number;
     lastActivityDate?: Date;
   }> {
-    return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        const user = await this.userRepository.findById(userId);
-        if (!user) {
-          throw new Error("Utilisateur non trouvé");
-        }
+    return DatabaseErrorHandler.handleSearchOperation(async () => {
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        throw new Error("Utilisateur non trouvé");
+      }
 
-        // Utiliser notre nouvelle méthode intelligente
-        const personalStats = await this.getUserPersonalStats(userId);
+      // Utiliser notre nouvelle méthode intelligente
+      const personalStats = await this.getUserPersonalStats(userId);
 
-        // Compter les vrais favoris de l'utilisateur
-        // Note: FavoriteWord functionality should be moved to repository pattern too
-        // For now, using direct model access until FavoriteWordRepository is implemented
-        const actualFavoritesCount = 0; // Placeholder - needs FavoriteWordRepository
+      // Compter les vrais favoris de l'utilisateur
+      // Note: FavoriteWord functionality should be moved to repository pattern too
+      // For now, using direct model access until FavoriteWordRepository is implemented
+      const actualFavoritesCount = 0; // Placeholder - needs FavoriteWordRepository
 
-        return {
-          totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
-          totalCommunityPosts: user.totalCommunityPosts || 0,
-          favoriteWordsCount: actualFavoritesCount,
-          joinDate:
-            (user as unknown as { createdAt?: Date }).createdAt || new Date(),
-          // Nouvelles stats intelligentes
-          streak: personalStats.streak,
-          languagesContributed: personalStats.languagesContributed, // NOUVELLE MÉTRIQUE
-          languagesExplored: personalStats.languagesExplored,
-          contributionScore: personalStats.contributionScore,
-          activitiesThisWeek: personalStats.activitiesThisWeek,
-          lastActivityDate: personalStats.lastActivityDate,
-        };
-      },
-      'User'
-    );
+      return {
+        totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
+        totalCommunityPosts: user.totalCommunityPosts || 0,
+        favoriteWordsCount: actualFavoritesCount,
+        joinDate:
+          (user as unknown as { createdAt?: Date }).createdAt || new Date(),
+        // Nouvelles stats intelligentes
+        streak: personalStats.streak,
+        languagesContributed: personalStats.languagesContributed, // NOUVELLE MÉTRIQUE
+        languagesExplored: personalStats.languagesExplored,
+        contributionScore: personalStats.contributionScore,
+        activitiesThisWeek: personalStats.activitiesThisWeek,
+        lastActivityDate: personalStats.lastActivityDate,
+      };
+    }, "User");
   }
 
   async incrementWordCount(userId: string): Promise<void> {
@@ -176,8 +171,10 @@ export class UsersService {
   async incrementPostCount(userId: string): Promise<void> {
     // Note: Community posts increment should be in UserRepository
     // For now using update method
-    await this.userRepository.update(userId, { 
-      totalCommunityPosts: (await this.userRepository.findById(userId))?.totalCommunityPosts + 1 || 1 
+    await this.userRepository.update(userId, {
+      totalCommunityPosts:
+        (await this.userRepository.findById(userId))?.totalCommunityPosts + 1 ||
+        1,
     });
   }
 
@@ -194,25 +191,29 @@ export class UsersService {
     // Note: This bulk operation should be implemented in UserRepository
     // For now, getting users and updating individually
     const adminUsers = await this.userRepository.findAll({
-      role: 'admin'
+      role: "admin",
     });
     const superAdminUsers = await this.userRepository.findAll({
-      role: 'superadmin'
+      role: "superadmin",
     });
     const contributorUsers = await this.userRepository.findAll({
-      role: 'contributor'
+      role: "contributor",
     });
-    
-    const allElevatedUsers = [...adminUsers.users, ...superAdminUsers.users, ...contributorUsers.users];
+
+    const allElevatedUsers = [
+      ...adminUsers.users,
+      ...superAdminUsers.users,
+      ...contributorUsers.users,
+    ];
     let modifiedCount = 0;
-    
+
     for (const user of allElevatedUsers) {
       if (!user.isActive) {
         await this.userRepository.update((user as any)._id, { isActive: true });
         modifiedCount++;
       }
     }
-    
+
     const result = { modifiedCount };
 
     console.log(
@@ -244,9 +245,10 @@ export class UsersService {
     // Note: Complex query should be in UserRepository
     // For now, getting active users and filtering
     const activeUsers = await this.userRepository.findActiveUsers(0.003);
-    const onlineContributors = activeUsers.filter(user => 
-      (user.totalWordsAdded && user.totalWordsAdded > 0) ||
-      ['contributor', 'admin', 'superadmin'].includes(user.role)
+    const onlineContributors = activeUsers.filter(
+      (user) =>
+        (user.totalWordsAdded && user.totalWordsAdded > 0) ||
+        ["contributor", "admin", "superadmin"].includes(user.role)
     );
     const count = onlineContributors.length;
 
@@ -276,11 +278,14 @@ export class UsersService {
   async getUserActivityStreak(userId: string): Promise<number> {
     try {
       // Récupérer toutes les activités de l'utilisateur triées par date décroissante
-      const activities = await this.activityFeedRepository.getUserActivities(userId, {
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        limit: 1000 // Large limit for streak calculation
-      });
+      const activities = await this.activityFeedRepository.getUserActivities(
+        userId,
+        {
+          sortBy: "createdAt",
+          sortOrder: "desc",
+          limit: 1000, // Large limit for streak calculation
+        }
+      );
 
       if (activities.length === 0) {
         return 0;
@@ -347,7 +352,8 @@ export class UsersService {
       const streak = await this.getUserActivityStreak(userId);
 
       // Compter les mots RÉELLEMENT présents en base de données créés par cet utilisateur et approuvés
-      const actualWordsAdded = await this.wordRepository.countByCreatorAndStatus(userId, 'approved');
+      const actualWordsAdded =
+        await this.wordRepository.countByCreatorAndStatus(userId, "approved");
 
       console.log(
         `📊 Mots réels pour ${userId}: ${actualWordsAdded} (vs compteur: ${user.totalWordsAdded})`
@@ -357,22 +363,27 @@ export class UsersService {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-      const weeklyActivities = await this.activityFeedRepository.getActivitiesByPeriod(userId, 'week');
-      const activitiesThisWeek = Array.isArray(weeklyActivities) ? weeklyActivities.length : 0;
+      const weeklyActivities =
+        await this.activityFeedRepository.getActivitiesByPeriod(userId, "week");
+      const activitiesThisWeek = Array.isArray(weeklyActivities)
+        ? weeklyActivities.length
+        : 0;
 
       // Obtenir la dernière activité
-      const recentActivities = await this.activityFeedRepository.getUserActivities(userId, {
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        limit: 1
-      });
+      const recentActivities =
+        await this.activityFeedRepository.getUserActivities(userId, {
+          sortBy: "createdAt",
+          sortOrder: "desc",
+          limit: 1,
+        });
       const lastActivity = recentActivities[0] || null;
 
       // === LANGUES CONTRIBUÉES (Option A) ===
       // Langues où l'utilisateur a activement contribué (créé des mots, ajouté des traductions)
-      const contributionActivities = await this.activityFeedRepository.getDistinctLanguagesByUser(userId, {
-        activityTypes: ["word_created", "translation_added", "synonym_added"]
-      });
+      const contributionActivities =
+        await this.activityFeedRepository.getDistinctLanguagesByUser(userId, {
+          activityTypes: ["word_created", "translation_added", "synonym_added"],
+        });
 
       // === LANGUES EXPLORÉES (Option B) ===
       // Toutes les langues avec lesquelles l'utilisateur a interagi
@@ -435,10 +446,8 @@ export class UsersService {
   ): Promise<any[]> {
     try {
       const recentWords = await this.wordRepository.findByCreator(userId, {
-        status: 'approved',
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        limit
+        status: "approved",
+        limit,
       });
 
       return (recentWords || []).map((word) => ({

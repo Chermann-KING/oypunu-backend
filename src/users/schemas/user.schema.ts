@@ -140,6 +140,10 @@ export class User {
 
   @Prop({ type: String })
   consentUserAgent?: string; // User-Agent lors du consentement
+
+  // Timestamps automatiques ajoutés par MongoDB
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

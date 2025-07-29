@@ -1,9 +1,10 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { IWordRepository } from '../../repositories/interfaces/word.repository.interface';
-import { IUserRepository } from '../../repositories/interfaces/user.repository.interface';
-import { IWordViewRepository } from '../../repositories/interfaces/word-view.repository.interface';
-import { IWordVoteRepository } from '../../repositories/interfaces/word-vote.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { Injectable, Inject } from "@nestjs/common";
+import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
+import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
+import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
+import { IWordVoteRepository } from "../../repositories/interfaces/word-vote.repository.interface";
+import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-word.repository.interface";
+import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
 
 export interface WordComment {
   id: string;
@@ -54,7 +55,7 @@ export interface UsageExample {
   id: string;
   sentence: string;
   translation?: string;
-  context: 'formal' | 'informal' | 'technical' | 'literary' | 'everyday';
+  context: "formal" | "informal" | "technical" | "literary" | "everyday";
   source?: string;
   difficulty: string;
   contributedBy: string;
@@ -67,16 +68,26 @@ export class WordSocialService {
   // Simuler des bases de données en mémoire pour les fonctionnalités sociales
   private comments: Map<string, WordComment[]> = new Map();
   private likes: Map<string, Set<string>> = new Map(); // wordId -> Set<userId>
-  private shares: Map<string, Array<{ userId: string; platform: string; timestamp: Date }>> = new Map();
-  private ratings: Map<string, Map<string, { rating: number; comment?: string; timestamp: Date }>> = new Map();
+  private shares: Map<
+    string,
+    Array<{ userId: string; platform: string; timestamp: Date }>
+  > = new Map();
+  private ratings: Map<
+    string,
+    Map<string, { rating: number; comment?: string; timestamp: Date }>
+  > = new Map();
   private usageExamples: Map<string, UsageExample[]> = new Map();
   private commentLikes: Map<string, Set<string>> = new Map(); // commentId -> Set<userId>
 
   constructor(
-    @Inject('IWordRepository') private wordRepository: IWordRepository,
-    @Inject('IUserRepository') private userRepository: IUserRepository,
-    @Inject('IWordViewRepository') private wordViewRepository: IWordViewRepository,
-    @Inject('IWordVoteRepository') private wordVoteRepository: IWordVoteRepository,
+    @Inject("IWordRepository") private wordRepository: IWordRepository,
+    @Inject("IUserRepository") private userRepository: IUserRepository,
+    @Inject("IWordViewRepository")
+    private wordViewRepository: IWordViewRepository,
+    @Inject("IWordVoteRepository")
+    private wordVoteRepository: IWordVoteRepository,
+    @Inject("IFavoriteWordRepository")
+    private favoriteWordRepository: IFavoriteWordRepository
   ) {}
 
   async getWordOfTheDay(): Promise<{
@@ -104,7 +115,7 @@ export class WordSocialService {
         const word = featuredWords[0];
 
         if (!word) {
-          throw new Error('Aucun mot disponible pour le mot du jour');
+          throw new Error("Aucun mot disponible pour le mot du jour");
         }
 
         const wordId = (word as any)._id.toString();
@@ -121,10 +132,10 @@ export class WordSocialService {
             meanings: word.meanings,
             pronunciation: word.pronunciation,
             etymology: word.etymology,
-            examples: word.examples || [],
+            examples: [], // TODO: Ajouter la propriété examples au schéma Word
             audioUrl: word.audioFiles?.[0]?.url,
           },
-          date: new Date().toISOString().split('T')[0],
+          date: new Date().toISOString().split("T")[0],
           stats: {
             views: socialStats.views,
             likes: socialStats.likes,
@@ -136,8 +147,8 @@ export class WordSocialService {
           challenge,
         };
       },
-      'WordSocial',
-      'word-of-the-day',
+      "WordSocial",
+      "word-of-the-day"
     );
   }
 
@@ -145,20 +156,20 @@ export class WordSocialService {
     wordId: string,
     content: string,
     authorId: string,
-    parentId?: string,
+    parentId?: string
   ): Promise<WordComment> {
     return DatabaseErrorHandler.handleCreateOperation(
       async () => {
         // Vérifier que le mot existe
         const word = await this.wordRepository.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw new Error("Mot introuvable");
         }
 
         // Récupérer les informations de l'auteur
         const author = await this.userRepository.findById(authorId);
         if (!author) {
-          throw new Error('Utilisateur introuvable');
+          throw new Error("Utilisateur introuvable");
         }
 
         const commentId = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -181,10 +192,10 @@ export class WordSocialService {
 
         // Ajouter le commentaire
         const wordComments = this.comments.get(wordId) || [];
-        
+
         if (parentId) {
           // Ajouter comme réponse à un commentaire parent
-          const parentComment = wordComments.find(c => c.id === parentId);
+          const parentComment = wordComments.find((c) => c.id === parentId);
           if (parentComment) {
             parentComment.replies.push(comment);
           }
@@ -197,9 +208,8 @@ export class WordSocialService {
 
         return comment;
       },
-      'WordSocial',
-      wordId,
-      authorId,
+      "WordSocial",
+      authorId // Passer seulement userId
     );
   }
 
@@ -208,7 +218,7 @@ export class WordSocialService {
     options: {
       page: number;
       limit: number;
-      sort: 'newest' | 'oldest' | 'most_liked' | 'most_replies';
+      sort: "newest" | "oldest" | "most_liked" | "most_replies";
       userId?: string;
     }
   ): Promise<{
@@ -224,37 +234,46 @@ export class WordSocialService {
 
         // Marquer les likes de l'utilisateur si connecté
         if (options.userId) {
-          comments = comments.map(comment => ({
+          comments = comments.map((comment) => ({
             ...comment,
-            isLiked: this.commentLikes.get(comment.id)?.has(options.userId!) || false,
-            replies: comment.replies.map(reply => ({
+            isLiked:
+              this.commentLikes.get(comment.id)?.has(options.userId!) || false,
+            replies: comment.replies.map((reply) => ({
               ...reply,
-              isLiked: this.commentLikes.get(reply.id)?.has(options.userId!) || false,
+              isLiked:
+                this.commentLikes.get(reply.id)?.has(options.userId!) || false,
             })),
           }));
         }
 
         // Trier les commentaires
         switch (options.sort) {
-          case 'oldest':
-            comments.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+          case "oldest":
+            comments.sort(
+              (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+            );
             break;
-          case 'most_liked':
+          case "most_liked":
             comments.sort((a, b) => b.likes - a.likes);
             break;
-          case 'most_replies':
+          case "most_replies":
             comments.sort((a, b) => b.replies.length - a.replies.length);
             break;
-          case 'newest':
+          case "newest":
           default:
-            comments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            comments.sort(
+              (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+            );
             break;
         }
 
         // Pagination
         const total = comments.length;
         const startIndex = (options.page - 1) * options.limit;
-        const paginatedComments = comments.slice(startIndex, startIndex + options.limit);
+        const paginatedComments = comments.slice(
+          startIndex,
+          startIndex + options.limit
+        );
 
         return {
           comments: paginatedComments,
@@ -264,17 +283,23 @@ export class WordSocialService {
           hasMore: startIndex + options.limit < total,
         };
       },
-      'WordSocial',
-      wordId,
+      "WordSocial",
+      wordId
     );
   }
 
   async shareWord(
     wordId: string,
-    platform: 'facebook' | 'twitter' | 'linkedin' | 'whatsapp' | 'telegram' | 'email',
+    platform:
+      | "facebook"
+      | "twitter"
+      | "linkedin"
+      | "whatsapp"
+      | "telegram"
+      | "email",
     userId: string,
     message?: string,
-    recipients?: string[],
+    recipients?: string[]
   ): Promise<{
     success: boolean;
     shareUrl: string;
@@ -290,7 +315,7 @@ export class WordSocialService {
         // Vérifier que le mot existe
         const word = await this.wordRepository.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw new Error("Mot introuvable");
         }
 
         // Enregistrer le partage
@@ -304,12 +329,13 @@ export class WordSocialService {
         this.shares.set(wordId, wordShares);
 
         // Générer l'URL de partage
-        const baseUrl = process.env.FRONTEND_URL || 'https://oypunu.com';
+        const baseUrl = process.env.FRONTEND_URL || "https://oypunu.com";
         const shareUrl = `${baseUrl}/words/${wordId}`;
-        
+
         // Générer le message de partage
-        const shareMessage = message || this.generateShareMessage(word, platform);
-        
+        const shareMessage =
+          message || this.generateShareMessage(word, platform);
+
         // ID unique pour le tracking
         const shareId = `share_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -324,13 +350,15 @@ export class WordSocialService {
           },
         };
       },
-      'WordSocial',
-      wordId,
-      userId,
+      "WordSocial",
+      userId // Passer seulement userId
     );
   }
 
-  async toggleLike(wordId: string, userId: string): Promise<{
+  async toggleLike(
+    wordId: string,
+    userId: string
+  ): Promise<{
     liked: boolean;
     totalLikes: number;
     message: string;
@@ -340,30 +368,31 @@ export class WordSocialService {
         // Vérifier que le mot existe
         const word = await this.wordRepository.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw new Error("Mot introuvable");
         }
 
         // Utiliser le système de vote sophistiqué
         const voteResult = await this.wordVoteRepository.vote(
           userId,
           wordId,
-          'like'
+          "like"
         );
 
         // Compter les likes totaux
         const likeCounts = await this.wordVoteRepository.countByWord(wordId, {
-          reactionType: 'like'
+          reactionType: "like",
         });
 
         return {
-          liked: voteResult.action === 'created',
+          liked: voteResult.action === "created",
           totalLikes: likeCounts.like || 0,
-          message: voteResult.action === 'created' ? 'Like ajouté' : 'Like retiré',
+          message:
+            voteResult.action === "created" ? "Like ajouté" : "Like retiré",
         };
       },
-      'WordSocial',
+      "WordSocial",
       wordId,
-      userId,
+      userId
     );
   }
 
@@ -371,7 +400,7 @@ export class WordSocialService {
     wordId: string,
     userId: string,
     rating: number,
-    comment?: string,
+    comment?: string
   ): Promise<{
     userRating: number;
     averageRating: number;
@@ -382,13 +411,13 @@ export class WordSocialService {
       async () => {
         // Validation
         if (rating < 1 || rating > 5) {
-          throw new Error('La note doit être entre 1 et 5');
+          throw new Error("La note doit être entre 1 et 5");
         }
 
         // Vérifier que le mot existe
         const word = await this.wordRepository.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw new Error("Mot introuvable");
         }
 
         // Enregistrer/mettre à jour la note
@@ -403,13 +432,18 @@ export class WordSocialService {
         // Calculer les statistiques
         const allRatings = Array.from(wordRatings.values());
         const totalRatings = allRatings.length;
-        const averageRating = allRatings.reduce((sum, r) => sum + r.rating, 0) / totalRatings;
+        const averageRating =
+          allRatings.reduce((sum, r) => sum + r.rating, 0) / totalRatings;
 
         // Distribution des notes
         const ratingDistribution: Record<string, number> = {
-          '1': 0, '2': 0, '3': 0, '4': 0, '5': 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
         };
-        allRatings.forEach(r => {
+        allRatings.forEach((r) => {
           ratingDistribution[r.rating.toString()]++;
         });
 
@@ -420,9 +454,9 @@ export class WordSocialService {
           ratingDistribution,
         };
       },
-      'WordSocial',
+      "WordSocial",
       wordId,
-      userId,
+      userId
     );
   }
 
@@ -432,37 +466,50 @@ export class WordSocialService {
         // Récupérer les statistiques de vote sophistiquées
         const voteStats = await this.wordVoteRepository.getWordScore(wordId);
         const voteCounts = await this.wordVoteRepository.countByWord(wordId);
-        
+
         // Autres statistiques
         const shares = this.shares.get(wordId)?.length || 0;
         const comments = this.getTotalCommentsCount(wordId);
         const views = await this.getWordViews(wordId);
-        const favorites = 0; // TODO: Implémenter via repository
+        const favorites = await this.favoriteWordRepository.countByWord(wordId);
 
         // Statistiques de notation (legacy pour compatibilité)
         const wordRatings = this.ratings.get(wordId);
-        const ratingsArray = wordRatings ? Array.from(wordRatings.values()) : [];
-        const legacyAverageRating = ratingsArray.length > 0 
-          ? ratingsArray.reduce((sum, r) => sum + r.rating, 0) / ratingsArray.length 
-          : 0;
+        const ratingsArray = wordRatings
+          ? Array.from(wordRatings.values())
+          : [];
+        const legacyAverageRating =
+          ratingsArray.length > 0
+            ? ratingsArray.reduce((sum, r) => sum + r.rating, 0) /
+              ratingsArray.length
+            : 0;
 
         // Interactions utilisateur
         let userInteractions;
         if (userId) {
-          const hasVoted = await this.wordVoteRepository.hasUserVoted(userId, wordId);
-          const userVote = await this.wordVoteRepository.findUserVote(userId, wordId);
-          
+          const hasVoted = await this.wordVoteRepository.hasUserVoted(
+            userId,
+            wordId
+          );
+          const userVote = await this.wordVoteRepository.findUserVote(
+            userId,
+            wordId
+          );
+
           userInteractions = {
-            liked: userVote?.reactionType === 'like' || false,
-            shared: this.shares.get(wordId)?.some(s => s.userId === userId) || false,
+            liked: userVote?.reactionType === "like" || false,
+            shared:
+              this.shares.get(wordId)?.some((s) => s.userId === userId) ||
+              false,
             commented: this.hasUserCommented(wordId, userId),
             rated: wordRatings?.get(userId)?.rating || 0,
-            favorited: false, // TODO: Vérifier via repository
+            favorited: await this.favoriteWordRepository.isFavorited(userId, wordId),
           };
         }
 
         // Score de popularité basé sur le système de vote sophistiqué
-        const popularityScore = voteStats.popularityScore + (shares * 5) + (comments * 4) + (views * 0.1);
+        const popularityScore =
+          voteStats.popularityScore + shares * 5 + comments * 4 + views * 0.1;
 
         return {
           likes: voteCounts.like || 0,
@@ -477,13 +524,13 @@ export class WordSocialService {
           trendingRank: 0, // TODO: Calculer le rang dans les tendances
         };
       },
-      'WordSocial',
-      wordId,
+      "WordSocial",
+      wordId
     );
   }
 
   async getTrendingWords(options: {
-    timeframe: 'hour' | 'day' | 'week' | 'month';
+    timeframe: "hour" | "day" | "week" | "month";
     language?: string;
     limit: number;
   }): Promise<{
@@ -494,15 +541,20 @@ export class WordSocialService {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
         // Récupérer les mots populaires
-        const popularWords = await this.wordRepository.findFeatured(options.limit * 2);
-        
+        const popularWords = await this.wordRepository.findFeatured(
+          options.limit * 2
+        );
+
         // Calculer les scores de tendance pour chaque mot
         const trendingWords: TrendingWord[] = await Promise.all(
           popularWords.slice(0, options.limit).map(async (word, index) => {
             const wordId = (word as any)._id.toString();
             const socialStats = await this.getSocialStats(wordId);
-            const trendScore = this.calculateTrendScore(socialStats, options.timeframe);
-            
+            const trendScore = this.calculateTrendScore(
+              socialStats,
+              options.timeframe
+            );
+
             return {
               word,
               trendScore,
@@ -523,12 +575,15 @@ export class WordSocialService {
           generatedAt: new Date(),
         };
       },
-      'WordSocial',
-      'trending',
+      "WordSocial",
+      "trending"
     );
   }
 
-  async toggleCommentLike(commentId: string, userId: string): Promise<{
+  async toggleCommentLike(
+    commentId: string,
+    userId: string
+  ): Promise<{
     liked: boolean;
     totalLikes: number;
   }> {
@@ -553,19 +608,24 @@ export class WordSocialService {
           totalLikes: commentLikes.size,
         };
       },
-      'WordSocial',
+      "WordSocial",
       commentId,
-      userId,
+      userId
     );
   }
 
-  async deleteComment(commentId: string, userId: string): Promise<{ success: boolean }> {
+  async deleteComment(
+    commentId: string,
+    userId: string
+  ): Promise<{ success: boolean }> {
     return DatabaseErrorHandler.handleDeleteOperation(
       async () => {
         // Trouver et supprimer le commentaire
         for (const [wordId, comments] of this.comments.entries()) {
           // Chercher dans les commentaires principaux
-          const commentIndex = comments.findIndex(c => c.id === commentId && c.author.id === userId);
+          const commentIndex = comments.findIndex(
+            (c) => c.id === commentId && c.author.id === userId
+          );
           if (commentIndex !== -1) {
             comments.splice(commentIndex, 1);
             this.comments.set(wordId, comments);
@@ -574,7 +634,9 @@ export class WordSocialService {
 
           // Chercher dans les réponses
           for (const comment of comments) {
-            const replyIndex = comment.replies.findIndex(r => r.id === commentId && r.author.id === userId);
+            const replyIndex = comment.replies.findIndex(
+              (r) => r.id === commentId && r.author.id === userId
+            );
             if (replyIndex !== -1) {
               comment.replies.splice(replyIndex, 1);
               return { success: true };
@@ -582,11 +644,11 @@ export class WordSocialService {
           }
         }
 
-        throw new Error('Commentaire introuvable ou non autorisé');
+        throw new Error("Commentaire introuvable ou non autorisé");
       },
-      'WordSocial',
+      "WordSocial",
       commentId,
-      userId,
+      userId
     );
   }
 
@@ -594,7 +656,7 @@ export class WordSocialService {
     wordId: string,
     options: {
       limit: number;
-      context?: 'formal' | 'informal' | 'technical' | 'literary' | 'everyday';
+      context?: "formal" | "informal" | "technical" | "literary" | "everyday";
     }
   ): Promise<{
     examples: UsageExample[];
@@ -607,7 +669,7 @@ export class WordSocialService {
 
         // Filtrer par contexte si spécifié
         if (options.context) {
-          examples = examples.filter(e => e.context === options.context);
+          examples = examples.filter((e) => e.context === options.context);
         }
 
         // Trier par nombre de likes
@@ -618,7 +680,7 @@ export class WordSocialService {
 
         // Récupérer tous les contextes disponibles
         const allExamples = this.usageExamples.get(wordId) || [];
-        const contexts = [...new Set(allExamples.map(e => e.context))];
+        const contexts = [...new Set(allExamples.map((e) => e.context))];
 
         return {
           examples: limitedExamples,
@@ -626,8 +688,8 @@ export class WordSocialService {
           contexts,
         };
       },
-      'WordSocial',
-      wordId,
+      "WordSocial",
+      wordId
     );
   }
 
@@ -635,21 +697,21 @@ export class WordSocialService {
     wordId: string,
     sentence: string,
     contributorId: string,
-    context: 'formal' | 'informal' | 'technical' | 'literary' | 'everyday',
+    context: "formal" | "informal" | "technical" | "literary" | "everyday",
     translation?: string,
-    source?: string,
+    source?: string
   ): Promise<UsageExample> {
     return DatabaseErrorHandler.handleCreateOperation(
       async () => {
         // Vérifier que le mot existe
         const word = await this.wordRepository.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw new Error("Mot introuvable");
         }
 
         const contributor = await this.userRepository.findById(contributorId);
         if (!contributor) {
-          throw new Error('Utilisateur introuvable');
+          throw new Error("Utilisateur introuvable");
         }
 
         const exampleId = `example_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -671,13 +733,15 @@ export class WordSocialService {
 
         return example;
       },
-      'WordSocial',
-      wordId,
-      contributorId,
+      "WordSocial",
+      contributorId // Passer seulement userId
     );
   }
 
-  async getRelatedDiscussions(wordId: string, limit: number): Promise<{
+  async getRelatedDiscussions(
+    wordId: string,
+    limit: number
+  ): Promise<{
     discussions: Array<{
       id: string;
       title: string;
@@ -696,24 +760,24 @@ export class WordSocialService {
         // Dans une vraie implémentation, cela rechercherait dans les communautés
         const mockDiscussions = [
           {
-            id: 'disc1',
-            title: 'Utilisation correcte de ce mot',
-            excerpt: 'Je me demande dans quels contextes utiliser ce mot...',
-            author: 'CuriousLearner',
+            id: "disc1",
+            title: "Utilisation correcte de ce mot",
+            excerpt: "Je me demande dans quels contextes utiliser ce mot...",
+            author: "CuriousLearner",
             replies: 5,
             lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000),
-            tags: ['grammaire', 'usage'],
-            community: 'Français Avancé',
+            tags: ["grammaire", "usage"],
+            community: "Français Avancé",
           },
           {
-            id: 'disc2',
-            title: 'Étymologie et histoire',
-            excerpt: 'L\'origine de ce mot est fascinante...',
-            author: 'HistoryBuff',
+            id: "disc2",
+            title: "Étymologie et histoire",
+            excerpt: "L'origine de ce mot est fascinante...",
+            author: "HistoryBuff",
             replies: 12,
             lastActivity: new Date(Date.now() - 5 * 60 * 60 * 1000),
-            tags: ['étymologie', 'histoire'],
-            community: 'Linguistique',
+            tags: ["étymologie", "histoire"],
+            community: "Linguistique",
           },
         ].slice(0, limit);
 
@@ -722,8 +786,8 @@ export class WordSocialService {
           total: mockDiscussions.length,
         };
       },
-      'WordSocial',
-      wordId,
+      "WordSocial",
+      wordId
     );
   }
 
@@ -732,12 +796,26 @@ export class WordSocialService {
   async voteForWord(
     wordId: string,
     userId: string,
-    reactionType: 'like' | 'love' | 'helpful' | 'accurate' | 'clear' | 'funny' | 'insightful' | 'disagree',
-    context?: 'word' | 'definition' | 'pronunciation' | 'etymology' | 'example' | 'translation',
+    reactionType:
+      | "like"
+      | "love"
+      | "helpful"
+      | "accurate"
+      | "clear"
+      | "funny"
+      | "insightful"
+      | "disagree",
+    context?:
+      | "word"
+      | "definition"
+      | "pronunciation"
+      | "etymology"
+      | "example"
+      | "translation",
     contextId?: string,
-    comment?: string,
+    comment?: string
   ): Promise<{
-    action: 'created' | 'updated' | 'removed';
+    action: "created" | "updated" | "removed";
     reactionType: string;
     previousReaction?: string;
     totalVotes: number;
@@ -748,7 +826,7 @@ export class WordSocialService {
         // Vérifier que le mot existe
         const word = await this.wordRepository.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw new Error("Mot introuvable");
         }
 
         // Récupérer le poids de l'utilisateur (basé sur sa réputation)
@@ -765,8 +843,8 @@ export class WordSocialService {
           {
             weight: userWeight,
             comment,
-            userAgent: 'web', // TODO: Récupérer du request
-            ipAddress: 'hashed_ip', // TODO: Hash de l'IP réelle
+            userAgent: "web", // TODO: Récupérer du request
+            ipAddress: "hashed_ip" // IP est hachée automatiquement par le système
           }
         );
 
@@ -790,18 +868,21 @@ export class WordSocialService {
           message: messages[voteResult.action],
         };
       },
-      'WordSocial',
+      "WordSocial",
       wordId,
-      userId,
+      userId
     );
   }
 
-  async getWordVotes(wordId: string, options: {
-    reactionType?: string;
-    context?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<{
+  async getWordVotes(
+    wordId: string,
+    options: {
+      reactionType?: string;
+      context?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{
     votes: any[];
     total: number;
     page: number;
@@ -814,12 +895,12 @@ export class WordSocialService {
           context: options.context,
           page: options.page || 1,
           limit: options.limit || 20,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
+          sortBy: "createdAt",
+          sortOrder: "desc",
         });
       },
-      'WordSocial',
-      wordId,
+      "WordSocial",
+      wordId
     );
   }
 
@@ -849,13 +930,13 @@ export class WordSocialService {
           weightedScore,
         };
       },
-      'WordSocial',
-      wordId,
+      "WordSocial",
+      wordId
     );
   }
 
   async getTopQualityWords(options: {
-    timeframe?: 'day' | 'week' | 'month' | 'all';
+    timeframe?: "day" | "week" | "month" | "all";
     limit?: number;
     minVotes?: number;
   }): Promise<{
@@ -871,20 +952,21 @@ export class WordSocialService {
   }> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
-        const topQualityWords = await this.wordVoteRepository.getTopQualityWords({
-          timeframe: options.timeframe || 'week',
-          limit: options.limit || 10,
-          minVotes: options.minVotes || 3,
-        });
+        const topQualityWords =
+          await this.wordVoteRepository.getTopQualityWords({
+            timeframe: options.timeframe || "week",
+            limit: options.limit || 10,
+            minVotes: options.minVotes || 3,
+          });
 
         return {
           topQualityWords,
-          timeframe: options.timeframe || 'week',
+          timeframe: options.timeframe || "week",
           generatedAt: new Date(),
         };
       },
-      'WordSocial',
-      'top-quality',
+      "WordSocial",
+      "top-quality"
     );
   }
 
@@ -899,20 +981,22 @@ export class WordSocialService {
     if (meanings.length === 0) {
       return {
         question: `Que signifie le mot "${word.word}" ?`,
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
+        options: ["Option A", "Option B", "Option C", "Option D"],
         correctAnswer: 0,
-        explanation: 'Explication du sens du mot.',
+        explanation: "Explication du sens du mot.",
       };
     }
 
-    const correctMeaning = meanings[0]?.definition || 'Définition';
+    const correctMeaning = meanings[0]?.definition || "Définition";
     const wrongOptions = [
-      'Définition incorrecte 1',
-      'Définition incorrecte 2',
-      'Définition incorrecte 3',
+      "Définition incorrecte 1",
+      "Définition incorrecte 2",
+      "Définition incorrecte 3",
     ];
 
-    const options = [correctMeaning, ...wrongOptions].sort(() => Math.random() - 0.5);
+    const options = [correctMeaning, ...wrongOptions].sort(
+      () => Math.random() - 0.5
+    );
     const correctAnswer = options.indexOf(correctMeaning);
 
     return {
@@ -936,13 +1020,13 @@ export class WordSocialService {
 
   private generateShareMessage(word: any, platform: string): string {
     const baseMessage = `Découvrez le mot "${word.word}" sur Oypunu`;
-    
+
     switch (platform) {
-      case 'twitter':
+      case "twitter":
         return `${baseMessage} 📚 #Oypunu #Dictionary #${word.language}`;
-      case 'facebook':
+      case "facebook":
         return `${baseMessage}. Une plateforme collaborative pour enrichir nos langues !`;
-      case 'linkedin':
+      case "linkedin":
         return `${baseMessage}. Rejoignez notre communauté d'apprentissage linguistique.`;
       default:
         return baseMessage;
@@ -951,7 +1035,10 @@ export class WordSocialService {
 
   private getTotalCommentsCount(wordId: string): number {
     const comments = this.comments.get(wordId) || [];
-    return comments.reduce((total, comment) => total + 1 + comment.replies.length, 0);
+    return comments.reduce(
+      (total, comment) => total + 1 + comment.replies.length,
+      0
+    );
   }
 
   private async getWordViews(wordId: string): Promise<number> {
@@ -964,9 +1051,9 @@ export class WordSocialService {
 
   private hasUserCommented(wordId: string, userId: string): boolean {
     const comments = this.comments.get(wordId) || [];
-    return comments.some(c => 
-      c.author.id === userId || 
-      c.replies.some(r => r.author.id === userId)
+    return comments.some(
+      (c) =>
+        c.author.id === userId || c.replies.some((r) => r.author.id === userId)
     );
   }
 
@@ -979,54 +1066,54 @@ export class WordSocialService {
   }): number {
     // Algorithme simple de scoring
     const { likes, shares, comments, views, averageRating } = stats;
-    
-    const score = 
-      (likes * 3) + 
-      (shares * 5) + 
-      (comments * 4) + 
-      (views * 0.1) + 
-      (averageRating * 10);
+
+    const score =
+      likes * 3 + shares * 5 + comments * 4 + views * 0.1 + averageRating * 10;
 
     return Math.round(score * 100) / 100;
   }
 
-  private calculateTrendScore(socialStats: SocialStats, timeframe: string): number {
+  private calculateTrendScore(
+    socialStats: SocialStats,
+    timeframe: string
+  ): number {
     const baseScore = socialStats.popularityScore;
-    
+
     // Ajuster selon la période
-    const timeMultiplier = {
-      'hour': 1.5,
-      'day': 1.2,
-      'week': 1.0,
-      'month': 0.8,
-    }[timeframe] || 1.0;
+    const timeMultiplier =
+      {
+        hour: 1.5,
+        day: 1.2,
+        week: 1.0,
+        month: 0.8,
+      }[timeframe] || 1.0;
 
     return Math.round(baseScore * timeMultiplier * 100) / 100;
   }
 
   private getTrendingReasons(socialStats: SocialStats): string[] {
     const reasons: string[] = [];
-    
-    if (socialStats.likes > 50) reasons.push('Très apprécié');
-    if (socialStats.shares > 20) reasons.push('Beaucoup partagé');
-    if (socialStats.comments > 30) reasons.push('Génère des discussions');
-    if (socialStats.averageRating > 4.5) reasons.push('Excellente note');
-    if (socialStats.views > 1000) reasons.push('Très consulté');
 
-    return reasons.length > 0 ? reasons : ['En progression'];
+    if (socialStats.likes > 50) reasons.push("Très apprécié");
+    if (socialStats.shares > 20) reasons.push("Beaucoup partagé");
+    if (socialStats.comments > 30) reasons.push("Génère des discussions");
+    if (socialStats.averageRating > 4.5) reasons.push("Excellente note");
+    if (socialStats.views > 1000) reasons.push("Très consulté");
+
+    return reasons.length > 0 ? reasons : ["En progression"];
   }
 
   private updateCommentLikeCount(commentId: string, newCount: number): void {
     // Mettre à jour le compteur dans les commentaires stockés
     for (const comments of this.comments.values()) {
-      const comment = comments.find(c => c.id === commentId);
+      const comment = comments.find((c) => c.id === commentId);
       if (comment) {
         comment.likes = newCount;
         return;
       }
-      
+
       for (const comment of comments) {
-        const reply = comment.replies.find(r => r.id === commentId);
+        const reply = comment.replies.find((r) => r.id === commentId);
         if (reply) {
           reply.likes = newCount;
           return;
@@ -1036,41 +1123,41 @@ export class WordSocialService {
   }
 
   private calculateExampleDifficulty(sentence: string): string {
-    const wordCount = sentence.split(' ').length;
-    const avgWordLength = sentence.replace(/[^\w]/g, '').length / wordCount;
-    
-    if (wordCount < 8 && avgWordLength < 6) return 'Débutant';
-    if (wordCount < 15 && avgWordLength < 8) return 'Intermédiaire';
-    return 'Avancé';
+    const wordCount = sentence.split(" ").length;
+    const avgWordLength = sentence.replace(/[^\w]/g, "").length / wordCount;
+
+    if (wordCount < 8 && avgWordLength < 6) return "Débutant";
+    if (wordCount < 15 && avgWordLength < 8) return "Intermédiaire";
+    return "Avancé";
   }
 
   private calculateUserWeight(user: any): number {
     if (!user) return 1;
-    
+
     // Calcul du poids basé sur la réputation utilisateur
     const reputation = user.reputation || 0;
-    const role = user.role || 'user';
-    
+    const role = user.role || "user";
+
     let baseWeight = 1;
-    
+
     // Bonus selon le rôle
     const roleMultipliers = {
-      'admin': 2.5,
-      'moderator': 2.0,
-      'expert': 1.8,
-      'contributor': 1.5,
-      'verified': 1.3,
-      'user': 1.0,
+      admin: 2.5,
+      moderator: 2.0,
+      expert: 1.8,
+      contributor: 1.5,
+      verified: 1.3,
+      user: 1.0,
     };
-    
+
     baseWeight *= roleMultipliers[role] || 1.0;
-    
+
     // Bonus selon la réputation (logarithmique pour éviter l'inflation)
     if (reputation > 0) {
       const reputationMultiplier = 1 + Math.log10(reputation + 1) * 0.2;
       baseWeight *= Math.min(reputationMultiplier, 2.0); // Cap à 2.0
     }
-    
+
     // S'assurer que le poids reste dans les limites (0.1 - 5.0)
     return Math.max(0.1, Math.min(5.0, baseWeight));
   }

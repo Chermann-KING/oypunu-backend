@@ -4,28 +4,28 @@ import {
   BadRequestException,
   ForbiddenException,
   Inject,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Word } from '../../dictionary/schemas/word.schema';
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Word } from "../../dictionary/schemas/word.schema";
 import {
   TranslationGroup,
   TranslationGroupDocument,
-} from '../schemas/translation-group.schema';
+} from "../schemas/translation-group.schema";
 import {
   TrainingData,
   TrainingDataDocument,
-} from '../schemas/training-data.schema';
-import { IWordRepository } from '../../repositories/interfaces/word.repository.interface';
-import { User } from '../../users/schemas/user.schema';
-import { SimilarityService } from './similarity.service';
-import { LearningService } from './learning.service';
+} from "../schemas/training-data.schema";
+import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
+import { User } from "../../users/schemas/user.schema";
+import { SimilarityService } from "./similarity.service";
+import { LearningService } from "./learning.service";
 import {
   CreateTranslationDto,
   ValidateTranslationDto,
   VoteTranslationDto,
   SearchTranslationDto,
-} from '../dto/create-translation.dto';
+} from "../dto/create-translation.dto";
 import {
   TranslationDto,
   AvailableLanguageDto,
@@ -33,18 +33,20 @@ import {
   TranslationGroupDto,
   ValidationResultDto,
   LanguageStatsDto,
-} from '../dto/translation-response.dto';
+} from "../dto/translation-response.dto";
 
 @Injectable()
 export class TranslationService {
   constructor(
-    @Inject('IWordRepository') private wordRepository: IWordRepository,
+    @Inject("IWordRepository") private wordRepository: IWordRepository,
+    @InjectModel(Word.name)
+    private wordModel: Model<Word>,
     @InjectModel(TranslationGroup.name)
     private translationGroupModel: Model<TranslationGroupDocument>,
     @InjectModel(TrainingData.name)
     private trainingDataModel: Model<TrainingDataDocument>,
     private readonly similarityService: SimilarityService,
-    private readonly learningService: LearningService,
+    private readonly learningService: LearningService
   ) {}
 
   /**
@@ -53,7 +55,7 @@ export class TranslationService {
   async getAvailableLanguages(wordId: string): Promise<AvailableLanguageDto[]> {
     const word = await this.wordRepository.findById(wordId);
     if (!word) {
-      throw new NotFoundException('Mot non trouvé');
+      throw new NotFoundException("Mot non trouvé");
     }
 
     // Récupérer les langues depuis les traductions directes
@@ -63,13 +65,14 @@ export class TranslationService {
     let groupLanguages: string[] = [];
     if (word.translations.some((t) => t.translationGroupId)) {
       const groupId = word.translations.find(
-        (t) => t.translationGroupId,
+        (t) => t.translationGroupId
       )?.translationGroupId;
       if (groupId) {
         // Utiliser la nouvelle méthode spécialisée du repository
-        const relatedWords = await this.wordRepository.findByTranslationGroupId(groupId);
+        const relatedWords =
+          await this.wordRepository.findByTranslationGroupId(groupId);
         groupLanguages = relatedWords
-          .map((w) => w.language || 'fr')
+          .map((w) => w.language || "fr")
           .filter(Boolean);
       }
     }
@@ -80,7 +83,7 @@ export class TranslationService {
     const languageStats = await Promise.all(
       allLanguages.map(async (lang) => {
         const translationsToLang = word.translations.filter(
-          (t) => t.language === lang,
+          (t) => t.language === lang
         );
         const avgQuality =
           translationsToLang.length > 0
@@ -89,16 +92,16 @@ export class TranslationService {
             : 0;
 
         return {
-          code: lang || 'fr',
-          name: this.getLanguageName(lang || 'fr'),
+          code: lang || "fr",
+          name: this.getLanguageName(lang || "fr"),
           translationCount: translationsToLang.length,
           averageQuality: Math.max(0, Math.min(1, avgQuality / 10)), // Normaliser sur 0-1
         };
-      }),
+      })
     );
 
     return languageStats.sort(
-      (a, b) => b.translationCount - a.translationCount,
+      (a, b) => b.translationCount - a.translationCount
     );
   }
 
@@ -107,27 +110,27 @@ export class TranslationService {
    */
   async getTranslation(
     wordId: string,
-    targetLanguage: string,
+    targetLanguage: string
   ): Promise<TranslationDto[]> {
     // Utiliser la méthode spécialisée avec traductions populées
     const word = await this.wordRepository.findByIdWithTranslations(wordId);
 
     if (!word) {
-      throw new NotFoundException('Mot non trouvé');
+      throw new NotFoundException("Mot non trouvé");
     }
 
     const translations = word.translations.filter(
-      (t) => t.language === targetLanguage,
+      (t) => t.language === targetLanguage
     );
 
     return translations.map((t) => ({
-      id: (t as any)._id?.toString() || '',
-      language: t.language || 'fr',
+      id: (t as any)._id?.toString() || "",
+      language: t.language || "fr",
       translatedWord: t.translatedWord,
       context: t.context,
       confidence: t.confidence,
       votes: t.votes || 0,
-      validationType: t.validationType || 'manual',
+      validationType: t.validationType || "manual",
       targetWordId: t.targetWordId?.toString(),
       senseId: t.senseId,
       createdAt: t.createdAt,
@@ -151,24 +154,24 @@ export class TranslationService {
    */
   async createTranslation(
     createTranslationDto: CreateTranslationDto,
-    userId: string,
+    userId: string
   ): Promise<ValidationResultDto> {
     const sourceWord = await this.wordRepository.findById(
-      createTranslationDto.sourceWordId,
+      createTranslationDto.sourceWordId
     );
     if (!sourceWord) {
-      throw new NotFoundException('Mot source non trouvé');
+      throw new NotFoundException("Mot source non trouvé");
     }
 
     // 1. Rechercher des mots similaires dans la langue cible
     const similarWords = await this.findSimilarWordsInLanguage(
       createTranslationDto.translatedWord,
       createTranslationDto.targetLanguage,
-      sourceWord,
+      sourceWord
     );
 
     // 2. Évaluer la similarité et obtenir une recommandation
-    let finalAction: 'merge' | 'separate' | 'uncertain' = 'separate';
+    let finalAction: "merge" | "separate" | "uncertain" = "separate";
     let targetWordId = createTranslationDto.targetWordId;
     let translationGroupId: string | undefined;
     let confidence = createTranslationDto.confidence || 0.8;
@@ -178,44 +181,44 @@ export class TranslationService {
       const bestMatch = similarWords[0];
       const similarity = this.similarityService.calculateSimilarity(
         sourceWord,
-        bestMatch.word,
+        bestMatch.word
       );
 
       // Utiliser l'apprentissage automatique pour prédire l'action
       const prediction = await this.learningService.predictAction(
         sourceWord,
         bestMatch.word,
-        similarity,
+        similarity
       );
 
       finalAction = this.determineActionFromScore(
         similarity.score,
-        prediction.action,
+        prediction.action
       );
       confidence = this.similarityService.adjustConfidenceBasedOnHistory(
         confidence,
         similarity.categoryMatch,
-        similarity.sharedKeywords.length,
+        similarity.sharedKeywords.length
       );
 
-      if (finalAction === 'merge') {
+      if (finalAction === "merge") {
         // Fusionner avec le mot existant
-        targetWordId = (bestMatch.word as any)._id?.toString() || '';
+        targetWordId = (bestMatch.word as any)._id?.toString() || "";
         translationGroupId = await this.getOrCreateTranslationGroup(
           sourceWord,
-          bestMatch.word,
+          bestMatch.word
         );
       }
     }
 
     // 3. Créer ou mettre à jour la traduction
-    if (finalAction === 'uncertain') {
+    if (finalAction === "uncertain") {
       // Retourner les suggestions pour que l'utilisateur décide
       return {
         success: false,
-        action: 'uncertain',
+        action: "uncertain",
         message:
-          'Traduction similaire détectée. Veuillez confirmer votre choix.',
+          "Traduction similaire détectée. Veuillez confirmer votre choix.",
         // Les suggestions seront gérées par un endpoint séparé
       };
     }
@@ -230,7 +233,7 @@ export class TranslationService {
       translationGroupId,
       senseId: createTranslationDto.senseId,
       createdBy: userId,
-      validationType: finalAction === 'merge' ? 'auto' : 'manual',
+      validationType: finalAction === "merge" ? "auto" : "manual",
       votes: 0,
       votedBy: [],
       createdAt: new Date(),
@@ -240,7 +243,7 @@ export class TranslationService {
     sourceWord.translationCount = sourceWord.translations.length;
     sourceWord.availableLanguages = [
       ...new Set(
-        sourceWord.translations.map((t) => t.language || 'fr').filter(Boolean),
+        sourceWord.translations.map((t) => t.language || "fr").filter(Boolean)
       ),
     ];
 
@@ -253,15 +256,22 @@ export class TranslationService {
         this.similarityService.extractKeywords(sourceWord);
     }
 
-    await sourceWord.save();
+    await this.wordRepository.update((sourceWord as any)._id?.toString(), {
+      pronunciation: sourceWord.pronunciation,
+      meanings: sourceWord.meanings,
+      categoryId:
+        (sourceWord.categoryId as any)?._id?.toString() ||
+        sourceWord.categoryId,
+      etymology: sourceWord.etymology,
+    });
 
     // 6. Enregistrer dans l'historique d'apprentissage si fusion automatique
-    if (finalAction === 'merge' && similarWords.length > 0) {
+    if (finalAction === "merge" && similarWords.length > 0) {
       await this.learningService.recordHumanDecision(
-        (sourceWord as any)._id?.toString() || sourceWord.id,
+        (sourceWord as any)._id?.toString(),
         targetWordId!,
         confidence,
-        'merge',
+        "merge",
         userId,
         {
           category: sourceWord.categoryId,
@@ -269,7 +279,7 @@ export class TranslationService {
           sourceKeywords: sourceWord.extractedKeywords,
           targetKeywords: similarWords[0].word.extractedKeywords || [],
         },
-        'Auto-fusion basée sur similarité élevée',
+        "Auto-fusion basée sur similarité élevée"
       );
     }
 
@@ -286,11 +296,11 @@ export class TranslationService {
    * Rechercher des suggestions intelligentes pour une traduction
    */
   async searchTranslationSuggestions(
-    searchDto: SearchTranslationDto,
+    searchDto: SearchTranslationDto
   ): Promise<TranslationSuggestionDto[]> {
     const sourceWord = await this.wordRepository.findById(searchDto.wordId);
     if (!sourceWord) {
-      throw new NotFoundException('Mot source non trouvé');
+      throw new NotFoundException("Mot source non trouvé");
     }
 
     const suggestions: TranslationSuggestionDto[] = [];
@@ -298,9 +308,9 @@ export class TranslationService {
     // 1. Recherche par terme si fourni
     if (searchDto.searchTerm) {
       // Utiliser la méthode de recherche du repository
-      const searchResult = await this.wordRepository.search(searchDto.searchTerm, {
-        language: searchDto.targetLanguage,
-        status: 'approved',
+      const searchResult = await this.wordRepository.search({
+        query: searchDto.searchTerm,
+        languages: [searchDto.targetLanguage],
         limit: 10,
       });
       const matchingWords = searchResult.words;
@@ -308,27 +318,27 @@ export class TranslationService {
       for (const word of matchingWords) {
         const similarity = this.similarityService.calculateSimilarity(
           sourceWord,
-          word,
+          word
         );
 
         if (similarity.score >= (searchDto.minSimilarity || 0.3)) {
           const prediction = await this.learningService.predictAction(
             sourceWord,
             word,
-            similarity,
+            similarity
           );
 
           suggestions.push({
-            wordId: (word as any)._id?.toString() || word.id,
+            wordId: (word as any)._id?.toString(),
             word: word.word,
-            language: word.language || 'fr',
+            language: word.language || "fr",
             similarityScore: similarity.score,
             definition: this.getFirstDefinition(word),
             suggestedAction: prediction.action,
             sharedKeywords: similarity.sharedKeywords,
             sameCategory: similarity.categoryMatch,
             categoryName: await this.getCategoryName(
-              word.categoryId?.toString(),
+              word.categoryId?.toString()
             ),
           });
         }
@@ -337,30 +347,30 @@ export class TranslationService {
 
     // 2. Recherche par catégorie si pas assez de résultats
     if (suggestions.length < 5 && sourceWord.categoryId) {
-      const categoryWords = await this.wordRepository
-        .findByCategoryAndLanguage(
-          sourceWord.categoryId,
-          searchDto.targetLanguage,
-          'approved',
-          suggestions.map((s) => s.wordId),
-          10 - suggestions.length
-        );
+      const categoryWords = await this.wordRepository.findByCategoryAndLanguage(
+        (sourceWord.categoryId as any)?._id?.toString() ||
+          sourceWord.categoryId?.toString(),
+        searchDto.targetLanguage,
+        "approved",
+        suggestions.map((s) => s.wordId),
+        10 - suggestions.length
+      );
 
       for (const word of categoryWords) {
         const similarity = this.similarityService.calculateSimilarity(
           sourceWord,
-          word,
+          word
         );
         const prediction = await this.learningService.predictAction(
           sourceWord,
           word,
-          similarity,
+          similarity
         );
 
         suggestions.push({
-          wordId: (word as any)._id?.toString() || word.id,
+          wordId: (word as any)._id?.toString(),
           word: word.word,
-          language: word.language || 'fr',
+          language: word.language || "fr",
           similarityScore: similarity.score,
           definition: this.getFirstDefinition(word),
           suggestedAction: prediction.action,
@@ -382,27 +392,27 @@ export class TranslationService {
   async validateTranslation(
     translationId: string,
     validateDto: ValidateTranslationDto,
-    userId: string,
+    userId: string
   ): Promise<ValidationResultDto> {
     // Trouver le mot contenant cette traduction
     // TODO: Créer une méthode spécialisée findByTranslationId dans le repository
     const word = await this.wordRepository.findByTranslationId(translationId);
 
     if (!word) {
-      throw new NotFoundException('Traduction non trouvée');
+      throw new NotFoundException("Traduction non trouvée");
     }
 
     const translation = word.translations.find(
-      (t) => (t as any)._id?.toString() === translationId,
+      (t) => (t as any)._id?.toString() === translationId
     );
     if (!translation) {
-      throw new NotFoundException('Traduction non trouvée');
+      throw new NotFoundException("Traduction non trouvée");
     }
 
     // Enregistrer la décision pour l'apprentissage
     if (translation.targetWordId) {
       await this.learningService.recordHumanDecision(
-        (word as any)._id?.toString() || word.id,
+        (word as any)._id?.toString(),
         translation.targetWordId.toString(),
         translation.confidence,
         validateDto.action as any,
@@ -413,21 +423,21 @@ export class TranslationService {
           sourceKeywords: word.extractedKeywords || [],
           targetKeywords: [], // Sera rempli par le service d'apprentissage
         },
-        validateDto.reason,
+        validateDto.reason
       );
     }
 
     // Appliquer l'action
     let affectedTranslations = 0;
-    if (validateDto.action === 'merge' && translation.targetWordId) {
+    if (validateDto.action === "merge" && translation.targetWordId) {
       // Logique de fusion
       if (validateDto.adjustedConfidence) {
         translation.confidence = validateDto.adjustedConfidence;
       }
       translation.validatedBy = userId as any;
-      translation.validationType = 'manual';
+      translation.validationType = "manual";
       affectedTranslations = 1;
-    } else if (validateDto.action === 'separate') {
+    } else if (validateDto.action === "separate") {
       // Séparer - supprimer les références de groupe
       translation.translationGroupId = undefined;
       translation.targetWordId = undefined;
@@ -435,12 +445,17 @@ export class TranslationService {
       affectedTranslations = 1;
     }
 
-    await word.save();
+    await this.wordRepository.update((word as any)._id?.toString(), {
+      pronunciation: word.pronunciation,
+      meanings: word.meanings,
+      categoryId: (word.categoryId as any)?._id?.toString() || word.categoryId,
+      etymology: word.etymology,
+    });
 
     return {
       success: true,
       action: validateDto.action,
-      message: `Traduction ${validateDto.action === 'merge' ? 'fusionnée' : 'séparée'} avec succès`,
+      message: `Traduction ${validateDto.action === "merge" ? "fusionnée" : "séparée"} avec succès`,
       finalConfidence: translation.confidence,
       affectedTranslations,
     };
@@ -452,29 +467,29 @@ export class TranslationService {
   async voteForTranslation(
     translationId: string,
     voteDto: VoteTranslationDto,
-    userId: string,
+    userId: string
   ): Promise<{ success: boolean; newVoteCount: number }> {
     // TODO: Utiliser la même méthode spécialisée que ci-dessus
     const word = await this.wordRepository.findByTranslationId(translationId);
 
     if (!word) {
-      throw new NotFoundException('Traduction non trouvée');
+      throw new NotFoundException("Traduction non trouvée");
     }
 
     const translation = word.translations.find(
-      (t) => (t as any)._id?.toString() === translationId,
+      (t) => (t as any)._id?.toString() === translationId
     );
     if (!translation) {
-      throw new NotFoundException('Traduction non trouvée');
+      throw new NotFoundException("Traduction non trouvée");
     }
 
     // Vérifier si l'utilisateur a déjà voté
     const hasVoted = translation.votedBy?.some(
-      (id) => id.toString() === userId,
+      (id) => id.toString() === userId
     );
     if (hasVoted) {
       throw new BadRequestException(
-        'Vous avez déjà voté pour cette traduction',
+        "Vous avez déjà voté pour cette traduction"
       );
     }
 
@@ -483,7 +498,12 @@ export class TranslationService {
     translation.votedBy = translation.votedBy || [];
     translation.votedBy.push(userId as any);
 
-    await word.save();
+    await this.wordRepository.update((word as any)._id?.toString(), {
+      pronunciation: word.pronunciation,
+      meanings: word.meanings,
+      categoryId: (word.categoryId as any)?._id?.toString() || word.categoryId,
+      etymology: word.etymology,
+    });
 
     return {
       success: true,
@@ -496,15 +516,15 @@ export class TranslationService {
    */
   async getLanguageStats(): Promise<LanguageStatsDto[]> {
     const pipeline = [
-      { $match: { status: 'approved' } },
+      { $match: { status: "approved" } },
       {
         $group: {
-          _id: '$language',
+          _id: "$language",
           totalWords: { $sum: 1 },
           translatedWords: {
-            $sum: { $cond: [{ $gt: ['$translationCount', 0] }, 1, 0] },
+            $sum: { $cond: [{ $gt: ["$translationCount", 0] }, 1, 0] },
           },
-          avgTranslationCount: { $avg: '$translationCount' },
+          avgTranslationCount: { $avg: "$translationCount" },
         },
       },
       { $sort: { totalWords: -1 as 1 | -1 } },
@@ -528,16 +548,16 @@ export class TranslationService {
   private async findSimilarWordsInLanguage(
     translatedWord: string,
     targetLanguage: string,
-    sourceWord: Word,
+    sourceWord: Word
   ): Promise<{ word: Word; similarity: number }[]> {
     const candidates = await this.wordModel
       .find({
         language: targetLanguage,
         $or: [
-          { word: { $regex: translatedWord, $options: 'i' } },
+          { word: { $regex: translatedWord, $options: "i" } },
           { categoryId: sourceWord.categoryId },
         ],
-        status: 'approved',
+        status: "approved",
       })
       .limit(20);
 
@@ -545,7 +565,7 @@ export class TranslationService {
       .map((word) => {
         const similarity = this.similarityService.calculateSimilarity(
           sourceWord,
-          word,
+          word
         );
         return { word, similarity: similarity.score };
       })
@@ -557,27 +577,27 @@ export class TranslationService {
 
   private determineActionFromScore(
     score: number,
-    predictedAction: string,
-  ): 'merge' | 'separate' | 'uncertain' {
-    if (score > 0.9) return 'merge';
-    if (score > 0.6) return 'uncertain';
-    return 'separate';
+    predictedAction: string
+  ): "merge" | "separate" | "uncertain" {
+    if (score > 0.9) return "merge";
+    if (score > 0.6) return "uncertain";
+    return "separate";
   }
 
   private async getOrCreateTranslationGroup(
     word1: Word,
-    word2: Word,
+    word2: Word
   ): Promise<string> {
     // Vérifier si un groupe existe déjà
     const existingGroup = await this.translationGroupModel.findOne({
       $or: [
-        { 'senses.keywords': { $in: word1.extractedKeywords || [] } },
-        { 'senses.keywords': { $in: word2.extractedKeywords || [] } },
+        { "senses.keywords": { $in: word1.extractedKeywords || [] } },
+        { "senses.keywords": { $in: word2.extractedKeywords || [] } },
       ],
     });
 
     if (existingGroup) {
-      return (existingGroup as any)._id?.toString() || existingGroup.id;
+      return (existingGroup as any)._id?.toString();
     }
 
     // Créer un nouveau groupe
@@ -591,7 +611,7 @@ export class TranslationService {
         {
           senseId: `${conceptId}_SENSE_1`,
           description: this.getFirstDefinition(word1),
-          partOfSpeech: word1.meanings[0]?.partOfSpeech || 'unknown',
+          partOfSpeech: word1.meanings[0]?.partOfSpeech || "unknown",
           keywords: word1.extractedKeywords || [],
           context: [],
         },
@@ -600,7 +620,7 @@ export class TranslationService {
       qualityScore: 0.8,
     });
 
-    return (newGroup as any)._id?.toString() || newGroup.id;
+    return (newGroup as any)._id?.toString();
   }
 
   private getFirstDefinition(word: Word): string {
@@ -611,11 +631,11 @@ export class TranslationService {
     ) {
       return word.meanings[0].definitions[0].definition;
     }
-    return 'Aucune définition disponible';
+    return "Aucune définition disponible";
   }
 
   private async getCategoryName(
-    categoryId?: string,
+    categoryId?: string
   ): Promise<string | undefined> {
     if (!categoryId) return undefined;
     // Cette méthode devrait récupérer le nom de la catégorie
@@ -625,29 +645,29 @@ export class TranslationService {
 
   private getLanguageName(code: string): string {
     const languageNames: { [key: string]: string } = {
-      fr: 'Français',
-      en: 'English',
-      es: 'Español',
-      de: 'Deutsch',
-      it: 'Italiano',
-      pt: 'Português',
-      ar: 'العربية',
-      zh: '中文',
-      ja: '日本語',
-      ko: '한국어',
-      ru: 'Русский',
+      fr: "Français",
+      en: "English",
+      es: "Español",
+      de: "Deutsch",
+      it: "Italiano",
+      pt: "Português",
+      ar: "العربية",
+      zh: "中文",
+      ja: "日本語",
+      ko: "한국어",
+      ru: "Русский",
     };
     return languageNames[code] || code.toUpperCase();
   }
 
   private getSuccessMessage(action: string): string {
     switch (action) {
-      case 'merge':
-        return 'Traduction fusionnée automatiquement avec un mot similaire';
-      case 'separate':
-        return 'Nouvelle traduction créée';
+      case "merge":
+        return "Traduction fusionnée automatiquement avec un mot similaire";
+      case "separate":
+        return "Nouvelle traduction créée";
       default:
-        return 'Traduction traitée';
+        return "Traduction traitée";
     }
   }
 }
