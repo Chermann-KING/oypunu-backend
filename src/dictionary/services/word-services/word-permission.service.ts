@@ -1,10 +1,11 @@
-import { Injectable, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { User, UserRole } from '../../../users/schemas/user.schema';
 import { CreateWordDto } from '../../dto/create-word.dto';
 import { UpdateWordDto } from '../../dto/update-word.dto';
 import { Word } from '../../schemas/word.schema';
 import { IWordPermissionService } from '../../interfaces/word-permission.interface';
 import { WordCoreService } from './word-core.service';
+import { QuotaService } from '../../../common/services/quota.service';
 
 /**
  * Implémentation du service de permissions pour les mots
@@ -12,10 +13,12 @@ import { WordCoreService } from './word-core.service';
  */
 @Injectable()
 export class WordPermissionService implements IWordPermissionService {
+  private readonly logger = new Logger(WordPermissionService.name);
   
   constructor(
     @Inject(forwardRef(() => WordCoreService))
-    private wordCoreService: WordCoreService
+    private wordCoreService: WordCoreService,
+    private quotaService: QuotaService
   ) {}
 
   /**
@@ -68,7 +71,42 @@ export class WordPermissionService implements IWordPermissionService {
    * Vérifie si un utilisateur peut éditer un mot spécifique
    * PHASE 2-1: Refactoring - Logique complète extraite de words.service.ts
    */
-  async canUserEditWord(word: Word, user: User): Promise<boolean> {
+  async canUserEditWord(word: Word, user: User): Promise<boolean>;
+  async canUserEditWord(word: Word, user: User, detailed: false): Promise<boolean>;
+  async canUserEditWord(
+    word: Word, 
+    user: User, 
+    detailed: true
+  ): Promise<{
+    canEdit: boolean;
+    permissions: {
+      isOwner: boolean;
+      isAdmin: boolean;
+      isContributor: boolean;
+      canModifyStatus: boolean;
+      canDelete: boolean;
+      canAddTranslations: boolean;
+    };
+    restrictions: string[];
+    reason?: string;
+  }>;
+  async canUserEditWord(
+    word: Word, 
+    user: User, 
+    detailed?: boolean
+  ): Promise<boolean | {
+    canEdit: boolean;
+    permissions: {
+      isOwner: boolean;
+      isAdmin: boolean;
+      isContributor: boolean;
+      canModifyStatus: boolean;
+      canDelete: boolean;
+      canAddTranslations: boolean;
+    };
+    restrictions: string[];
+    reason?: string;
+  }> {
     console.log("=== DEBUG WordPermissionService.canUserEditWord ===");
     console.log("Word:", {
       id: word._id,
@@ -82,47 +120,83 @@ export class WordPermissionService implements IWordPermissionService {
       role: user.role,
     });
 
-    // Administrateurs et super-administrateurs peuvent tout éditer
-    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
-      console.log("✅ User is admin/superadmin, allowing edit");
-      return true;
-    }
-
-    // Vérifications de base
-    if (!word.createdBy || word.status === "rejected") {
-      console.log("❌ No createdBy or word is rejected");
-      return false;
-    }
-
+    // Permissions de base
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN;
+    const isContributor = user.role === UserRole.CONTRIBUTOR;
+    
     // Gérer le cas où createdBy est un ObjectId (string) ou un objet User peuplé
     let createdByIdToCompare: string;
     if (typeof word.createdBy === "object" && "_id" in word.createdBy) {
-      // createdBy est un objet User peuplé
       createdByIdToCompare = String(word.createdBy._id);
       console.log("🔍 createdBy is User object, ID:", createdByIdToCompare);
     } else {
-      // createdBy est juste un ObjectId (string)
       createdByIdToCompare = String(word.createdBy);
       console.log("🔍 createdBy is ObjectId string, ID:", createdByIdToCompare);
     }
 
     const userIdToCompare = String(user._id);
+    const isOwner = createdByIdToCompare === userIdToCompare;
+    
     console.log("🔍 Comparing IDs:", {
       createdByIdToCompare,
       userIdToCompare,
-      areEqual: createdByIdToCompare === userIdToCompare,
+      isOwner,
     });
 
-    const canEdit = createdByIdToCompare === userIdToCompare;
-    
+    // Calculer les permissions
+    const restrictions: string[] = [];
+    let canEdit = false;
+    let reason: string | undefined;
+
+    // Administrateurs peuvent tout éditer
+    if (isAdmin) {
+      console.log("✅ User is admin/superadmin, allowing edit");
+      canEdit = true;
+    }
+    // Vérifications de base
+    else if (!word.createdBy) {
+      console.log("❌ No createdBy");
+      restrictions.push("Aucun créateur identifié");
+      reason = "Le mot n'a pas de créateur identifié";
+    }
+    else if (word.status === "rejected") {
+      console.log("❌ Word is rejected");
+      restrictions.push("Mot rejeté");
+      reason = "Les mots rejetés ne peuvent pas être édités";
+    }
+    // Propriétaire peut éditer
+    else if (isOwner) {
+      console.log("✅ User is owner, allowing edit");
+      canEdit = true;
+    }
     // Contributeurs peuvent aussi éditer les mots en attente
-    if (!canEdit && user.role === UserRole.CONTRIBUTOR && word.status === 'pending') {
+    else if (isContributor && word.status === 'pending') {
       console.log("✅ Contributor can edit pending word");
-      return true;
+      canEdit = true;
+    }
+    else {
+      restrictions.push("Permissions insuffisantes");
+      reason = "Seuls les administrateurs, le créateur ou les contributeurs (pour les mots en attente) peuvent éditer ce mot";
     }
 
     console.log("✅ Can edit result:", canEdit);
     console.log("=== END DEBUG WordPermissionService.canUserEditWord ===");
+
+    if (detailed === true) {
+      return {
+        canEdit,
+        permissions: {
+          isOwner,
+          isAdmin,
+          isContributor,
+          canModifyStatus: isAdmin || isContributor,
+          canDelete: isAdmin || (isOwner && word.status !== 'approved'),
+          canAddTranslations: word.status === 'approved',
+        },
+        restrictions,
+        reason,
+      };
+    }
 
     return canEdit;
   }
@@ -149,19 +223,75 @@ export class WordPermissionService implements IWordPermissionService {
   /**
    * Vérifie si un utilisateur peut supprimer un mot
    */
-  async canUserDeleteWord(word: Word, user: User): Promise<boolean> {
-    // Seuls les administrateurs et le créateur peuvent supprimer
-    if (this.isAdminUser(user)) {
-      return true;
-    }
+  async canUserDeleteWord(word: Word, user: User): Promise<boolean>;
+  async canUserDeleteWord(word: Word, user: User, detailed: false): Promise<boolean>;
+  async canUserDeleteWord(
+    word: Word, 
+    user: User, 
+    detailed: true
+  ): Promise<{
+    canDelete: boolean;
+    permissions: {
+      isOwner: boolean;
+      isAdmin: boolean;
+      hasLowInteractions: boolean;
+    };
+    restrictions: string[];
+    reason?: string;
+  }>;
+  async canUserDeleteWord(
+    word: Word, 
+    user: User, 
+    detailed?: boolean
+  ): Promise<boolean | {
+    canDelete: boolean;
+    permissions: {
+      isOwner: boolean;
+      isAdmin: boolean;
+      hasLowInteractions: boolean;
+    };
+    restrictions: string[];
+    reason?: string;
+  }> {
+    const isAdmin = this.isAdminUser(user);
+    const isOwner = word.createdBy?.toString() === user._id?.toString();
+    const hasLowInteractions = ((word as any).favoriteCount || 0) < 5;
+    
+    const restrictions: string[] = [];
+    let canDelete = false;
+    let reason: string | undefined;
 
-    if (word.createdBy?.toString() === user._id?.toString()) {
+    // Seuls les administrateurs et le créateur peuvent supprimer
+    if (isAdmin) {
+      canDelete = true;
+    } else if (isOwner) {
       // Le créateur peut supprimer seulement si le mot n'est pas encore approuvé
       // ou s'il n'a pas beaucoup d'interactions
-      return word.status !== 'approved' || ((word as any).favoriteCount || 0) < 5;
+      if (word.status === 'approved' && !hasLowInteractions) {
+        restrictions.push("Mot approuvé avec beaucoup d'interactions");
+        reason = "Les mots approuvés avec plus de 5 favoris ne peuvent pas être supprimés par leur créateur";
+      } else {
+        canDelete = true;
+      }
+    } else {
+      restrictions.push("Permissions insuffisantes");
+      reason = "Seuls les administrateurs et le créateur peuvent supprimer ce mot";
     }
 
-    return false;
+    if (detailed === true) {
+      return {
+        canDelete,
+        permissions: {
+          isOwner,
+          isAdmin,
+          hasLowInteractions,
+        },
+        restrictions,
+        reason,
+      };
+    }
+
+    return canDelete;
   }
 
   /**
@@ -279,8 +409,336 @@ export class WordPermissionService implements IWordPermissionService {
    * Vérifie les limites de taux pour un utilisateur
    */
   async checkRateLimit(user: User, action: string): Promise<boolean> {
-    // TODO: Implémenter la logique de rate limiting
-    // Pour l'instant, retourne toujours true
-    return true;
+    try {
+      // Mapping des actions vers les quotas correspondants
+      const actionQuotaMap: { [key: string]: 'dailyWordCreations' | 'dailyWordUpdates' | 'dailyTranslations' | 'dailyComments' | 'dailyMessages' | 'dailyReports' | 'hourlyApiCalls' | 'hourlyUploads' | 'monthlyWordsLimit' | 'monthlyStorageLimit' } = {
+        'create_word': 'dailyWordCreations',
+        'update_word': 'dailyWordUpdates',
+        'add_translation': 'dailyTranslations',
+        'add_comment': 'dailyComments',
+        'send_message': 'dailyMessages',
+        'report': 'dailyReports',
+        'api_call': 'hourlyApiCalls',
+        'upload': 'hourlyUploads'
+      };
+
+      const quotaAction = actionQuotaMap[action];
+      if (!quotaAction) {
+        this.logger.warn(`Action de rate limiting non reconnue: ${action}`);
+        return true; // Autoriser par défaut pour les actions non mappées
+      }
+
+      return await this.quotaService.canPerformAction(
+        user._id.toString(), 
+        quotaAction, 
+        user.role
+      );
+    } catch (error) {
+      this.logger.error(`Erreur vérification rate limit: ${error.message}`, error.stack);
+      return false; // Bloquer en cas d'erreur pour la sécurité
+    }
   }
+
+  /**
+   * Vérifie si un utilisateur peut modérer un mot spécifique
+   */
+  async canUserModerateWord(
+    word: Word, 
+    user: User
+  ): Promise<{
+    canModerate: boolean;
+    permissions: {
+      isAdmin: boolean;
+      isContributor: boolean;
+      canApprove: boolean;
+      canReject: boolean;
+      canRequestChanges: boolean;
+    };
+    restrictions: string[];
+    reason?: string;
+  }> {
+    const isAdmin = this.isAdminUser(user);
+    const isContributor = user.role === UserRole.CONTRIBUTOR;
+    
+    const restrictions: string[] = [];
+    let canModerate = false;
+    let reason: string | undefined;
+
+    if (isAdmin || isContributor) {
+      canModerate = true;
+    } else {
+      restrictions.push("Permissions de modération insuffisantes");
+      reason = "Seuls les administrateurs et contributeurs peuvent modérer les mots";
+    }
+
+    if (word.status === 'approved') {
+      restrictions.push("Mot déjà approuvé");
+    }
+
+    return {
+      canModerate,
+      permissions: {
+        isAdmin,
+        isContributor,
+        canApprove: isAdmin || isContributor,
+        canReject: isAdmin || isContributor,
+        canRequestChanges: isAdmin || isContributor,
+      },
+      restrictions,
+      reason,
+    };
+  }
+
+  /**
+   * Vérifie si un utilisateur peut réviser un mot
+   */
+  async canUserReviseWord(
+    word: Word, 
+    user: User
+  ): Promise<{
+    canRevise: boolean;
+    permissions: {
+      isAuthenticated: boolean;
+      isActive: boolean;
+      canSuggestChanges: boolean;
+      canCreateRevision: boolean;
+    };
+    restrictions: string[];
+    reason?: string;
+  }> {
+    const isAuthenticated = !!user._id;
+    const isActive = user.isActive;
+    
+    const restrictions: string[] = [];
+    let canRevise = false;
+    let reason: string | undefined;
+
+    if (!isAuthenticated) {
+      restrictions.push("Utilisateur non authentifié");
+      reason = "Vous devez être connecté pour réviser un mot";
+    } else if (!isActive) {
+      restrictions.push("Compte inactif");
+      reason = "Votre compte doit être actif pour réviser des mots";
+    } else if (word.status !== 'approved') {
+      restrictions.push("Mot non approuvé");
+      reason = "Seuls les mots approuvés peuvent être révisés";
+    } else {
+      canRevise = true;
+    }
+
+    return {
+      canRevise,
+      permissions: {
+        isAuthenticated,
+        isActive,
+        canSuggestChanges: canRevise,
+        canCreateRevision: canRevise,
+      },
+      restrictions,
+      reason,
+    };
+  }
+
+  /**
+   * Obtient un résumé des permissions d'un utilisateur pour un mot
+   */
+  async getWordPermissionSummary(
+    word: Word, 
+    user: User
+  ): Promise<{
+    wordId: string;
+    userId: string;
+    permissions: {
+      canView: boolean;
+      canEdit: boolean;
+      canDelete: boolean;
+      canModerate: boolean;
+      canRevise: boolean;
+      canAddAudio: boolean;
+      canAddToFavorites: boolean;
+      canTranslate: boolean;
+    };
+    userRoles: {
+      isOwner: boolean;
+      isAdmin: boolean;
+      isContributor: boolean;
+      isRegularUser: boolean;
+    };
+    wordStatus: string;
+    restrictions: string[];
+  }> {
+    const editPermissions = await this.canUserEditWord(word, user, true) as {
+      canEdit: boolean;
+      permissions: {
+        isOwner: boolean;
+        isAdmin: boolean;
+        isContributor: boolean;
+        canModifyStatus: boolean;
+        canDelete: boolean;
+        canAddTranslations: boolean;
+      };
+      restrictions: string[];
+    };
+    
+    const deletePermissions = await this.canUserDeleteWord(word, user, true) as {
+      canDelete: boolean;
+      permissions: {
+        isOwner: boolean;
+        isAdmin: boolean;
+        hasLowInteractions: boolean;
+      };
+      restrictions: string[];
+    };
+    
+    const moderatePermissions = await this.canUserModerateWord(word, user);
+    const revisePermissions = await this.canUserReviseWord(word, user);
+    
+    const canView = await this.canUserViewWord(word, user);
+    const canAddAudio = await this.canUserAddAudio(word, user);
+    const canAddToFavorites = await this.canUserAddToFavorites(word, user);
+    
+    let canTranslate = false;
+    try {
+      await this.validateTranslationPermissions(word, user);
+      canTranslate = true;
+    } catch {
+      canTranslate = false;
+    }
+
+    const allRestrictions = [
+      ...editPermissions.restrictions,
+      ...deletePermissions.restrictions,
+      ...moderatePermissions.restrictions,
+      ...revisePermissions.restrictions,
+    ].filter((restriction, index, array) => array.indexOf(restriction) === index); // Remove duplicates
+
+    return {
+      wordId: word._id?.toString() || '',
+      userId: user._id?.toString() || '',
+      permissions: {
+        canView,
+        canEdit: editPermissions.canEdit,
+        canDelete: deletePermissions.canDelete,
+        canModerate: moderatePermissions.canModerate,
+        canRevise: revisePermissions.canRevise,
+        canAddAudio,
+        canAddToFavorites,
+        canTranslate,
+      },
+      userRoles: {
+        isOwner: editPermissions.permissions.isOwner,
+        isAdmin: editPermissions.permissions.isAdmin,
+        isContributor: editPermissions.permissions.isContributor,
+        isRegularUser: !editPermissions.permissions.isAdmin && !editPermissions.permissions.isContributor,
+      },
+      wordStatus: word.status,
+      restrictions: allRestrictions,
+    };
+  }
+
+  /**
+   * Vérifie les permissions en lot pour plusieurs mots
+   */
+  async batchCheckUserPermissions(
+    wordIds: string[], 
+    user: User, 
+    permission: 'edit' | 'delete' | 'moderate' | 'view'
+  ): Promise<{
+    results: Array<{
+      wordId: string;
+      hasPermission: boolean;
+      reason?: string;
+    }>;
+    summary: {
+      total: number;
+      allowed: number;
+      denied: number;
+    };
+  }> {
+    const results: Array<{
+      wordId: string;
+      hasPermission: boolean;
+      reason?: string;
+    }> = [];
+
+    let allowed = 0;
+    let denied = 0;
+
+    for (const wordId of wordIds) {
+      try {
+        const word = await this.wordCoreService.findOne(wordId);
+        if (!word) {
+          results.push({
+            wordId,
+            hasPermission: false,
+            reason: 'Mot non trouvé',
+          });
+          denied++;
+          continue;
+        }
+
+        let hasPermission = false;
+        let reason: string | undefined;
+
+        switch (permission) {
+          case 'edit':
+            const editResult = await this.canUserEditWord(word, user, true) as {
+              canEdit: boolean;
+              reason?: string;
+            };
+            hasPermission = editResult.canEdit;
+            reason = editResult.reason;
+            break;
+          case 'delete':
+            const deleteResult = await this.canUserDeleteWord(word, user, true) as {
+              canDelete: boolean;
+              reason?: string;
+            };
+            hasPermission = deleteResult.canDelete;
+            reason = deleteResult.reason;
+            break;
+          case 'moderate':
+            const moderateResult = await this.canUserModerateWord(word, user);
+            hasPermission = moderateResult.canModerate;
+            reason = moderateResult.reason;
+            break;
+          case 'view':
+            hasPermission = await this.canUserViewWord(word, user);
+            if (!hasPermission) {
+              reason = 'Permissions de visualisation insuffisantes';
+            }
+            break;
+        }
+
+        results.push({
+          wordId,
+          hasPermission,
+          reason,
+        });
+
+        if (hasPermission) {
+          allowed++;
+        } else {
+          denied++;
+        }
+      } catch (error) {
+        results.push({
+          wordId,
+          hasPermission: false,
+          reason: `Erreur lors de la vérification: ${error instanceof Error ? error.message : String(error)}`,
+        });
+        denied++;
+      }
+    }
+
+    return {
+      results,
+      summary: {
+        total: wordIds.length,
+        allowed,
+        denied,
+      },
+    };
+  }
+
 }

@@ -6,6 +6,7 @@ import { User } from '../../../users/schemas/user.schema';
 import { CreateWordDto } from '../../dto/create-word.dto';
 import { UpdateWordDto } from '../../dto/update-word.dto';
 import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { QuotaService } from '../../../common/services/quota.service';
 
 /**
  * Service centralisé pour la validation métier des mots
@@ -14,7 +15,8 @@ import { DatabaseErrorHandler } from '../../../common/utils/database-error-handl
 @Injectable()
 export class WordValidationService {
   constructor(
-    @InjectModel(Word.name) private wordModel: Model<WordDocument>
+    @InjectModel(Word.name) private wordModel: Model<WordDocument>,
+    private quotaService: QuotaService
   ) {}
 
   /**
@@ -39,7 +41,7 @@ export class WordValidationService {
         await this.validateWordUniqueness(dto.word, dto.languageId || dto.language);
         
         // Validation spécifique selon le rôle utilisateur
-        this.validateUserCapabilities(dto, user);
+        await this.validateUserCapabilities(dto, user);
       },
       {
         operationName: 'VALIDATE_WORD_CREATION',
@@ -234,7 +236,7 @@ export class WordValidationService {
   /**
    * Valide les capacités de l'utilisateur selon son rôle
    */
-  private validateUserCapabilities(dto: CreateWordDto, user: User): void {
+  private async validateUserCapabilities(dto: CreateWordDto, user: User): Promise<void> {
     // Les utilisateurs normaux ne peuvent pas créer de mots directement approuvés
     if (dto.status === 'approved' && !['admin', 'superadmin', 'contributor'].includes(user.role)) {
       throw new BadRequestException(
@@ -243,9 +245,8 @@ export class WordValidationService {
     }
 
     // Limite du nombre de mots par jour pour les utilisateurs normaux
-    if (user.role === 'user') {
-      // TODO: Implémenter la vérification du quota quotidien
-      // Cette validation sera ajoutée dans une future itération
+    if (user.role !== 'admin') {
+      await this.quotaService.enforceQuota(user._id.toString(), 'dailyWordCreations', user.role);
     }
   }
 

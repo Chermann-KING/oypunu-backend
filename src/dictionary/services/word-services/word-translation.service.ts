@@ -2,10 +2,13 @@ import {
   Injectable,
   NotFoundException,
   Logger,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Word, WordDocument } from '../../schemas/word.schema';
+import { User } from '../../../users/schemas/user.schema';
 import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
 
 /**
@@ -341,6 +344,533 @@ export class WordTranslationService {
       },
       'WordTranslation',
       `repair-${wordId}`,
+    );
+  }
+
+  /**
+   * Version étendue de getAllTranslations pour le contrôleur
+   * Retourne le format attendu par words-translation.controller.ts
+   */
+  async getAllTranslationsForController(
+    wordId: string,
+    options: {
+      includeUnverified?: boolean;
+      targetLanguages?: string[];
+      userId?: string;
+    } = {}
+  ): Promise<{
+    wordId: string;
+    sourceWord: string;
+    sourceLanguage: string;
+    translations: Array<{
+      id: string;
+      word: string;
+      language: string;
+      languageName: string;
+      meanings: any[];
+      confidence: number;
+      verified: boolean;
+      createdBy: string;
+      createdAt: Date;
+    }>;
+    availableLanguages: Array<{
+      code: string;
+      name: string;
+      hasTranslation: boolean;
+    }>;
+    statistics: {
+      totalTranslations: number;
+      verifiedTranslations: number;
+      completionRate: number;
+    };
+  }> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        const word = await this.wordModel.findById(wordId);
+        if (!word) {
+          throw new NotFoundException('Mot non trouvé');
+        }
+
+        // Récupérer toutes les traductions existantes
+        const { allTranslations } = await this.getAllTranslations(wordId);
+        
+        // Filtrer selon les options
+        let filteredTranslations = allTranslations;
+        
+        if (!options.includeUnverified) {
+          filteredTranslations = filteredTranslations.filter(t => 
+            t.verifiedBy && t.verifiedBy.length > 0
+          );
+        }
+        
+        if (options.targetLanguages && options.targetLanguages.length > 0) {
+          filteredTranslations = filteredTranslations.filter(t =>
+            options.targetLanguages!.includes(t.targetLanguage || '')
+          );
+        }
+
+        // Formater les traductions pour le contrôleur
+        const formattedTranslations = filteredTranslations.map(translation => ({
+          id: translation.id,
+          word: translation.targetWord,
+          language: translation.targetLanguage || '',
+          languageName: translation.targetLanguage || '', // TODO: Map to language names
+          meanings: [], // TODO: Extract from target word if available
+          confidence: translation.confidence || 0.8,
+          verified: (translation.verifiedBy && translation.verifiedBy.length > 0) || false,
+          createdBy: 'unknown', // TODO: Get from createdBy field
+          createdAt: new Date(), // TODO: Get actual creation date
+        }));
+
+        // Générer les langues disponibles
+        const allLanguages = [...new Set([
+          word.language,
+          ...word.translations.map(t => t.language),
+        ])].filter(Boolean) as string[];
+
+        const availableLanguages = allLanguages.map(lang => ({
+          code: lang,
+          name: lang, // TODO: Map to language names
+          hasTranslation: word.translations.some(t => t.language === lang),
+        }));
+
+        // Calculer les statistiques
+        const totalTranslations = word.translations.length;
+        const verifiedTranslations = word.translations.filter(t => 
+          t.verifiedBy && t.verifiedBy.length > 0
+        ).length;
+        
+        return {
+          wordId,
+          sourceWord: word.word,
+          sourceLanguage: word.language || '',
+          translations: formattedTranslations,
+          availableLanguages,
+          statistics: {
+            totalTranslations,
+            verifiedTranslations,
+            completionRate: totalTranslations > 0 ? 
+              Math.round((verifiedTranslations / totalTranslations) * 100) : 0,
+          },
+        };
+      },
+      'WordTranslation',
+      `controller-${wordId}`,
+    );
+  }
+
+  /**
+   * Ajouter une nouvelle traduction
+   */
+  async addTranslation(
+    wordId: string,
+    translationData: {
+      targetWord: string;
+      targetLanguage: string;
+      meanings: Array<{
+        definition: string;
+        example?: string;
+        partOfSpeech?: string;
+      }>;
+      confidence?: number;
+      notes?: string;
+    },
+    user: User
+  ): Promise<{
+    translationId: string;
+    sourceWordId: string;
+    targetWord: string;
+    targetLanguage: string;
+    status: string;
+    message: string;
+  }> {
+    return DatabaseErrorHandler.handleCreateOperation(
+      async () => {
+        const word = await this.wordModel.findById(wordId);
+        if (!word) {
+          throw new NotFoundException('Mot source non trouvé');
+        }
+
+        // Vérifier si la traduction existe déjà
+        const existingTranslation = word.translations.find(t =>
+          t.language === translationData.targetLanguage &&
+          t.translatedWord === translationData.targetWord
+        );
+
+        if (existingTranslation) {
+          throw new BadRequestException('Cette traduction existe déjà');
+        }
+
+        // Créer la nouvelle traduction
+        const newTranslation = {
+          language: translationData.targetLanguage,
+          translatedWord: translationData.targetWord,
+          context: [], // TODO: Extract from meanings
+          confidence: translationData.confidence || 0.8,
+          verifiedBy: [],
+          targetWordId: null,
+          createdBy: new Types.ObjectId(user._id as string),
+          validatedBy: null,
+        };
+
+        word.translations.push(newTranslation as any);
+        word.translationCount = word.translations.length;
+        
+        const savedWord = await word.save();
+        
+        // Créer les traductions bidirectionnelles
+        await this.createBidirectionalTranslations(savedWord, user._id as string);
+
+        const translationId = (newTranslation as any)._id || 
+          `${wordId}_${translationData.targetWord}_${Date.now()}`;
+
+        return {
+          translationId: translationId.toString(),
+          sourceWordId: wordId,
+          targetWord: translationData.targetWord,
+          targetLanguage: translationData.targetLanguage,
+          status: 'pending',
+          message: 'Traduction ajoutée avec succès',
+        };
+      },
+      'WordTranslation',
+      `add-${wordId}`,
+    );
+  }
+
+  /**
+   * Supprimer une traduction
+   */
+  async removeTranslation(
+    wordId: string,
+    translationId: string,
+    user: User
+  ): Promise<void> {
+    return DatabaseErrorHandler.handleDeleteOperation(
+      async () => {
+        const word = await this.wordModel.findById(wordId);
+        if (!word) {
+          throw new NotFoundException('Mot source non trouvé');
+        }
+
+        const translationIndex = word.translations.findIndex(t =>
+          (t as any)._id?.toString() === translationId
+        );
+
+        if (translationIndex === -1) {
+          throw new NotFoundException('Traduction non trouvée');
+        }
+
+        const translation = word.translations[translationIndex];
+
+        // Vérifier les permissions (basique)
+        // TODO: Utiliser WordPermissionService pour une vérification complète
+        const canDelete = 
+          user.role === 'admin' || 
+          user.role === 'superadmin' ||
+          translation.createdBy?.toString() === user._id?.toString();
+
+        if (!canDelete) {
+          throw new ForbiddenException('Permissions insuffisantes pour supprimer cette traduction');
+        }
+
+        // Supprimer la traduction
+        word.translations.splice(translationIndex, 1);
+        word.translationCount = word.translations.length;
+        
+        await word.save();
+      },
+      'WordTranslation',
+      `remove-${wordId}-${translationId}`,
+    );
+  }
+
+  /**
+   * Vérifier/valider une traduction
+   */
+  async verifyTranslation(
+    wordId: string,
+    translationId: string,
+    user?: User,
+    comment?: string
+  ): Promise<{
+    translationId: string;
+    verified: boolean;
+    verifiedBy: string;
+    verifiedAt: Date;
+    message: string;
+  }> {
+    return DatabaseErrorHandler.handleUpdateOperation(
+      async () => {
+        if (!user) {
+          throw new ForbiddenException('Utilisateur requis pour la vérification');
+        }
+
+        const word = await this.wordModel.findById(wordId);
+        if (!word) {
+          throw new NotFoundException('Mot source non trouvé');
+        }
+
+        const translation = word.translations.find(t =>
+          (t as any)._id?.toString() === translationId
+        );
+
+        if (!translation) {
+          throw new NotFoundException('Traduction non trouvée');
+        }
+
+        // Vérifier les permissions de vérification
+        const canVerify = 
+          user.role === 'admin' || 
+          user.role === 'superadmin' ||
+          user.role === 'contributor';
+
+        if (!canVerify) {
+          throw new ForbiddenException('Permissions insuffisantes - Rôle contributeur ou admin requis');
+        }
+
+        // Ajouter la vérification
+        if (!translation.verifiedBy) {
+          translation.verifiedBy = [];
+        }
+
+        const userIdObj = new Types.ObjectId(user._id as string);
+        if (!translation.verifiedBy.some(id => id.toString() === userIdObj.toString())) {
+          translation.verifiedBy.push(userIdObj as any);
+        }
+
+        (translation as any).lastVerifiedAt = new Date();
+        
+        await word.save();
+
+        return {
+          translationId,
+          verified: true,
+          verifiedBy: user.username || user._id?.toString() || 'unknown',
+          verifiedAt: new Date(),
+          message: 'Traduction vérifiée avec succès',
+        };
+      },
+      'WordTranslation',
+      `verify-${wordId}-${translationId}`,
+    );
+  }
+
+  /**
+   * Rechercher des traductions
+   */
+  async searchTranslations(options: {
+    query: string;
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    verified?: boolean;
+    page?: number;
+    limit?: number;
+    userId?: string;
+  }): Promise<{
+    query: string;
+    results: Array<{
+      sourceWord: string;
+      sourceLanguage: string;
+      translations: Array<{
+        word: string;
+        language: string;
+        confidence: number;
+        verified: boolean;
+      }>;
+      relevanceScore: number;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        const {
+          query,
+          sourceLanguage,
+          targetLanguage,
+          verified,
+          page = 1,
+          limit = 10,
+        } = options;
+
+        // Construire le filtre de recherche
+        const searchFilter: any = {
+          $or: [
+            { word: { $regex: query, $options: 'i' } },
+            { 'translations.translatedWord': { $regex: query, $options: 'i' } },
+          ],
+        };
+
+        if (sourceLanguage) {
+          searchFilter.language = sourceLanguage;
+        }
+
+        // Exécuter la recherche
+        const skip = (page - 1) * limit;
+        const [words, total] = await Promise.all([
+          this.wordModel
+            .find(searchFilter)
+            .skip(skip)
+            .limit(limit)
+            .exec(),
+          this.wordModel.countDocuments(searchFilter).exec(),
+        ]);
+
+        // Formater les résultats
+        const results = words.map(word => {
+          let filteredTranslations = word.translations;
+          
+          if (targetLanguage) {
+            filteredTranslations = filteredTranslations.filter(t =>
+              t.language === targetLanguage
+            );
+          }
+          
+          if (verified !== undefined) {
+            filteredTranslations = filteredTranslations.filter(t =>
+              verified ? (t.verifiedBy && t.verifiedBy.length > 0) : true
+            );
+          }
+
+          return {
+            sourceWord: word.word,
+            sourceLanguage: word.language || '',
+            translations: filteredTranslations.map(t => ({
+              word: t.translatedWord,
+              language: t.language || '',
+              confidence: t.confidence || 0.8,
+              verified: (t.verifiedBy && t.verifiedBy.length > 0) || false,
+            })),
+            relevanceScore: 1.0, // TODO: Implement proper relevance scoring
+          };
+        });
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+          query,
+          results,
+          total,
+          page,
+          limit,
+          totalPages,
+        };
+      },
+      'WordTranslation',
+      `search-${options.query}`,
+    );
+  }
+
+  /**
+   * Obtenir les statistiques des traductions
+   */
+  async getTranslationStatistics(options: {
+    period?: string;
+    userId?: string;
+  } = {}): Promise<{
+    totalTranslations: number;
+    verifiedTranslations: number;
+    byLanguagePair: Record<string, number>;
+    topContributors: Array<{
+      username: string;
+      translationCount: number;
+      verificationCount: number;
+    }>;
+    qualityMetrics: {
+      averageConfidence: number;
+      verificationRate: number;
+      completionRate: number;
+    };
+    recentActivity: {
+      today: number;
+      thisWeek: number;
+      thisMonth: number;
+    };
+  }> {
+    return DatabaseErrorHandler.handleAggregationOperation(
+      async () => {
+        // Agrégation pour les statistiques globales
+        const pipeline = [
+          { $unwind: '$translations' },
+          {
+            $group: {
+              _id: null,
+              totalTranslations: { $sum: 1 },
+              verifiedTranslations: {
+                $sum: {
+                  $cond: [
+                    { $gt: [{ $size: { $ifNull: ['$translations.verifiedBy', []] } }, 0] },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              averageConfidence: { $avg: '$translations.confidence' },
+              languagePairs: {
+                $push: {
+                  source: '$language',
+                  target: '$translations.language',
+                },
+              },
+            },
+          },
+        ];
+
+        const [stats] = await this.wordModel.aggregate(pipeline).exec();
+        
+        if (!stats) {
+          return {
+            totalTranslations: 0,
+            verifiedTranslations: 0,
+            byLanguagePair: {},
+            topContributors: [],
+            qualityMetrics: {
+              averageConfidence: 0,
+              verificationRate: 0,
+              completionRate: 0,
+            },
+            recentActivity: {
+              today: 0,
+              thisWeek: 0,
+              thisMonth: 0,
+            },
+          };
+        }
+
+        // Calculer les paires de langues
+        const byLanguagePair: Record<string, number> = {};
+        stats.languagePairs.forEach((pair: any) => {
+          const key = `${pair.source}-${pair.target}`;
+          byLanguagePair[key] = (byLanguagePair[key] || 0) + 1;
+        });
+
+        // Calculer les métriques de qualité
+        const verificationRate = stats.totalTranslations > 0 
+          ? Math.round((stats.verifiedTranslations / stats.totalTranslations) * 100) 
+          : 0;
+
+        return {
+          totalTranslations: stats.totalTranslations || 0,
+          verifiedTranslations: stats.verifiedTranslations || 0,
+          byLanguagePair,
+          topContributors: [], // TODO: Implement contributor statistics
+          qualityMetrics: {
+            averageConfidence: Math.round((stats.averageConfidence || 0) * 100) / 100,
+            verificationRate,
+            completionRate: verificationRate, // TODO: Calculate proper completion rate
+          },
+          recentActivity: {
+            today: 0, // TODO: Implement time-based statistics
+            thisWeek: 0,
+            thisMonth: 0,
+          },
+        };
+      },
+      'WordTranslation',
+      `stats-${options.period || 'all'}`,
     );
   }
 }
