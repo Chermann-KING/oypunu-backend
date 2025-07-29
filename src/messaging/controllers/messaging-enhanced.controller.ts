@@ -333,7 +333,7 @@ export class MessagingEnhancedController {
   async updatePresenceStatus(
     @Request() req: AuthenticatedRequest,
     @Body() statusData: {
-      status: 'online' | 'away' | 'busy' | 'invisible';
+      status: 'online' | 'away' | 'busy' | 'offline';
       customMessage?: string;
     },
   ) {
