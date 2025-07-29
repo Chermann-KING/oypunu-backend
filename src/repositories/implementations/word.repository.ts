@@ -752,23 +752,6 @@ export class WordRepository implements IWordRepository {
 
   // ========== MÉTHODES POUR TRANSLATIONS ==========
 
-  async findByTranslationId(translationId: string): Promise<Word | null> {
-    return DatabaseErrorHandler.handleFindOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(translationId)) {
-          return null;
-        }
-        return this.wordModel
-          .findOne({
-            "translations._id": translationId,
-          })
-          .exec();
-      },
-      "Word",
-      `translation-${translationId}`
-    );
-  }
-
   async findByTranslationGroupId(groupId: string): Promise<Word[]> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
@@ -882,6 +865,49 @@ export class WordRepository implements IWordRepository {
       },
       'Word',
       wordId
+    );
+  }
+
+  /**
+   * Compter les mots avec filtres
+   */
+  async count(filters?: {
+    status?: string;
+    hasAudio?: boolean;
+    language?: string;
+    categoryId?: string;
+  }): Promise<number> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        const query: any = {};
+
+        if (filters?.status) {
+          query.status = filters.status;
+        }
+
+        if (filters?.hasAudio !== undefined) {
+          if (filters.hasAudio) {
+            query.audioFiles = { $exists: true, $ne: {} };
+          } else {
+            query.$or = [
+              { audioFiles: { $exists: false } },
+              { audioFiles: {} }
+            ];
+          }
+        }
+
+        if (filters?.language) {
+          query.language = filters.language;
+        }
+
+        if (filters?.categoryId) {
+          query.categoryId = filters.categoryId;
+        }
+
+        return await this.wordModel.countDocuments(query).exec();
+      },
+      'Word',
+      'count-filtered'
     );
   }
 

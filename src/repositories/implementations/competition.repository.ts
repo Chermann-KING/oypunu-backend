@@ -654,7 +654,7 @@ export class CompetitionRepository implements ICompetitionRepository {
           }
         ];
 
-        const [result] = await this.competitionModel.aggregate(pipeline).exec();
+        const [result] = await this.competitionModel.aggregate(pipeline as any).exec();
 
         const overview = result.overview[0] || {
           totalCompetitions: 0,

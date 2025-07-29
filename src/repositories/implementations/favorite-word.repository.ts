@@ -66,8 +66,7 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
         return await favorite.save();
       },
       'FavoriteWord',
-      userId,
-      wordId
+      userId
     );
   }
 
@@ -96,8 +95,7 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
         return !!favorite;
       },
       'FavoriteWord',
-      userId,
-      wordId
+      userId
     );
   }
 
@@ -181,18 +179,18 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
         const sortOrder = options?.sortOrder === 'asc' ? 1 : -1;
         
         if (sortField === 'word') {
-          pipeline.push({ $sort: { 'wordDetails.word': sortOrder } });
+          pipeline.push({ $sort: { 'wordDetails.word': sortOrder } } as any);
         } else if (sortField === 'language') {
-          pipeline.push({ $sort: { 'wordDetails.language': sortOrder } });
+          pipeline.push({ $sort: { 'wordDetails.language': sortOrder } } as any);
         } else {
-          pipeline.push({ $sort: { [sortField]: sortOrder } });
+          pipeline.push({ $sort: { [sortField]: sortOrder } } as any);
         }
 
         // Pagination
-        pipeline.push({ $skip: skip }, { $limit: limit });
+        pipeline.push({ $skip: skip } as any, { $limit: limit } as any);
 
         const [favorites, totalCount] = await Promise.all([
-          this.favoriteWordModel.aggregate(pipeline),
+          this.favoriteWordModel.aggregate(pipeline as any),
           this.favoriteWordModel.countDocuments(filter)
         ]);
 
@@ -421,7 +419,7 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
           }
         ];
 
-        return await this.favoriteWordModel.aggregate(pipeline);
+        return await this.favoriteWordModel.aggregate(pipeline as any);
       },
       'FavoriteWord',
       'most-favorited'
@@ -521,11 +519,11 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
 
         const countPipeline = [...pipeline];
         countPipeline.splice(-2); // Enlever skip et limit
-        countPipeline.push({ $count: 'total' });
+        countPipeline.push({ $count: 'total' } as any);
 
         const [favorites, countResult] = await Promise.all([
-          this.favoriteWordModel.aggregate(pipeline),
-          this.favoriteWordModel.aggregate(countPipeline)
+          this.favoriteWordModel.aggregate(pipeline as any),
+          this.favoriteWordModel.aggregate(countPipeline as any)
         ]);
 
         return {
@@ -623,7 +621,7 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
           }
         ];
 
-        return await this.favoriteWordModel.aggregate(pipeline);
+        return await this.favoriteWordModel.aggregate(pipeline as any);
       },
       'FavoriteWord',
       userId
@@ -749,5 +747,70 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
       'FavoriteWord',
       'global-stats'
     );
+  }
+
+  // ========== MÉTHODES ALIAS POUR COMPATIBILITÉ ==========
+
+  /**
+   * Alias pour getUserFavorites (pour compatibilité)
+   */
+  async findByUser(
+    userId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      page?: number;
+      sortBy?: 'createdAt' | 'word' | 'language';
+      sortOrder?: 'asc' | 'desc';
+    }
+  ): Promise<{
+    favorites: Array<FavoriteWord & {
+      wordDetails?: {
+        id: string;
+        word: string;
+        language: string;
+        definition: string;
+      };
+    }>;
+    total: number;
+  }> {
+    // Convertir les paramètres offset/limit vers page/limit
+    const page = options?.page || (options?.offset ? Math.floor(options.offset / (options.limit || 10)) + 1 : 1);
+    const limit = options?.limit || 10;
+
+    const result = await this.getUserFavorites(userId, {
+      page,
+      limit,
+      sortBy: options?.sortBy,
+      sortOrder: options?.sortOrder
+    });
+
+    return {
+      favorites: result.favorites.map(fav => ({
+        ...fav,
+        wordDetails: fav.wordDetails
+      })) as any,
+      total: result.total
+    };
+  }
+
+  /**
+   * Compter les favoris pour un mot spécifique
+   */
+  async countByWord(wordId: string): Promise<number> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return await this.favoriteWordModel.countDocuments({ wordId });
+      },
+      'FavoriteWord',
+      wordId
+    );
+  }
+
+  /**
+   * Alias pour isFavorite (pour compatibilité)
+   */
+  async isFavorited(userId: string, wordId: string): Promise<boolean> {
+    return this.isFavorite(userId, wordId);
   }
 }

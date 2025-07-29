@@ -523,6 +523,7 @@ export class RevisionHistoryRepository implements IRevisionHistoryRepository {
     total: number;
     page: number;
     limit: number;
+    hasMore: boolean;
   }> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
@@ -564,6 +565,7 @@ export class RevisionHistoryRepository implements IRevisionHistoryRepository {
           total,
           page,
           limit,
+          hasMore: page * limit < total,
         };
       },
       "RevisionHistory",
