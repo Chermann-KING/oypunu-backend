@@ -1,28 +1,33 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { AdminController } from './controllers/admin.controller';
-import { DatabaseMigrationController } from './controllers/database-migration.controller';
-import { JwtSecurityController } from './controllers/jwt-security.controller';
-import { AdminService } from './services/admin.service';
-import { AnalyticsService } from './services/analytics.service';
-import { DatabaseModule } from '../database/database.module';
-import { UsersModule } from '../users/users.module';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import { Word, WordSchema } from '../dictionary/schemas/word.schema';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { AdminController } from "./controllers/admin.controller";
+import { DatabaseMigrationController } from "./controllers/database-migration.controller";
+import { JwtSecurityController } from "./controllers/jwt-security.controller";
+import { AdminService } from "./services/admin.service";
+import { AnalyticsService } from "./services/analytics.service";
+import { DatabaseModule } from "../database/database.module";
+import { UsersModule } from "../users/users.module";
+import { DictionaryModule } from "../dictionary/dictionary.module";
+import { RepositoriesModule } from "../repositories/repositories.module";
+import { User, UserSchema } from "../users/schemas/user.schema";
+import { Word, WordSchema } from "../dictionary/schemas/word.schema";
 import {
   Community,
   CommunitySchema,
-} from '../communities/schemas/community.schema';
+} from "../communities/schemas/community.schema";
 import {
   CommunityMember,
   CommunityMemberSchema,
-} from '../communities/schemas/community-member.schema';
+} from "../communities/schemas/community-member.schema";
 import {
   CommunityPost,
   CommunityPostSchema,
-} from '../communities/schemas/community-post.schema';
-import { Message, MessageSchema } from '../messaging/schemas/message.schema';
-import { ActivityFeed, ActivityFeedSchema } from '../common/schemas/activity-feed.schema';
+} from "../communities/schemas/community-post.schema";
+import { Message, MessageSchema } from "../messaging/schemas/message.schema";
+import {
+  ActivityFeed,
+  ActivityFeedSchema,
+} from "../common/schemas/activity-feed.schema";
 
 @Module({
   imports: [
@@ -37,8 +42,14 @@ import { ActivityFeed, ActivityFeedSchema } from '../common/schemas/activity-fee
     ]),
     DatabaseModule,
     UsersModule,
+    DictionaryModule,
+    RepositoriesModule,
   ],
-  controllers: [AdminController, DatabaseMigrationController, JwtSecurityController],
+  controllers: [
+    AdminController,
+    DatabaseMigrationController,
+    JwtSecurityController,
+  ],
   providers: [AdminService, AnalyticsService],
   exports: [AdminService, AnalyticsService],
 })
