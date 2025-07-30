@@ -8,6 +8,7 @@ import { RateLimitMiddleware } from './middleware/rate-limit.middleware';
 import { RateLimitGuard, QuotaIncrementInterceptor } from './guards/rate-limit.guard';
 import { RepositoriesModule } from '../repositories/repositories.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { Language, LanguageSchema } from '../languages/schemas/language.schema';
 import { SecurityModule } from '../auth/security/security.module';
 
 @Module({
@@ -15,7 +16,8 @@ import { SecurityModule } from '../auth/security/security.module';
     RepositoriesModule,
     SecurityModule,
     MongooseModule.forFeature([
-      { name: User.name, schema: UserSchema }
+      { name: User.name, schema: UserSchema },
+      { name: Language.name, schema: LanguageSchema }
     ])
   ],
   controllers: [ActivityController],

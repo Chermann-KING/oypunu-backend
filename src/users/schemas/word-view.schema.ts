@@ -11,7 +11,6 @@ export class WordView {
     type: MongooseSchema.Types.ObjectId,
     ref: 'User',
     required: true,
-    index: true,
   })
   userId: User;
 

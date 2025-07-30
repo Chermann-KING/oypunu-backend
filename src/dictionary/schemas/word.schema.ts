@@ -93,7 +93,6 @@ export class Translation {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
     ref: 'TranslationGroup',
-    index: true,
   })
   translationGroupId?: string; // Référence au groupe de traduction
 
