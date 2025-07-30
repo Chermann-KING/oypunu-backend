@@ -5,6 +5,7 @@ import { HomeService } from './home.service';
 import { Word, WordSchema } from '../dictionary/schemas/word.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Language, LanguageSchema } from '../languages/schemas/language.schema';
+import { RepositoriesModule } from '../repositories/repositories.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { Language, LanguageSchema } from '../languages/schemas/language.schema';
       { name: User.name, schema: UserSchema },
       { name: Language.name, schema: LanguageSchema },
     ]),
+    RepositoriesModule,
   ],
   controllers: [HomeController],
   providers: [HomeService],
