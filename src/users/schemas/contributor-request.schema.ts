@@ -23,7 +23,7 @@ export enum ContributorRequestPriority {
   collection: 'contributor_requests',
 })
 export class ContributorRequest {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
