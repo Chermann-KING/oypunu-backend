@@ -137,7 +137,7 @@ export class WordAudioService {
                 language: word.language,
                 fileSize: fileBuffer.length,
                 accent: accent,
-                duration: audioFile.duration
+                duration: audioResult.duration || 0
               }
             );
           } catch (error) {

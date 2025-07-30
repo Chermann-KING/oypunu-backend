@@ -752,23 +752,6 @@ export class WordRepository implements IWordRepository {
 
   // ========== MÉTHODES POUR TRANSLATIONS ==========
 
-  async findByTranslationId(translationId: string): Promise<Word | null> {
-    return DatabaseErrorHandler.handleFindOperation(
-      async () => {
-        if (!Types.ObjectId.isValid(translationId)) {
-          return null;
-        }
-        return this.wordModel
-          .findOne({
-            "translations._id": translationId,
-          })
-          .exec();
-      },
-      "Word",
-      `translation-${translationId}`
-    );
-  }
-  
   async findByTranslationGroupId(groupId: string): Promise<Word[]> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
