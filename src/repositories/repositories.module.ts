@@ -93,6 +93,27 @@ import { IRevisionHistoryRepository } from "./interfaces/revision-history.reposi
 import { ICompetitionRepository } from "./interfaces/competition.repository.interface";
 import { IFavoriteWordRepository } from "./interfaces/favorite-word.repository.interface";
 import { IContributorRequestRepository } from "./interfaces/contributor-request.repository.interface";
+import { AuditLog, AuditLogSchema } from "../auth/schemas/audit-log.schema";
+import { Like, LikeSchema } from "../communities/schemas/like.schema";
+import { RecommendationCache, RecommendationCacheSchema } from "../recommendations/schemas/recommendation-cache.schema";
+import { TrainingData, TrainingDataSchema } from "../translation/schemas/training-data.schema";
+import { TranslationGroup, TranslationGroupSchema } from "../translation/schemas/translation-group.schema";
+import { UserRecommendationProfile, UserRecommendationProfileSchema } from "../recommendations/schemas/user-recommendation-profile.schema";
+import { WordNotification, WordNotificationSchema } from "../dictionary/schemas/word-notification.schema";
+import { AuditLogRepository } from "./implementations/audit-log.repository";
+import { LikeRepository } from "./implementations/like.repository";
+import { RecommendationCacheRepository } from "./implementations/recommendation-cache.repository";
+import { TrainingDataRepository } from "./implementations/training-data.repository";
+import { TranslationGroupRepository } from "./implementations/translation-group.repository";
+import { UserRecommendationProfileRepository } from "./implementations/user-recommendation-profile.repository";
+import { WordNotificationRepository } from "./implementations/word-notification.repository";
+import { IAuditLogRepository } from "./interfaces/audit-log.repository.interface";
+import { ILikeRepository } from "./interfaces/like.repository.interface";
+import { IRecommendationCacheRepository } from "./interfaces/recommendation-cache.repository.interface";
+import { ITrainingDataRepository } from "./interfaces/training-data.repository.interface";
+import { ITranslationGroupRepository } from "./interfaces/translation-group.repository.interface";
+import { IUserRecommendationProfileRepository } from "./interfaces/user-recommendation-profile.repository.interface";
+import { IWordNotificationRepository } from "./interfaces/word-notification.repository.interface";
 
 /**
  * 🏭 MODULE DES REPOSITORIES
@@ -128,6 +149,13 @@ import { IContributorRequestRepository } from "./interfaces/contributor-request.
       { name: Competition.name, schema: CompetitionSchema },
       { name: FavoriteWord.name, schema: FavoriteWordSchema },
       { name: ContributorRequest.name, schema: ContributorRequestSchema },
+      { name: AuditLog.name, schema: AuditLogSchema },
+      { name: Like.name, schema: LikeSchema },
+      { name: RecommendationCache.name, schema: RecommendationCacheSchema },
+      { name: TrainingData.name, schema: TrainingDataSchema },
+      { name: TranslationGroup.name, schema: TranslationGroupSchema },
+      { name: UserRecommendationProfile.name, schema: UserRecommendationProfileSchema },
+      { name: WordNotification.name, schema: WordNotificationSchema },
     ]),
   ],
   providers: [
@@ -226,6 +254,41 @@ import { IContributorRequestRepository } from "./interfaces/contributor-request.
       provide: "IContributorRequestRepository",
       useClass: ContributorRequestRepository,
     },
+    // Liaison interface -> implémentation pour AuditLogRepository
+    {
+      provide: "IAuditLogRepository",
+      useClass: AuditLogRepository,
+    },
+    // Liaison interface -> implémentation pour LikeRepository
+    {
+      provide: "ILikeRepository",
+      useClass: LikeRepository,
+    },
+    // Liaison interface -> implémentation pour RecommendationCacheRepository
+    {
+      provide: "IRecommendationCacheRepository",
+      useClass: RecommendationCacheRepository,
+    },
+    // Liaison interface -> implémentation pour TrainingDataRepository
+    {
+      provide: "ITrainingDataRepository",
+      useClass: TrainingDataRepository,
+    },
+    // Liaison interface -> implémentation pour TranslationGroupRepository
+    {
+      provide: "ITranslationGroupRepository",
+      useClass: TranslationGroupRepository,
+    },
+    // Liaison interface -> implémentation pour UserRecommendationProfileRepository
+    {
+      provide: "IUserRecommendationProfileRepository",
+      useClass: UserRecommendationProfileRepository,
+    },
+    // Liaison interface -> implémentation pour WordNotificationRepository
+    {
+      provide: "IWordNotificationRepository",
+      useClass: WordNotificationRepository,
+    },
     // Exports directs pour les tests et utilisations directes
     UserRepository,
     WordViewRepository,
@@ -246,6 +309,13 @@ import { IContributorRequestRepository } from "./interfaces/contributor-request.
     CompetitionRepository,
     FavoriteWordRepository,
     ContributorRequestRepository,
+    AuditLogRepository,
+    LikeRepository,
+    RecommendationCacheRepository,
+    TrainingDataRepository,
+    TranslationGroupRepository,
+    UserRecommendationProfileRepository,
+    WordNotificationRepository,
   ],
   exports: [
     "IUserRepository",
@@ -267,6 +337,13 @@ import { IContributorRequestRepository } from "./interfaces/contributor-request.
     "ICompetitionRepository",
     "IFavoriteWordRepository",
     "IContributorRequestRepository",
+    "IAuditLogRepository",
+    "ILikeRepository",
+    "IRecommendationCacheRepository",
+    "ITrainingDataRepository",
+    "ITranslationGroupRepository",
+    "IUserRecommendationProfileRepository",
+    "IWordNotificationRepository",
     UserRepository,
     WordViewRepository,
     WordRepository,
@@ -286,6 +363,13 @@ import { IContributorRequestRepository } from "./interfaces/contributor-request.
     CompetitionRepository,
     FavoriteWordRepository,
     ContributorRequestRepository,
+    AuditLogRepository,
+    LikeRepository,
+    RecommendationCacheRepository,
+    TrainingDataRepository,
+    TranslationGroupRepository,
+    UserRecommendationProfileRepository,
+    WordNotificationRepository,
   ],
 })
 export class RepositoriesModule {}
