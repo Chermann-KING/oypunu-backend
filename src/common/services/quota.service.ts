@@ -1,7 +1,5 @@
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from '../../users/schemas/user.schema';
+import { Injectable, Logger, ForbiddenException, Inject } from '@nestjs/common';
+import { IUserRepository } from '../../repositories/interfaces/user.repository.interface';
 import { DatabaseErrorHandler } from '../utils/database-error-handler.util';
 
 export interface QuotaLimits {
@@ -121,7 +119,8 @@ export class QuotaService {
   };
 
   constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>
+    @Inject('IUserRepository')
+    private userRepository: IUserRepository
   ) {
     // Nettoyage périodique du cache
     setInterval(() => this.cleanupExpiredCache(), 15 * 60 * 1000); // Toutes les 15 minutes
@@ -333,7 +332,7 @@ export class QuotaService {
     let role = userRole;
     
     if (!role) {
-      const user = await this.userModel.findById(userId).select('role').exec();
+      const user = await this.userRepository.findById(userId);
       role = user?.role || 'user';
     }
     
