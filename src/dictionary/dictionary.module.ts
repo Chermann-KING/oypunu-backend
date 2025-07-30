@@ -107,6 +107,7 @@ import { RepositoriesModule } from '../repositories/repositories.module';
   exports: [
     WordsService, 
     CategoriesService,
+    AudioService,
     // PHASE 1 - Export des services utilitaires
     WordValidationService,
     WordPermissionService,
