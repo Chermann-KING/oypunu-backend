@@ -6,12 +6,8 @@ import {
 } from "@nestjs/common";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
+import { IPostCommentRepository } from "../../repositories/interfaces/post-comment.repository.interface";
 import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
-
-// Interface temporaire pour les commentaires (à remplacer par la vraie quand disponible)
-interface ICommentRepository {
-  findById(id: string): Promise<any>;
-}
 
 export interface ReportedContentOptions {
   page: number;
@@ -107,7 +103,7 @@ export class ModerationService {
   constructor(
     @Inject("IWordRepository") private wordRepository: IWordRepository,
     @Inject("IUserRepository") private userRepository: IUserRepository,
-    @Inject("ICommentRepository") private commentRepository: ICommentRepository
+    @Inject("IPostCommentRepository") private commentRepository: IPostCommentRepository
   ) {}
 
   async getReportedContent(options: ReportedContentOptions): Promise<{

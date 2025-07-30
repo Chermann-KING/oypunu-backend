@@ -43,6 +43,18 @@ import {
   RevisionHistory,
   RevisionHistorySchema,
 } from "../dictionary/schemas/revision-history.schema";
+import {
+  Competition,
+  CompetitionSchema,
+} from "../achievements/schemas/competition.schema";
+import {
+  FavoriteWord,
+  FavoriteWordSchema,
+} from "../dictionary/schemas/favorite-word.schema";
+import {
+  ContributorRequest,
+  ContributorRequestSchema,
+} from "../users/schemas/contributor-request.schema";
 import { UserRepository } from "./implementations/user.repository";
 import { WordViewRepository } from "./implementations/word-view.repository";
 import { WordRepository } from "./implementations/word.repository";
@@ -59,6 +71,9 @@ import { PostCommentRepository } from "./implementations/post-comment.repository
 import { VoteRepository } from "./implementations/vote.repository";
 import { WordVoteRepository } from "./implementations/word-vote.repository";
 import { RevisionHistoryRepository } from "./implementations/revision-history.repository";
+import { CompetitionRepository } from "./implementations/competition.repository";
+import { FavoriteWordRepository } from "./implementations/favorite-word.repository";
+import { ContributorRequestRepository } from "./implementations/contributor-request.repository";
 import { IUserRepository } from "./interfaces/user.repository.interface";
 import { IWordViewRepository } from "./interfaces/word-view.repository.interface";
 import { IWordRepository } from "./interfaces/word.repository.interface";
@@ -75,6 +90,9 @@ import { IPostCommentRepository } from "./interfaces/post-comment.repository.int
 import { IVoteRepository } from "./interfaces/vote.repository.interface";
 import { IWordVoteRepository } from "./interfaces/word-vote.repository.interface";
 import { IRevisionHistoryRepository } from "./interfaces/revision-history.repository.interface";
+import { ICompetitionRepository } from "./interfaces/competition.repository.interface";
+import { IFavoriteWordRepository } from "./interfaces/favorite-word.repository.interface";
+import { IContributorRequestRepository } from "./interfaces/contributor-request.repository.interface";
 
 /**
  * 🏭 MODULE DES REPOSITORIES
@@ -107,6 +125,9 @@ import { IRevisionHistoryRepository } from "./interfaces/revision-history.reposi
       { name: Vote.name, schema: VoteSchema },
       { name: WordVote.name, schema: WordVoteSchema },
       { name: RevisionHistory.name, schema: RevisionHistorySchema },
+      { name: Competition.name, schema: CompetitionSchema },
+      { name: FavoriteWord.name, schema: FavoriteWordSchema },
+      { name: ContributorRequest.name, schema: ContributorRequestSchema },
     ]),
   ],
   providers: [
@@ -190,6 +211,21 @@ import { IRevisionHistoryRepository } from "./interfaces/revision-history.reposi
       provide: "IRevisionHistoryRepository",
       useClass: RevisionHistoryRepository,
     },
+    // Liaison interface -> implémentation pour CompetitionRepository
+    {
+      provide: "ICompetitionRepository",
+      useClass: CompetitionRepository,
+    },
+    // Liaison interface -> implémentation pour FavoriteWordRepository
+    {
+      provide: "IFavoriteWordRepository",
+      useClass: FavoriteWordRepository,
+    },
+    // Liaison interface -> implémentation pour ContributorRequestRepository
+    {
+      provide: "IContributorRequestRepository",
+      useClass: ContributorRequestRepository,
+    },
     // Exports directs pour les tests et utilisations directes
     UserRepository,
     WordViewRepository,
@@ -207,6 +243,9 @@ import { IRevisionHistoryRepository } from "./interfaces/revision-history.reposi
     VoteRepository,
     WordVoteRepository,
     RevisionHistoryRepository,
+    CompetitionRepository,
+    FavoriteWordRepository,
+    ContributorRequestRepository,
   ],
   exports: [
     "IUserRepository",
@@ -225,6 +264,9 @@ import { IRevisionHistoryRepository } from "./interfaces/revision-history.reposi
     "IVoteRepository",
     "IWordVoteRepository",
     "IRevisionHistoryRepository",
+    "ICompetitionRepository",
+    "IFavoriteWordRepository",
+    "IContributorRequestRepository",
     UserRepository,
     WordViewRepository,
     WordRepository,
@@ -241,6 +283,9 @@ import { IRevisionHistoryRepository } from "./interfaces/revision-history.reposi
     VoteRepository,
     WordVoteRepository,
     RevisionHistoryRepository,
+    CompetitionRepository,
+    FavoriteWordRepository,
+    ContributorRequestRepository,
   ],
 })
 export class RepositoriesModule {}
