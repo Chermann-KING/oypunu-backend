@@ -23,17 +23,6 @@ import { ModerationModule } from "./moderation/moderation.module";
 import { SearchModule } from "./search/search.module";
 import { AchievementsModule } from "./achievements/achievements.module";
 import { SocialModule } from "./social/social.module";
-import { CommunityPostsController } from "./communities/controllers/community-posts.controller";
-import { CommunitiesService } from "./communities/services/communities.service";
-import {
-  Community,
-  CommunitySchema,
-} from "./communities/schemas/community.schema";
-import {
-  CommunityMember,
-  CommunityMemberSchema,
-} from "./communities/schemas/community-member.schema";
-import { User, UserSchema } from "./users/schemas/user.schema";
 import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 // import { LessonsModule } from './lessons/lessons.module';
 
@@ -89,11 +78,6 @@ import { ActivityTrackingMiddleware } from "./common/middleware/activity-trackin
     //   },
     //   inject: [ConfigService],
     // }),
-    MongooseModule.forFeature([
-      { name: Community.name, schema: CommunitySchema },
-      { name: CommunityMember.name, schema: CommunityMemberSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
     SecurityModule,
     AuthModule,
     UsersModule,
@@ -114,8 +98,8 @@ import { ActivityTrackingMiddleware } from "./common/middleware/activity-trackin
     SocialModule,         // 👥 Fonctionnalités sociales (likes, partages, commentaires)
     // LessonsModule,
   ],
-  controllers: [AppController, CommunityPostsController],
-  providers: [AppService, CommunitiesService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
