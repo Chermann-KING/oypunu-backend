@@ -8,16 +8,11 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ActivityService } from '../services/activity.service';
 import { ActivityFeed } from '../schemas/activity-feed.schema';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  Language,
-  LanguageDocument,
-} from '../../languages/schemas/language.schema';
+import { ILanguageRepository } from '../../repositories/interfaces/language.repository.interface';
 
 type ActivitySocket = Socket & {
   userId?: string;
@@ -42,8 +37,8 @@ export class ActivityGateway
 
   constructor(
     private readonly activityService: ActivityService,
-    @InjectModel(Language.name)
-    private languageModel: Model<LanguageDocument>,
+    @Inject('ILanguageRepository')
+    private languageRepository: ILanguageRepository,
   ) {}
 
   async handleConnection(client: ActivitySocket) {
@@ -232,15 +227,7 @@ export class ActivityGateway
     if (!languageCode) return 'une langue';
 
     try {
-      const language = await this.languageModel
-        .findOne({
-          $or: [
-            { iso639_1: languageCode },
-            { iso639_2: languageCode },
-            { iso639_3: languageCode },
-          ],
-        })
-        .exec();
+      const language = await this.languageRepository.findByCode(languageCode);
 
       if (language) {
         return `le ${language.nativeName || language.name}`;
