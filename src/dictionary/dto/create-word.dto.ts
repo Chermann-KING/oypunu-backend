@@ -172,7 +172,7 @@ export class MeaningDto {
   phonetics?: PhoneticDto[];
 }
 
-class TranslationDto {
+class WordTranslationDto {
   @ApiProperty({
     description: 'ID de la langue de la traduction (référence à Language)',
     example: '60a1b2c3d4e5f6a7b8c9d0e1',
@@ -368,7 +368,7 @@ export class CreateWordDto {
 
   @ApiProperty({
     description: "Traductions du mot dans d'autres langues",
-    type: [TranslationDto],
+    type: [WordTranslationDto],
     required: false,
     example: [
       {
@@ -381,9 +381,9 @@ export class CreateWordDto {
   })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => TranslationDto)
+  @Type(() => WordTranslationDto)
   @IsOptional()
-  translations?: TranslationDto[];
+  translations?: WordTranslationDto[];
 
   @ApiProperty({
     description: 'Fichiers audio de prononciation par accent',
