@@ -27,7 +27,7 @@ export class WordView {
   @Prop({ type: String, required: true })
   language: string; // Cache de la langue
 
-  @Prop({ type: Date, default: Date.now, index: true })
+  @Prop({ type: Date, default: Date.now })
   viewedAt: Date;
 
   @Prop({
