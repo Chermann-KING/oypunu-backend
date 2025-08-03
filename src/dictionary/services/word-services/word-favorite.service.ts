@@ -14,7 +14,7 @@ import {
 import { User, UserDocument } from '../../../users/schemas/user.schema';
 import { ActivityService } from '../../../common/services/activity.service';
 import { WordPermissionService } from './word-permission.service';
-import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../../common/errors";
 
 /**
  * Service spécialisé pour la gestion des mots favoris

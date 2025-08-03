@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Service de base pour les opérations CRUD des mots
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -16,7 +23,7 @@ import { User, UserRole } from "../../../users/schemas/user.schema";
 import { CategoriesService } from "../categories.service";
 import { UsersService } from "../../../users/services/users.service";
 import { ActivityService } from "../../../common/services/activity.service";
-import { DatabaseErrorHandler } from "../../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../../common/errors";
 import { IWordRepository } from "../../../repositories/interfaces/word.repository.interface";
 import { IUserRepository } from "../../../repositories/interfaces/user.repository.interface";
 import { ILanguageRepository } from "../../../repositories/interfaces/language.repository.interface";
@@ -31,13 +38,28 @@ interface WordFilter {
 }
 
 /**
- * Service core pour les opérations CRUD de base sur les mots
- * PHASE 7 - Extraction des responsabilités principales depuis WordsService
+ * Service de base pour les opérations CRUD sur les mots du dictionnaire
+ * 
+ * Gère les opérations fondamentales (créer, lire, modifier, supprimer) avec validation,
+ * gestion des permissions et logging d'activités.
+ * 
+ * @class WordCoreService
  */
 @Injectable()
 export class WordCoreService {
   private readonly logger = new Logger(WordCoreService.name);
 
+  /**
+   * Constructeur du service de base des mots
+   * 
+   * @param {IWordRepository} wordRepository - Repository principal des mots
+   * @param {IUserRepository} userRepository - Repository des utilisateurs 
+   * @param {ILanguageRepository} languageRepository - Repository des langues
+   * @param {IWordViewRepository} wordViewRepository - Repository des vues de mots
+   * @param {CategoriesService} categoriesService - Service de gestion des catégories
+   * @param {UsersService} usersService - Service de gestion des utilisateurs
+   * @param {ActivityService} activityService - Service de logging d'activités
+   */
   constructor(
     @Inject("IWordRepository") private wordRepository: IWordRepository,
     @Inject("IUserRepository") private userRepository: IUserRepository,
@@ -51,8 +73,24 @@ export class WordCoreService {
   ) {}
 
   /**
-   * Crée un nouveau mot
-   * Ligne 87-223 dans WordsService original
+   * Crée un nouveau mot dans le dictionnaire avec validation complète
+   * 
+   * @async
+   * @function create
+   * @param {CreateWordDto} createWordDto - Données du mot à créer
+   * @param {object} user - Utilisateur créateur
+   * @param {string} user._id - ID MongoDB de l'utilisateur
+   * @param {string} user.userId - ID alternatif de l'utilisateur
+   * @param {string} user.role - Rôle de l'utilisateur (détermine le statut initial)
+   * @returns {Promise<Word>} Le mot créé avec son ID et statut
+   * @throws {BadRequestException} Si utilisateur invalide, mot existe déjà, ou catégorie inexistante
+   * @example
+   * const word = await wordCoreService.create({
+   *   word: 'sawubona',
+   *   language: 'zu',
+   *   definition: 'salutation en zulu',
+   *   categoryId: 'category-id'
+   * }, { _id: 'user-id', role: 'CONTRIBUTOR' });
    */
   async create(
     createWordDto: CreateWordDto,

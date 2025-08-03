@@ -11,7 +11,7 @@ import {
 import { User } from '../../../users/schemas/user.schema';
 import { Word } from '../../schemas/word.schema';
 import { RevisionHistory } from '../../schemas/revision-history.schema';
-import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../../common/errors";
 
 /**
  * Service spécialisé pour les notifications liées aux mots

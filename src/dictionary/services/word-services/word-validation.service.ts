@@ -5,7 +5,7 @@ import { Word, WordDocument } from '../../schemas/word.schema';
 import { User } from '../../../users/schemas/user.schema';
 import { CreateWordDto } from '../../dto/create-word.dto';
 import { UpdateWordDto } from '../../dto/update-word.dto';
-import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../../common/errors";
 import { QuotaService } from '../../../common/services/quota.service';
 
 /**

@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Middleware de sécurité pour uploads audio O'Ypunu
+ * 
+ * Ce middleware implémente une sécurité avancée pour les uploads de fichiers audio
+ * avec validation des signatures, analyse des métadonnées, détection de malware,
+ * rate limiting et contrôles anti-abus pour protéger la plateforme.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NestMiddleware,
@@ -8,19 +20,61 @@ import { Request, Response, NextFunction } from 'express';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
+/**
+ * Interface étendue de requête avec validation audio
+ * 
+ * @interface AudioUploadRequest
+ * @extends Request
+ */
 interface AudioUploadRequest extends Request {
+  /** Résultats de validation audio */
   audioValidation?: {
+    /** Validation réussie */
     isValid: boolean;
+    /** Erreurs de validation */
     errors: string[];
+    /** Métadonnées extraites */
     metadata: {
+      /** Durée en secondes */
       duration?: number;
+      /** Bitrate en bps */
       bitrate?: number;
+      /** Fréquence d'échantillonnage */
       sampleRate?: number;
+      /** Nombre de canaux */
       channels?: number;
     };
   };
 }
 
+/**
+ * Middleware de sécurité avancée pour uploads audio
+ * 
+ * Ce middleware implémente une protection multicouche pour les uploads audio :
+ * 
+ * ## 🛡️ Protections implémentées :
+ * - **Rate limiting** : Limite les uploads par IP/utilisateur
+ * - **Validation signatures** : Vérification des magic numbers
+ * - **Analyse métadonnées** : Extraction et validation des propriétés audio
+ * - **Détection malware** : Scan basique des patterns suspects
+ * - **Contrôles origine** : Validation des headers et référents
+ * 
+ * ## 📊 Limites configurées :
+ * - **10 uploads/heure** par client
+ * - **50 uploads/jour** par client
+ * - **10MB max** par fichier
+ * - **30 secondes max** de durée audio
+ * 
+ * ## 🔍 Formats audio supportés :
+ * - MP3, WAV, OGG, FLAC, M4A, WebM
+ * - Validation des signatures de fichier
+ * - Analyse des en-têtes audio
+ * - Détection des fichiers corrompus
+ * 
+ * @class AudioSecurityMiddleware
+ * @implements NestMiddleware
+ * @version 1.0.0
+ */
 @Injectable()
 export class AudioSecurityMiddleware implements NestMiddleware {
   private readonly rateLimitMap = new Map<
@@ -34,8 +88,27 @@ export class AudioSecurityMiddleware implements NestMiddleware {
     maxDuration: 30, // 30 secondes
   };
 
+  /**
+   * Constructeur du middleware de sécurité audio
+   * 
+   * @constructor
+   * @param {ConfigService} configService - Service de configuration NestJS
+   */
   constructor(private configService: ConfigService) {}
 
+  /**
+   * Point d'entrée principal du middleware
+   * 
+   * Orchestration des contrôles de sécurité en cascade pour valider
+   * les uploads audio avec gestion d'erreurs robuste.
+   * 
+   * @async
+   * @method use
+   * @param {AudioUploadRequest} req - Requête Express étendue
+   * @param {Response} res - Réponse Express
+   * @param {NextFunction} next - Fonction suivante dans la chaîne
+   * @returns {Promise<void>}
+   */
   async use(req: AudioUploadRequest, res: Response, next: NextFunction) {
     try {
       // 1. Vérification du rate limiting

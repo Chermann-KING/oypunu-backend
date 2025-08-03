@@ -1,45 +1,128 @@
+/**
+ * @fileoverview Service de cache audio intelligent pour O'Ypunu
+ * 
+ * Ce service implémente un système de cache Redis avancé pour les fichiers audio
+ * avec gestion des statistiques, éviction intelligente, compression et
+ * optimisations de performance pour améliorer l'expérience utilisateur.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import * as crypto from 'crypto';
 
+/**
+ * Interface des données audio en cache
+ * 
+ * @interface CachedAudioData
+ */
 interface CachedAudioData {
+  /** URL Cloudinary de l'audio */
   url: string;
+  /** ID Cloudinary du fichier */
   cloudinaryId: string;
+  /** Format audio (mp3, wav, etc.) */
   format: string;
+  /** Durée en secondes */
   duration: number;
+  /** Taille du fichier en bytes */
   fileSize?: number;
+  /** Qualité audio (high, medium, low) */
   quality?: string;
+  /** Timestamp de mise en cache */
   cachedAt: number;
+  /** Timestamp d'expiration */
   expiresAt: number;
+  /** Nombre d'accès */
   hitCount: number;
+  /** Dernier accès */
   lastAccessed: number;
 }
 
+/**
+ * Interface des statistiques de cache
+ * 
+ * @interface AudioCacheStats
+ */
 interface AudioCacheStats {
+  /** Nombre total d'entrées */
   totalEntries: number;
+  /** Taux de succès du cache */
   hitRate: number;
+  /** Total des hits */
   totalHits: number;
+  /** Total des misses */
   totalMisses: number;
+  /** Temps de réponse moyen */
   avgResponseTime: number;
+  /** Taille du cache */
   cacheSize: number;
+  /** Accents les plus demandés */
   topAccents: Array<{ accent: string; count: number }>;
 }
 
+/**
+ * Interface des statistiques persistées
+ * 
+ * @interface PersistedStats
+ */
 interface PersistedStats {
+  /** Total des hits persistés */
   totalHits: number;
+  /** Total des misses persistés */
   totalMisses: number;
+  /** Temps de réponse moyen */
   avgResponseTime: number;
+  /** Dernière mise à jour */
   lastUpdated: number;
 }
 
+/**
+ * Interface des options audio
+ * 
+ * @interface AudioOptions
+ */
 interface AudioOptions {
+  /** Qualité souhaitée */
   quality?: string;
+  /** Format souhaité */
   format?: string;
+  /** Transformations Cloudinary */
   transformations?: Record<string, any>;
 }
 
+/**
+ * Service de cache audio intelligent avec Redis
+ * 
+ * Ce service fournit un système de cache avancé pour les fichiers audio :
+ * 
+ * ## 🚀 Fonctionnalités principales :
+ * - **Cache intelligent** : Mise en cache automatique avec TTL
+ * - **Statistiques détaillées** : Tracking des performances et usage
+ * - **Éviction LRU** : Gestion intelligente de la mémoire
+ * - **Compression** : Optimisation de l'espace Redis
+ * - **Analytics** : Métriques d'usage et performance
+ * 
+ * ## 📊 Optimisations :
+ * - **Hit rate** : Maximisation du taux de succès
+ * - **Préchargement** : Cache proactif des audios populaires
+ * - **Invalidation** : Nettoyage automatique des entrées expirées
+ * - **Monitoring** : Surveillance temps réel des performances
+ * 
+ * ## 🔧 Configuration :
+ * - TTL par défaut : 24 heures
+ * - Taille max : 10,000 entrées
+ * - Éviction : LRU automatique
+ * - Compression : Activée par défaut
+ * 
+ * @class AudioCacheService
+ * @version 1.0.0
+ */
 @Injectable()
 export class AudioCacheService {
   private readonly logger = new Logger(AudioCacheService.name);

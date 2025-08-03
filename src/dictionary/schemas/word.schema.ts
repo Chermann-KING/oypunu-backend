@@ -1,28 +1,91 @@
+/**
+ * @fileoverview Schémas Mongoose pour le système de mots O'Ypunu
+ * 
+ * Ce fichier définit les schémas principaux pour la gestion des mots
+ * dans le dictionnaire multilingue O'Ypunu avec support complet pour
+ * définitions, phonétiques, significations, traductions intelligentes
+ * et système de révisions avancé avec index optimisés.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { User } from '../../users/schemas/user.schema';
 import { Category } from './category.schema';
 import { Language } from '../../languages/schemas/language.schema';
 
+/**
+ * Type document Mongoose pour les mots
+ * @typedef {Word & Document} WordDocument
+ */
 export type WordDocument = Word & Document;
 
+/**
+ * Schéma pour les définitions de mots
+ * 
+ * Représente une définition individuelle d'un mot avec exemples
+ * d'usage et sources de référence pour traçabilité académique.
+ * 
+ * @class Definition
+ * @version 1.0.0
+ */
 @Schema()
 export class Definition {
+  /**
+   * Texte de la définition (requis)
+   * @type {string}
+   */
   @Prop({ required: true })
   definition: string;
 
+  /**
+   * Exemples d'usage dans des phrases
+   * @type {string[]}
+   * @default []
+   */
   @Prop({ type: [String], default: [] })
   examples: string[];
 
+  /**
+   * URL source de la définition (optionnel)
+   * @type {string}
+   * @optional
+   */
   @Prop()
   sourceUrl?: string;
 }
 
+/**
+ * Schéma pour les informations phonétiques
+ * 
+ * Contient la transcription phonétique et les fichiers audio
+ * associés avec métadonnées Cloudinary pour optimisation.
+ * 
+ * @class Phonetic
+ * @version 1.0.0
+ */
 @Schema()
 export class Phonetic {
+  /**
+   * Transcription phonétique textuelle (requis)
+   * @type {string}
+   * @example "/jɪˈpuːnu/"
+   */
   @Prop({ required: true })
   text: string;
 
+  /**
+   * Métadonnées du fichier audio phonétique
+   * @type {Object}
+   * @optional
+   * @property {string} url - URL publique du fichier audio
+   * @property {string} cloudinaryId - ID Cloudinary pour gestion
+   * @property {string} format - Format audio (mp3, wav, etc.)
+   * @property {number} duration - Durée en secondes
+   */
   @Prop({
     type: {
       url: { type: String },
@@ -38,6 +101,11 @@ export class Phonetic {
     duration: number;
   };
 
+  /**
+   * URL source de la phonétique (optionnel)
+   * @type {string}
+   * @optional
+   */
   @Prop()
   sourceUrl?: string;
 }

@@ -14,7 +14,7 @@ import {
 import { User, UserDocument, UserRole } from '../../../users/schemas/user.schema';
 import { UpdateWordDto } from '../../dto/update-word.dto';
 import { WordNotificationService } from './word-notification.service';
-import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../../common/errors";
 
 /**
  * Interface pour un changement détecté lors d'une révision
