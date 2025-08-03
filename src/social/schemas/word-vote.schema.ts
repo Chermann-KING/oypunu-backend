@@ -1,21 +1,42 @@
+/**
+ * @fileoverview Schéma Mongoose pour le système de votes sur mots O'Ypunu
+ * 
+ * Ce schéma définit un système de votes sophistiqué pour les mots
+ * du dictionnaire avec réactions contextuelles, pondération par
+ * réputation utilisateur et protection anti-spam avancée.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Schema as MongooseSchema } from "mongoose";
 import { User } from "../../users/schemas/user.schema";
 import { Word } from "../../dictionary/schemas/word.schema";
 
+/**
+ * Type document Mongoose pour les votes sur mots
+ * @typedef {WordVote & Document} WordVoteDocument
+ */
 export type WordVoteDocument = WordVote & Document;
 
 /**
- * 🗳️ SCHÉMA VOTE SUR MOT
+ * Schéma de vote sur mot O'Ypunu - Système social avancé
  *
  * Système de votes sophistiqué pour les mots du dictionnaire,
- * inspiré du système communauté mais adapté au contexte linguistique.
+ * inspiré du système communauté mais adapté au contexte linguistique
+ * avec réactions granulaires et pondération intelligente.
  *
- * Fonctionnalités :
- * - Réactions variées (like, love, helpful, accurate, clear)
- * - Système de poids basé sur réputation utilisateur
- * - Contexte spécifique (définition, prononciation, exemple)
- * - Protection anti-spam et validation
+ * ## 🎯 Fonctionnalités principales :
+ * - **Réactions variées** : like, love, helpful, accurate, clear, etc.
+ * - **Système de poids** : Basé sur réputation utilisateur (0.1-5.0)
+ * - **Contexte spécifique** : définition, prononciation, exemple, etc.
+ * - **Protection anti-spam** : IP tracking et validation utilisateur
+ * - **Analytics avancées** : Calculs de scores et tendances
+ * 
+ * @class WordVote
+ * @version 1.0.0
  */
 @Schema({
   timestamps: true,

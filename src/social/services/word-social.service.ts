@@ -1,36 +1,73 @@
+/**
+ * @fileoverview Service de gestion des fonctionnalités sociales O'Ypunu
+ * 
+ * Ce service implémente toute la logique métier pour les interactions sociales
+ * autour des mots : votes sophistiqués, commentaires hiérarchiques, partages,
+ * tendances, mot du jour et analytics communautaires avancées.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Inject } from "@nestjs/common";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
 import { IWordVoteRepository } from "../../repositories/interfaces/word-vote.repository.interface";
 import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-word.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
+/**
+ * Interface pour les commentaires hiérarchiques sur les mots
+ * @interface WordComment
+ */
 export interface WordComment {
+  /** Identifiant unique du commentaire */
   id: string;
+  /** Contenu textuel du commentaire */
   content: string;
+  /** Informations sur l'auteur du commentaire */
   author: {
     id: string;
     username: string;
     profilePicture?: string;
     role: string;
   };
+  /** Date de création */
   createdAt: Date;
+  /** Date de dernière modification */
   updatedAt: Date;
+  /** Nombre de likes reçus */
   likes: number;
+  /** Indique si l'utilisateur actuel a liké le commentaire */
   isLiked: boolean;
+  /** Réponses au commentaire (structure hiérarchique) */
   replies: WordComment[];
+  /** ID du commentaire parent (pour les réponses) */
   parentId?: string;
 }
 
+/**
+ * Interface pour les statistiques sociales d'un mot
+ * @interface SocialStats
+ */
 export interface SocialStats {
+  /** Nombre total de likes */
   likes: number;
+  /** Nombre total de partages */
   shares: number;
+  /** Nombre total de commentaires */
   comments: number;
+  /** Nombre total de vues */
   views: number;
+  /** Nombre d'ajouts aux favoris */
   favorites: number;
+  /** Note moyenne (1-5 étoiles) */
   averageRating: number;
+  /** Nombre total de notes attribuées */
   totalRatings: number;
+  /** Interactions de l'utilisateur actuel (optionnel) */
   userInteractions?: {
     liked: boolean;
     shared: boolean;
@@ -38,31 +75,88 @@ export interface SocialStats {
     rated: number;
     favorited: boolean;
   };
+  /** Score de popularité calculé */
   popularityScore: number;
+  /** Rang dans les tendances */
   trendingRank: number;
 }
 
+/**
+ * Interface pour les mots en tendance avec métriques
+ * @interface TrendingWord
+ */
 export interface TrendingWord {
+  /** Données complètes du mot */
   word: any;
+  /** Score de tendance calculé */
   trendScore: number;
+  /** Statistiques sociales associées */
   socialStats: SocialStats;
+  /** Taux de croissance d'engagement */
   growth: number;
+  /** Position dans le classement */
   rank: number;
+  /** Raisons expliquant la tendance */
   reasons: string[];
 }
 
+/**
+ * Interface pour les exemples d'usage contribués par la communauté
+ * @interface UsageExample
+ */
 export interface UsageExample {
+  /** Identifiant unique de l'exemple */
   id: string;
+  /** Phrase d'exemple */
   sentence: string;
+  /** Traduction optionnelle */
   translation?: string;
+  /** Contexte d'usage */
   context: "formal" | "informal" | "technical" | "literary" | "everyday";
+  /** Source de l'exemple */
   source?: string;
+  /** Niveau de difficulté */
   difficulty: string;
+  /** ID de l'utilisateur contributeur */
   contributedBy: string;
+  /** Nombre de likes sur l'exemple */
   likes: number;
+  /** URL audio pour la prononciation */
   audioUrl?: string;
 }
 
+/**
+ * Service de gestion des fonctionnalités sociales O'Ypunu
+ * 
+ * Implémente un écosystème social complet pour enrichir l'expérience
+ * d'apprentissage linguistique avec interactions communautaires,
+ * analytics avancées et engagement utilisateur sophistiqué.
+ * 
+ * ## 🎯 Fonctionnalités principales :
+ * 
+ * ### 🗳️ Système de votes contextuel
+ * - **Réactions granulaires** : Votes spécifiques par composant (définition, prononciation, etc.)
+ * - **Pondération intelligente** : Basée sur la réputation utilisateur
+ * - **Gestion des changements** : Mise à jour/suppression des votes existants
+ * 
+ * ### 💬 Commentaires hiérarchiques
+ * - **Structure arborescente** : Commentaires et réponses imbriqués
+ * - **Modération communautaire** : Système de likes sur commentaires
+ * - **Gestion des droits** : Suppression par auteurs et modérateurs
+ * 
+ * ### 📊 Analytics et tendances
+ * - **Mot du jour** : Sélection algorithmique avec challenge
+ * - **Scoring dynamique** : Algorithmes de tendances temporelles
+ * - **Métriques d'engagement** : Statistiques complètes d'interaction
+ * 
+ * ### 🤝 Partage social
+ * - **Multi-plateformes** : Support Facebook, Twitter, LinkedIn, WhatsApp
+ * - **Tracking avancé** : Analytics de partage et conversion
+ * - **Personnalisation** : Messages adaptés par plateforme
+ * 
+ * @class WordSocialService
+ * @version 1.0.0
+ */
 @Injectable()
 export class WordSocialService {
   // Simuler des bases de données en mémoire pour les fonctionnalités sociales
