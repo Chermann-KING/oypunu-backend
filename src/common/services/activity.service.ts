@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Service de tracking d'activité utilisateur pour O'Ypunu
+ * 
+ * Ce service centralise le suivi et l'enregistrement de toutes les activités
+ * utilisateur sur la plateforme. Il enrichit automatiquement les données
+ * avec des informations contextuelles (langues, régions, métadonnées)
+ * et émet des événements pour les notifications temps réel.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Inject } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { ActivityType, EntityType } from "../schemas/activity-feed.schema";
@@ -7,31 +20,64 @@ import {
 } from "../../repositories/interfaces/activity-feed.repository.interface";
 import { ILanguageRepository } from "../../repositories/interfaces/language.repository.interface";
 
+/**
+ * Interface pour la création d'une nouvelle activité
+ * 
+ * @interface CreateActivityData
+ */
 export interface CreateActivityData {
+  /** ID de l'utilisateur effectuant l'action */
   userId: string;
+  /** Nom d'utilisateur pour affichage */
   username: string;
+  /** Type d'activité (create, update, view, etc.) */
   activityType: ActivityType;
+  /** Type d'entité concernée (word, community, user, etc.) */
   entityType: EntityType;
+  /** ID de l'entité concernée */
   entityId: string;
+  /** Métadonnées spécifiques à l'activité */
   metadata?: {
+    /** Nom du mot pour activités liées aux mots */
     wordName?: string;
+    /** Code langue source */
     language?: string;
+    /** Code langue format standard */
     languageCode?: string;
+    /** Nom complet de la langue */
     languageName?: string;
+    /** Emoji drapeau de la langue */
     languageFlag?: string;
+    /** Mot traduit */
     translatedWord?: string;
+    /** Langue cible pour traduction */
     targetLanguage?: string;
+    /** Code langue cible */
     targetLanguageCode?: string;
+    /** Nombre de synonymes ajoutés */
     synonymsCount?: number;
+    /** Titre du post pour activités communautaires */
     postTitle?: string;
+    /** Nom de la communauté */
     communityName?: string;
   };
+  /** Région de l'utilisateur */
   userRegion?: string;
+  /** Région linguistique */
   languageRegion?: string;
+  /** Visibilité publique de l'activité */
   isPublic?: boolean;
 }
 
-// Mapping des codes de langues africaines vers régions/drapeaux
+/**
+ * Mapping des codes de langues africaines vers informations contextuelles
+ * 
+ * Cette constante fournit des informations enrichies pour les langues
+ * africaines principales, permettant l'affichage de drapeaux, régions
+ * et noms natifs dans l'interface utilisateur.
+ * 
+ * @constant {Record<string, Object>} AFRICAN_LANGUAGES_MAP
+ */
 const AFRICAN_LANGUAGES_MAP: Record<
   string,
   { region: string; country: string; flag: string; name: string }
@@ -66,7 +112,14 @@ const AFRICAN_LANGUAGES_MAP: Record<
   mg: { region: "africa", country: "MG", flag: "🇲🇬", name: "Malagasy" }, // Malgache (Madagascar)
 };
 
-// Mapping pour les autres langues du monde
+/**
+ * Mapping des langues mondiales principales
+ * 
+ * Cette constante complète AFRICAN_LANGUAGES_MAP avec les langues
+ * internationales courantes pour support global de la plateforme.
+ * 
+ * @constant {Record<string, Object>} WORLD_LANGUAGES_MAP
+ */
 const WORLD_LANGUAGES_MAP: Record<
   string,
   { region: string; country: string; flag: string; name: string }
@@ -84,8 +137,46 @@ const WORLD_LANGUAGES_MAP: Record<
   ru: { region: "europe", country: "RU", flag: "🇷🇺", name: "Русский" },
 };
 
+/**
+ * Service de tracking d'activité utilisateur pour O'Ypunu
+ * 
+ * Ce service est le cœur du système de suivi d'activité de la plateforme.
+ * Il enregistre, enrichit et diffuse toutes les actions utilisateur avec
+ * des métadonnées contextuelles pour les analytics et notifications.
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 📊 Tracking d'activité
+ * - Enregistrement de toutes les actions utilisateur
+ * - Enrichissement automatique avec données contextuelles
+ * - Support multi-langues avec drapeaux et régions
+ * - Métadonnées spécifiques par type d'activité
+ * 
+ * ### 🔄 Événements temps réel
+ * - Émission d'événements pour WebSocket
+ * - Notifications push automatiques
+ * - Synchronisation multi-instance
+ * - Cache intelligent pour performances
+ * 
+ * ### 🌍 Contextualisation
+ * - Mapping automatique des langues africaines
+ * - Résolution des drapeaux et régions
+ * - Enrichissement des métadonnées linguistiques
+ * - Support international étendu
+ * 
+ * @class ActivityService
+ * @version 1.0.0
+ */
 @Injectable()
 export class ActivityService {
+  /**
+   * Constructeur du service d'activité
+   * 
+   * @constructor
+   * @param {IActivityFeedRepository} activityFeedRepository - Repository pour persistance
+   * @param {ILanguageRepository} languageRepository - Repository des langues
+   * @param {EventEmitter2} eventEmitter - Émetteur d'événements pour temps réel
+   */
   constructor(
     @Inject("IActivityFeedRepository")
     private activityFeedRepository: IActivityFeedRepository,
@@ -94,6 +185,35 @@ export class ActivityService {
     private eventEmitter: EventEmitter2
   ) {}
 
+  /**
+   * Crée une nouvelle activité utilisateur avec enrichissement automatique
+   * 
+   * Cette méthode enregistre une nouvelle activité, l'enrichit avec des
+   * informations contextuelles (langues, régions, métadonnées) et émet
+   * un événement pour les notifications temps réel.
+   * 
+   * @async
+   * @method createActivity
+   * @param {CreateActivityData} data - Données de l'activité à créer
+   * @returns {Promise<ActivityFeed>} Activité créée avec enrichissements
+   * @throws {Error} En cas d'échec de création ou d'enrichissement
+   * 
+   * @example
+   * ```typescript
+   * const activity = await activityService.createActivity({
+   *   userId: "user123",
+   *   username: "contributeur1",
+   *   activityType: ActivityType.CREATE,
+   *   entityType: EntityType.WORD,
+   *   entityId: "word456",
+   *   metadata: {
+   *     wordName: "mbolo",
+   *     language: "punu",
+   *     languageCode: "pun"
+   *   }
+   * });
+   * ```
+   */
   async createActivity(data: CreateActivityData): Promise<ActivityFeed> {
     try {
       // Enrichir avec les informations de langue/région
