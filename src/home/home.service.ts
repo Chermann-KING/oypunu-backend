@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service pour la page d'accueil O'Ypunu
+ * 
+ * Ce service gère la logique métier de la page d'accueil avec
+ * récupération des mots vedettes (cache quotidien), calcul des
+ * statistiques globales et optimisations de performance.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Inject } from "@nestjs/common";
 import { Word } from "../dictionary/schemas/word.schema";
 import { User } from "../users/schemas/user.schema";
@@ -6,6 +18,24 @@ import { IWordRepository } from "../repositories/interfaces/word.repository.inte
 import { IUserRepository } from "../repositories/interfaces/user.repository.interface";
 import { ILanguageRepository } from "../repositories/interfaces/language.repository.interface";
 
+/**
+ * Interface pour les mots vedettes de la page d'accueil
+ * 
+ * Structure optimisée pour affichage frontend avec données
+ * essentielles pour engagement utilisateur maximal.
+ * 
+ * @interface FeaturedWord
+ * @property {string} id - Identifiant unique du mot
+ * @property {string} word - Mot en question
+ * @property {string} language - Nom complet de la langue
+ * @property {string} languageCode - Code ISO de la langue
+ * @property {string} partOfSpeech - Nature grammaticale
+ * @property {string} definition - Définition principale
+ * @property {string} pronunciation - Transcription phonétique
+ * @property {boolean} isFavorite - Statut favori (pour UI)
+ * @property {string} createdBy - Nom du contributeur
+ * @property {Date} updatedAt - Date de dernière modification
+ */
 export interface FeaturedWord {
   id: string;
   word: string;
@@ -19,6 +49,23 @@ export interface FeaturedWord {
   updatedAt: Date;
 }
 
+/**
+ * Service pour la page d'accueil O'Ypunu
+ * 
+ * Gère la logique métier de la page d'accueil avec système de cache
+ * intelligent pour les mots vedettes (mise à jour quotidienne) et
+ * calcul des statistiques globales en temps réel via repositories.
+ * 
+ * ## Fonctionnalités principales :
+ * - Sélection aléatoire de mots vedettes avec cache quotidien
+ * - Statistiques globales (utilisateurs, mots, langues actives)
+ * - Optimisations de performance avec mise en cache
+ * - Gestion d'erreurs robuste avec fallbacks
+ * - Transformation des données pour interface utilisateur
+ * 
+ * @class HomeService
+ * @version 1.0.0
+ */
 @Injectable()
 export class HomeService {
   private _featuredWordsCache: FeaturedWord[] = [];

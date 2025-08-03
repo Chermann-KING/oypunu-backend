@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Contrôleur REST pour le système de traduction intelligente O'Ypunu
+ * 
+ * Ce contrôleur gère toutes les opérations de traduction avec intelligence
+ * artificielle, détection automatique de doublons, validation communautaire
+ * et système d'apprentissage adaptatif pour optimiser la qualité.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -41,6 +53,38 @@ import {
   LanguageStatsDto,
 } from '../dto/translation-response.dto';
 
+/**
+ * Contrôleur REST pour le système de traduction intelligente O'Ypunu
+ * 
+ * Orchestre un système de traduction sophistiqué avec IA, validation
+ * communautaire et apprentissage automatique pour garantir la qualité
+ * et la cohérence des traductions multilingues.
+ * 
+ * ## 🧠 Fonctionnalités principales :
+ * 
+ * ### 🔍 Traductions intelligentes
+ * - Récupération optimisée des traductions existantes
+ * - Suggestions basées sur similarité sémantique
+ * - Support multilingue complet avec statistiques
+ * 
+ * ### ✨ Création et validation
+ * - Détection automatique de doublons
+ * - Système de validation communautaire avec votes
+ * - Fusion intelligente de traductions similaires
+ * 
+ * ### 📊 Administration et insights
+ * - Statistiques de performance détaillées
+ * - Métriques d'efficacité de l'algorithme d'apprentissage
+ * - Outils de debugging et optimisation
+ * 
+ * ### 🎯 Apprentissage adaptatif
+ * - Seuils d'auto-validation dynamiques
+ * - Analyse comportementale des utilisateurs
+ * - Amélioration continue des algorithmes
+ * 
+ * @class TranslationController
+ * @version 1.0.0
+ */
 @ApiTags('translation')
 @Controller('translation')
 export class TranslationController {

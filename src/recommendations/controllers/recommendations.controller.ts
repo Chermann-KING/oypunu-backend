@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Contrôleur REST pour les recommandations intelligentes O'Ypunu
+ * 
+ * Ce contrôleur gère tous les endpoints de recommandations personnalisées
+ * avec algorithmes d'apprentissage automatique, feedback utilisateur,
+ * et analytics comportementaux pour optimiser l'expérience d'apprentissage.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -35,6 +47,38 @@ import {
   FeedbackResponseDto,
 } from '../dto/recommendation-response.dto';
 
+/**
+ * Contrôleur REST pour les recommandations intelligentes O'Ypunu
+ * 
+ * Orchestre un système de recommandations sophistiqué avec multiple
+ * algorithmes d'IA, feedback utilisateur et analytics comportementaux
+ * pour personnaliser l'expérience d'apprentissage linguistique.
+ * 
+ * ## 🎯 Types de recommandations :
+ * 
+ * ### 🧠 Recommandations personnelles
+ * - Basées sur l'historique et comportement utilisateur
+ * - Algorithmes d'apprentissage adaptatifs
+ * - Cache intelligent pour performances optimales
+ * 
+ * ### 📈 Recommandations tendance
+ * - Mots populaires dans la communauté
+ * - Filtrage par région géographique
+ * - Analyse temporelle des tendances
+ * 
+ * ### 🗣️ Recommandations linguistiques
+ * - Adaptées au niveau d'apprentissage
+ * - Progression pédagogique intelligente
+ * - Support multilingue complet
+ * 
+ * ### 🔄 Feedback et amélioration
+ * - Système de feedback utilisateur
+ * - Explications détaillées des recommandations
+ * - Statistiques d'interaction et performance
+ * 
+ * @class RecommendationsController
+ * @version 1.0.0
+ */
 @ApiTags('Recommendations')
 @Controller('recommendations')
 @UseGuards(JwtAuthGuard)

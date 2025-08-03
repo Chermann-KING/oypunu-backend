@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service de modération pour O'Ypunu
+ * 
+ * Ce service gère toutes les opérations de modération du contenu
+ * avec gestion des rapports, actions en lot, suivi des statistiques
+ * et workflow complet de modération pour maintenir la qualité.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   Inject,
@@ -7,7 +19,7 @@ import {
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IPostCommentRepository } from "../../repositories/interfaces/post-comment.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
 export interface ReportedContentOptions {
   page: number;

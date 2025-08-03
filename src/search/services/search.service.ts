@@ -1,7 +1,19 @@
+/**
+ * @fileoverview Service de recherche avancée pour O'Ypunu
+ * 
+ * Ce service gère toutes les fonctionnalités de recherche du dictionnaire
+ * avec suggestions intelligentes, historique personnalisé, recherches
+ * sauvegardées et analytics des tendances de recherche.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Inject } from "@nestjs/common";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
 export interface SearchSuggestion {
   text: string;
