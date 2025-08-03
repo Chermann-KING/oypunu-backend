@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Implémentation repository utilisateur avec Mongoose
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -6,58 +13,115 @@ import { RegisterDto } from "../../users/dto/register.dto";
 import { IUserRepository } from "../interfaces/user.repository.interface";
 
 /**
- * 👤 REPOSITORY USER - IMPLÉMENTATION MONGOOSE
- *
- * Implémentation concrète du repository User utilisant Mongoose.
- * Sépare complètement l'accès aux données de la logique métier.
- *
- * Avantages :
- * ✅ Tests unitaires faciles (mockage de l'interface)
- * ✅ Migration DB simplifiée (changer l'implémentation)
- * ✅ Logique métier découplée des détails techniques
- * ✅ Réutilisabilité des interfaces dans différents contextes
+ * Implémentation repository pour la gestion des utilisateurs avec Mongoose
+ * 
+ * Sépare complètement l'accès aux données de la logique métier avec une interface pure.
+ * Gère toutes les opérations de persistance utilisateur : CRUD, authentification,
+ * social providers, tokens et profils.
+ * 
+ * @class UserRepository
+ * @implements {IUserRepository}
  */
 @Injectable()
 export class UserRepository implements IUserRepository {
+  /**
+   * Constructeur du repository utilisateur
+   * @param {Model<User>} userModel - Modèle Mongoose pour les utilisateurs
+   */
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  // ========== CRUD DE BASE ==========
+  // ========== OPÉRATIONS CRUD DE BASE ==========
 
+  /**
+   * Crée un nouvel utilisateur
+   * @async
+   * @param {RegisterDto} userData - Données d'inscription utilisateur
+   * @returns {Promise<User>} L'utilisateur créé
+   * @example
+   * const user = await userRepository.create({
+   *   email: 'user@example.com',
+   *   username: 'username',
+   *   password: 'hashedPassword'
+   * });
+   */
   async create(userData: RegisterDto): Promise<User> {
     const user = new this.userModel(userData);
     return user.save();
   }
 
+  /**
+   * Trouve un utilisateur par son ID
+   * @async
+   * @param {string} id - ID unique de l'utilisateur
+   * @returns {Promise<User | null>} L'utilisateur trouvé ou null
+   */
   async findById(id: string): Promise<User | null> {
     return this.userModel.findById(id).exec();
   }
 
+  /**
+   * Trouve un utilisateur par son email
+   * @async
+   * @param {string} email - Adresse email de l'utilisateur
+   * @returns {Promise<User | null>} L'utilisateur trouvé ou null
+   */
   async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
   }
 
+  /**
+   * Trouve un utilisateur par son nom d'utilisateur
+   * @async
+   * @param {string} username - Nom d'utilisateur unique
+   * @returns {Promise<User | null>} L'utilisateur trouvé ou null
+   */
   async findByUsername(username: string): Promise<User | null> {
     return this.userModel.findOne({ username }).exec();
   }
 
+  /**
+   * Met à jour un utilisateur existant
+   * @async
+   * @param {string} id - ID de l'utilisateur à modifier
+   * @param {Partial<User>} updateData - Données partielles de mise à jour
+   * @returns {Promise<User | null>} L'utilisateur mis à jour ou null
+   */
   async update(id: string, updateData: Partial<User>): Promise<User | null> {
     return this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .exec();
   }
 
+  /**
+   * Supprime un utilisateur
+   * @async
+   * @param {string} id - ID de l'utilisateur à supprimer
+   * @returns {Promise<boolean>} True si suppression réussie, false sinon
+   */
   async delete(id: string): Promise<boolean> {
     const result = await this.userModel.findByIdAndDelete(id).exec();
     return !!result;
   }
 
-  // ========== AUTHENTIFICATION ==========
+  // ========== OPÉRATIONS D'AUTHENTIFICATION ==========
 
+  /**
+   * Vérifie si un email existe déjà
+   * @async
+   * @param {string} email - Email à vérifier
+   * @returns {Promise<boolean>} True si l'email existe
+   */
   async existsByEmail(email: string): Promise<boolean> {
     const count = await this.userModel.countDocuments({ email }).exec();
     return count > 0;
   }
 
+  /**
+   * Vérifie si un nom d'utilisateur existe déjà
+   * @async
+   * @param {string} username - Nom d'utilisateur à vérifier
+   * @returns {Promise<boolean>} True si le nom d'utilisateur existe
+   */
   async existsByUsername(username: string): Promise<boolean> {
     const count = await this.userModel.countDocuments({ username }).exec();
     return count > 0;

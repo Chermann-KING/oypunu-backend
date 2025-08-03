@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { WordNotification, WordNotificationDocument } from '../../dictionary/schemas/word-notification.schema';
 import { IWordNotificationRepository } from '../interfaces/word-notification.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 @Injectable()
 export class WordNotificationRepository implements IWordNotificationRepository {

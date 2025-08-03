@@ -8,7 +8,7 @@ import {
 import { ICommunityRepository } from "../interfaces/community.repository.interface";
 import { ICommunityPostRepository } from "../interfaces/community-post.repository.interface";
 import { ICommunityMemberRepository } from "../interfaces/community-member.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
 /**
  * 🏘️ REPOSITORY COMMUNITY - IMPLÉMENTATION MONGOOSE

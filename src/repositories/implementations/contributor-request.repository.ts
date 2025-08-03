@@ -8,7 +8,7 @@ import {
   ContributorRequestPriority,
 } from "../../users/schemas/contributor-request.schema";
 import { IContributorRequestRepository } from "../interfaces/contributor-request.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
 /**
  * ✋ REPOSITORY CONTRIBUTOR REQUEST - IMPLÉMENTATION MONGOOSE

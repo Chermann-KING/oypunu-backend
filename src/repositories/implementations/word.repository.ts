@@ -6,7 +6,7 @@ import { CreateWordDto } from "../../dictionary/dto/create-word.dto";
 import { UpdateWordDto } from "../../dictionary/dto/update-word.dto";
 import { SearchWordsDto } from "../../dictionary/dto/search-words.dto";
 import { IWordRepository } from "../interfaces/word.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
 /**
  * 📚 REPOSITORY WORD - IMPLÉMENTATION MONGOOSE
@@ -84,6 +84,8 @@ export class WordRepository implements IWordRepository {
     const [words, total] = await Promise.all([
       this.wordModel
         .find(filter)
+        .populate('categoryId', 'name description') // Optimisation N+1: charger category
+        .populate('createdBy', 'username email') // Optimisation N+1: charger user
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
@@ -234,7 +236,10 @@ export class WordRepository implements IWordRepository {
     status: string,
     options?: { limit?: number; offset?: number }
   ): Promise<Word[]> {
-    let query = this.wordModel.find({ status });
+    let query = this.wordModel
+      .find({ status })
+      .populate('categoryId', 'name description')
+      .populate('createdBy', 'username email');
 
     if (options?.offset) {
       query = query.skip(options.offset);
@@ -253,6 +258,8 @@ export class WordRepository implements IWordRepository {
         isFeatured: true,
         status: "approved",
       })
+      .populate('categoryId', 'name description')
+      .populate('createdBy', 'username email')
       .limit(limit)
       .sort({ featuredAt: -1, viewCount: -1 })
       .exec();

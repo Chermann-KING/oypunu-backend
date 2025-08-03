@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UserRecommendationProfile, UserRecommendationProfileDocument, RecommendationFeedback } from '../../recommendations/schemas/user-recommendation-profile.schema';
 import { IUserRecommendationProfileRepository } from '../interfaces/user-recommendation-profile.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 @Injectable()
 export class UserRecommendationProfileRepository implements IUserRecommendationProfileRepository {

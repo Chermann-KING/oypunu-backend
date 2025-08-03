@@ -10,7 +10,7 @@ import {
   CreateCommunityPostData, 
   UpdateCommunityPostData 
 } from '../interfaces/community-post.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 📝 REPOSITORY COMMUNITY POST - IMPLÉMENTATION MONGOOSE

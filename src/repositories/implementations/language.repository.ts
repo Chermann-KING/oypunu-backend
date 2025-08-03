@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Language, LanguageDocument } from '../../languages/schemas/language.schema';
 import { CreateLanguageDto } from '../../languages/dto/create-language.dto';
 import { ILanguageRepository } from '../interfaces/language.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 🌍 REPOSITORY LANGUAGE - IMPLÉMENTATION MONGOOSE

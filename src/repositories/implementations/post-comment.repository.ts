@@ -10,7 +10,7 @@ import {
   CreatePostCommentData, 
   UpdatePostCommentData 
 } from '../interfaces/post-comment.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 💬 REPOSITORY POST COMMENT - IMPLÉMENTATION MONGOOSE

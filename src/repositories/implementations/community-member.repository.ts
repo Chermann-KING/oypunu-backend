@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CommunityMember, CommunityMemberDocument } from '../../communities/schemas/community-member.schema';
 import { ICommunityMemberRepository } from '../interfaces/community-member.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 👥 REPOSITORY COMMUNITY MEMBER - IMPLÉMENTATION MONGOOSE

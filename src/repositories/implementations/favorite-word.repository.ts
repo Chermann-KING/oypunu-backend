@@ -8,7 +8,8 @@ import {
   UserFavoritesSummary
 } from '../interfaces/favorite-word.repository.interface';
 import { Word } from '../../dictionary/schemas/word.schema';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
+import { ApplicationErrorHandler } from '../../common/errors';
 
 // Schema pour FavoriteWord
 const favoriteWordSchema = {
@@ -22,6 +23,8 @@ const favoriteWordSchema = {
 
 @Injectable()
 export class FavoriteWordRepository implements IFavoriteWordRepository {
+  private readonly errorHandler = new ApplicationErrorHandler();
+
   constructor(
     @InjectModel('FavoriteWord') private favoriteWordModel: Model<FavoriteWord>,
     @InjectModel(Word.name) private wordModel: Model<Word>
@@ -45,13 +48,13 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
         });
 
         if (existing) {
-          throw new Error('Ce mot est déjà dans vos favoris');
+          throw this.errorHandler.createFavoriteError(true, wordId, 'addToFavorites');
         }
 
         // Vérifier que le mot existe
         const word = await this.wordModel.findById(wordId);
         if (!word) {
-          throw new Error('Mot introuvable');
+          throw this.errorHandler.createNotFoundError('Mot', wordId, 'addToFavorites');
         }
 
         const favorite = new this.favoriteWordModel({

@@ -6,7 +6,8 @@ import {
   WordVoteDocument,
 } from "../../social/schemas/word-vote.schema";
 import { IWordVoteRepository } from "../interfaces/word-vote.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors";
+import { ApplicationErrorHandler } from "../../common/errors";
 
 /**
  * 🗳️ REPOSITORY WORD VOTE - IMPLÉMENTATION MONGOOSE
@@ -24,6 +25,8 @@ import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.
  */
 @Injectable()
 export class WordVoteRepository implements IWordVoteRepository {
+  private readonly errorHandler = new ApplicationErrorHandler();
+
   constructor(
     @InjectModel(WordVote.name) private wordVoteModel: Model<WordVoteDocument>
   ) {}
@@ -56,11 +59,12 @@ export class WordVoteRepository implements IWordVoteRepository {
     ipAddress?: string;
   }): Promise<WordVote> {
     return DatabaseErrorHandler.handleCreateOperation(async () => {
-      if (
-        !Types.ObjectId.isValid(voteData.userId) ||
-        !Types.ObjectId.isValid(voteData.wordId)
-      ) {
-        throw new Error("Invalid ObjectId format");
+      if (!Types.ObjectId.isValid(voteData.userId)) {
+        throw this.errorHandler.createInvalidObjectIdError('userId', voteData.userId, 'createVote');
+      }
+      
+      if (!Types.ObjectId.isValid(voteData.wordId)) {
+        throw this.errorHandler.createInvalidObjectIdError('wordId', voteData.wordId, 'createVote');
       }
 
       const newVote = new this.wordVoteModel({
@@ -210,11 +214,12 @@ export class WordVoteRepository implements IWordVoteRepository {
   }> {
     return DatabaseErrorHandler.handleUpdateOperation(
       async () => {
-        if (
-          !Types.ObjectId.isValid(userId) ||
-          !Types.ObjectId.isValid(wordId)
-        ) {
-          throw new Error("Invalid ObjectId format");
+        if (!Types.ObjectId.isValid(userId)) {
+          throw this.errorHandler.createInvalidObjectIdError('userId', userId, 'upsertUserVote');
+        }
+        
+        if (!Types.ObjectId.isValid(wordId)) {
+          throw this.errorHandler.createInvalidObjectIdError('wordId', wordId, 'upsertUserVote');
         }
 
         const existingVote = await this.findUserVote(
