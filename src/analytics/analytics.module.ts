@@ -1,35 +1,75 @@
+/**
+ * @fileoverview Module NestJS d'analytics et métriques avancées pour O'Ypunu
+ * 
+ * Ce module fournit un système complet d'analytics et de métriques en temps réel
+ * pour la plateforme O'Ypunu. Il centralise toutes les fonctionnalités de collecte,
+ * traitement et présentation de données analytiques avec support d'export et
+ * de tableaux de bord personnalisés.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Module } from '@nestjs/common';
 import { AnalyticsController } from './controllers/analytics.controller';
 import { AnalyticsService } from './services/analytics.service';
 import { RepositoriesModule } from '../repositories/repositories.module';
 
 /**
- * 📊 MODULE ANALYTICS
+ * Module d'analytics et métriques avancées pour O'Ypunu
  * 
- * Module NestJS pour les fonctionnalités d'analytics et de métriques.
- * Fournit des tableaux de bord, statistiques et exports de données
- * pour les administrateurs et utilisateurs.
+ * Ce module centralise tous les outils d'analyse de données et de génération
+ * de métriques pour la plateforme. Il fournit des tableaux de bord interactifs,
+ * des analyses d'engagement utilisateur, et des outils d'export de données.
  * 
- * Fonctionnalités :
+ * ## Fonctionnalités principales :
+ * 
+ * ### 📊 Tableaux de bord analytiques
  * - Dashboard administrateur avec métriques temps réel
+ * - Vue d'ensemble des KPIs de la plateforme
+ * - Métriques d'engagement et d'activité
+ * - Analyses de performance système
+ * 
+ * ### 👤 Analytics utilisateur
  * - Statistiques détaillées par utilisateur
- * - Tendances par langue et évolution
+ * - Analyse des préférences linguistiques
+ * - Suivi des contributions et activités
+ * - Calcul de rankings et achievements
+ * 
+ * ### 🌍 Analyses linguistiques
+ * - Tendances d'usage par langue
+ * - Évolution temporelle du contenu
+ * - Statistiques de recherche par langue
+ * - Métriques de croissance linguistique
+ * 
+ * ### 📈 Métriques avancées
+ * - Mots les plus recherchés
+ * - Analyses d'engagement par fonctionnalité
+ * - Métriques de performance technique
+ * - Tendances d'utilisation temporelles
+ * 
+ * ### 💾 Export et reporting
  * - Export de données (JSON/CSV)
- * - Métriques de performance système
- * - Analytics d'engagement utilisateur
+ * - Génération de rapports personnalisés
+ * - Analyse sur périodes configurables
+ * - Intégration avec outils externes
+ * 
+ * @module AnalyticsModule
+ * @version 1.0.0
  */
 @Module({
   imports: [
-    RepositoriesModule, // Pour accès aux repositories (Word, User, WordView)
+    RepositoriesModule, // Accès aux repositories pour données (Word, User, WordView, ActivityFeed)
   ],
   controllers: [
-    AnalyticsController, // Controller avec tous les endpoints analytics
+    AnalyticsController, // API REST complète pour analytics et métriques
   ],
   providers: [
-    AnalyticsService, // Service principal pour calculs et agrégations
+    AnalyticsService, // Service principal pour calculs statistiques et agrégations
   ],
   exports: [
-    AnalyticsService, // Exporté pour utilisation par d'autres modules
+    AnalyticsService, // Service exporté pour utilisation par AdminModule et autres
   ],
 })
 export class AnalyticsModule {}

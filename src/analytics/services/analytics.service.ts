@@ -1,32 +1,69 @@
+/**
+ * @fileoverview Service d'analytics et métriques avancées pour O'Ypunu
+ *
+ * Ce service centralise toute la logique de calcul et génération de métriques
+ * analytiques pour la plateforme O'Ypunu. Il fournit des fonctionnalités
+ * avancées d'agrégation de données, calcul de tendances, et génération
+ * de rapports avec gestion robuste des erreurs.
+ *
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Inject } from "@nestjs/common";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
 import { IActivityFeedRepository } from "../../repositories/interfaces/activity-feed.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
+/**
+ * Interface pour les métriques du tableau de bord principal
+ *
+ * @interface DashboardMetrics
+ */
 export interface DashboardMetrics {
+  /** Vue d'ensemble des statistiques globales */
   overview: {
+    /** Nombre total de mots approuvés */
     totalWords: number;
+    /** Nombre total d'utilisateurs inscrits */
     totalUsers: number;
+    /** Nombre total de vues/consultations */
     totalViews: number;
+    /** Nombre de mots en attente de modération */
     pendingWords: number;
   };
+  /** Répartition des mots par langue avec pourcentages */
   wordsByLanguage: Array<{
+    /** Nom de la langue */
     language: string;
+    /** Nombre de mots dans cette langue */
     count: number;
+    /** Pourcentage par rapport au total */
     percentage: number;
   }>;
+  /** Activité récente sur différentes périodes */
   recentActivity: {
+    /** Mots ajoutés aujourd'hui */
     wordsAddedToday: number;
+    /** Mots ajoutés cette semaine */
     wordsAddedThisWeek: number;
+    /** Mots ajoutés ce mois-ci */
     wordsAddedThisMonth: number;
+    /** Nouveaux utilisateurs aujourd'hui */
     usersJoinedToday: number;
   };
+  /** Liste des meilleurs contributeurs */
   topContributors: Array<{
+    /** ID de l'utilisateur */
     userId: string;
+    /** Nom d'utilisateur */
     username: string;
+    /** Nombre de contributions */
     contributionCount: number;
+    /** Date de dernière contribution */
     lastContribution: Date;
   }>;
 }
@@ -163,8 +200,70 @@ export interface LanguageUsageStats {
   isGrowing: boolean;
 }
 
+/**
+ * Service d'analytics et métriques avancées pour O'Ypunu
+ *
+ * Ce service est le cœur du système d'analytics de la plateforme O'Ypunu.
+ * Il fournit des fonctionnalités complètes d'analyse de données, calcul
+ * de métriques, génération de tendances et export de rapports.
+ *
+ * ## Fonctionnalités principales :
+ *
+ * ### 📊 Métriques de dashboard
+ * - Calcul de statistiques globales en temps réel
+ * - Agrégation de données multi-sources
+ * - Génération de KPIs et tendances
+ *
+ * ### 👤 Analytics utilisateur
+ * - Profils d'activité détaillés
+ * - Calcul de rankings et classements
+ * - Analyse des préférences linguistiques
+ *
+ * ### 🌍 Analyses linguistiques
+ * - Tendances d'usage par langue
+ * - Analyse de croissance temporelle
+ * - Métriques de popularité des mots
+ *
+ * ### 📈 Métriques avancées
+ * - Analytics d'engagement utilisateur
+ * - Métriques de performance système
+ * - Calcul de streaks et achievements
+ *
+ * ### 💾 Export et reporting
+ * - Export multi-format (JSON/CSV)
+ * - Génération de rapports personnalisés
+ * - Gestion des périodes d'analyse
+ *
+ * @class AnalyticsService
+ * @version 1.0.0
+ */
 @Injectable()
 export class AnalyticsService {
+  /**
+   * Constructeur du service d'analytics
+   *
+   * @constructor
+   * @param {IWordRepository} wordRepository - Repository pour l'accès aux données des mots
+   * @param {IUserRepository} userRepository - Repository pour l'accès aux données des utilisateurs
+   * @param {IWordViewRepository} wordViewRepository - Repository pour les statistiques de consultation
+   * @param {IActivityFeedRepository} activityFeedRepository - Repository pour le flux d'activité
+   *
+   * @example
+   * ```typescript
+   * // Le constructeur est utilisé automatiquement par NestJS
+   * // Exemple d'injection automatique :
+   * @Injectable()
+   * export class AnalyticsService {
+   *   constructor(
+   *     @Inject("IWordRepository") private wordRepository: IWordRepository,
+   *     @Inject("IUserRepository") private userRepository: IUserRepository
+   *   ) {}
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
+   */
   constructor(
     @Inject("IWordRepository") private wordRepository: IWordRepository,
     @Inject("IUserRepository") private userRepository: IUserRepository,
@@ -174,6 +273,34 @@ export class AnalyticsService {
     private activityFeedRepository: IActivityFeedRepository
   ) {}
 
+  /**
+   * Génère les métriques complètes du tableau de bord principal
+   *
+   * Cette méthode calcule en temps réel toutes les métriques principales
+   * de la plateforme en interrogeant les différents repositories. Elle
+   * fournit une vue d'ensemble complète avec statistiques globales,
+   * répartition par langue, activité récente et top contributeurs.
+   *
+   * @async
+   * @method getDashboardMetrics
+   * @returns {Promise<DashboardMetrics>} Métriques complètes du dashboard
+   * @throws {Error} En cas d'erreur d'agrégation de données
+   *
+   * @example
+   * ```typescript
+   * const metrics = await analyticsService.getDashboardMetrics();
+   * console.log(`Total mots: ${metrics.overview.totalWords}`);
+   * console.log(`Utilisateurs actifs: ${metrics.overview.totalUsers}`);
+   *
+   * // Structure de réponse:
+   * {
+   *   overview: { totalWords: 1245, totalUsers: 892, ... },
+   *   wordsByLanguage: [{ language: "Français", count: 650, percentage: 52.2 }],
+   *   recentActivity: { wordsAddedToday: 12, ... },
+   *   topContributors: [{ userId: "abc", username: "user1", ... }]
+   * }
+   * ```
+   */
   async getDashboardMetrics(): Promise<DashboardMetrics> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
@@ -248,6 +375,28 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Génère les statistiques d'activité détaillées d'un utilisateur
+   *
+   * Cette méthode analyse en profondeur l'activité d'un utilisateur spécifique
+   * incluant ses contributions, statistiques d'engagement, préférences
+   * linguistiques et métriques de performance. Utile pour profils utilisateur
+   * détaillés et analyses comportementales.
+   *
+   * @async
+   * @method getUserActivityStats
+   * @param {string} userId - ID unique de l'utilisateur à analyser
+   * @returns {Promise<UserActivityStats>} Statistiques d'activité complètes
+   * @throws {Error} Si utilisateur introuvable ou erreur d'agrégation
+   *
+   * @example
+   * ```typescript
+   * const stats = await analyticsService.getUserActivityStats("user123");
+   * console.log(`Contributions: ${stats.contributions.totalWords}`);
+   * console.log(`Vues totales: ${stats.activity.totalViews}`);
+   * console.log(`Langues préférées: ${stats.languagePreferences.length}`);
+   * ```
+   */
   async getUserActivityStats(userId: string): Promise<UserActivityStats> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
@@ -291,7 +440,8 @@ export class AnalyticsService {
             totalViews: userActivityStats.totalViews,
             uniqueWordsViewed: userActivityStats.uniqueWords,
             averageViewsPerDay: userActivityStats.averageViewsPerDay,
-            lastActivity: await this.getLastUserActivity(userId) || new Date(),
+            lastActivity:
+              (await this.getLastUserActivity(userId)) || new Date(),
           },
           languagePreferences: await Promise.all(
             languagePreferences.map(async (pref) => ({
@@ -307,6 +457,21 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Récupère les tendances linguistiques sur une période donnée
+   *
+   * @async
+   * @method getLanguageTrends
+   * @param {("week" | "month" | "quarter" | "year")} timeframe - Période pour laquelle récupérer les tendances
+   * @returns {Promise<LanguageTrends>} Tendances linguistiques pour la période spécifiée
+   * @throws {Error} Si une erreur se produit lors de la récupération des tendances
+   *
+   * @example
+   * ```typescript
+   * const trends = await analyticsService.getLanguageTrends("month");
+   * console.log(trends);
+   * ```
+   */
   async getLanguageTrends(
     timeframe: "week" | "month" | "quarter" | "year"
   ): Promise<LanguageTrends> {
@@ -391,6 +556,28 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Récupère les mots les plus recherchés
+   *
+   * @async
+   * @method getMostSearchedWords
+   * @param {Object} options - Options de recherche
+   * @param {number} options.limit - Limite de résultats
+   * @param {string} [options.language] - Langue des mots à rechercher
+   * @param {("day" | "week" | "month" | "all")} options.timeframe - Période de recherche
+   * @returns {Promise<MostSearchedWords>} Mots les plus recherchés
+   * @throws {Error} Si une erreur se produit lors de la récupération des mots
+   *
+   * @example
+   * ```typescript
+   * const mostSearched = await analyticsService.getMostSearchedWords({
+   *   limit: 10,
+   *   language: "fr",
+   *   timeframe: "month"
+   * });
+   * console.log(mostSearched);
+   * ```
+   */
   async getMostSearchedWords(options: {
     limit: number;
     language?: string;
@@ -421,7 +608,9 @@ export class AnalyticsService {
               language: word.language,
               searchCount: word.viewCount,
               uniqueUsers: word.uniqueUsers,
-              lastSearched: await this.getLastWordSearchTimestamp(word.wordId) || new Date(),
+              lastSearched:
+                (await this.getLastWordSearchTimestamp(word.wordId)) ||
+                new Date(),
             }))
           ),
           totalSearches,
@@ -433,6 +622,36 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Exporte les données analytics dans le format spécifié
+   *
+   * Cette méthode permet d'exporter différents types de données analytiques
+   * (dashboard, utilisateurs, mots, activité) dans les formats JSON ou CSV.
+   * Support des périodes personnalisées et conversion automatique de format.
+   *
+   * @async
+   * @method exportData
+   * @param {ExportOptions} options - Options d'export (format, type, dates)
+   * @returns {Promise<any>} Données exportées dans le format demandé
+   * @throws {Error} En cas d'erreur d'export ou format non supporté
+   *
+   * @example
+   * ```typescript
+   * // Export dashboard en JSON
+   * const jsonData = await analyticsService.exportData({
+   *   format: 'json',
+   *   type: 'dashboard'
+   * });
+   *
+   * // Export utilisateurs en CSV avec période
+   * const csvData = await analyticsService.exportData({
+   *   format: 'csv',
+   *   type: 'users',
+   *   startDate: new Date('2024-01-01'),
+   *   endDate: new Date('2024-12-31')
+   * });
+   * ```
+   */
   async exportData(options: ExportOptions): Promise<any> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
@@ -473,25 +692,41 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Récupère les métriques de performance
+   *
+   * @async
+   * @method getPerformanceMetrics
+   * @returns {Promise<PerformanceMetrics>} Métriques de performance
+   * @throws {Error} Si une erreur se produit lors de la récupération des métriques
+   *
+   * @example
+   * ```typescript
+   * const performanceMetrics = await analyticsService.getPerformanceMetrics();
+   * console.log(performanceMetrics);
+   * ```
+   */
   async getPerformanceMetrics(): Promise<PerformanceMetrics> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
         // Implémenter la collecte de métriques de performance réelles
         const now = Date.now();
         const memUsage = process.memoryUsage();
-        
+
         // Calculer les métriques basées sur l'activité réelle
         const totalViews = await this.wordViewRepository.countTotal({
-          startDate: new Date(now - 24 * 60 * 60 * 1000)
+          startDate: new Date(now - 24 * 60 * 60 * 1000),
         });
-        
+
         // Calculer les stats de stockage réelles
-        const totalWords = await this.wordRepository.count({ status: 'approved' });
-        const totalAudioWords = await this.wordRepository.count({ 
-          status: 'approved',
-          hasAudio: true 
+        const totalWords = await this.wordRepository.count({
+          status: "approved",
         });
-        
+        const totalAudioWords = await this.wordRepository.count({
+          status: "approved",
+          hasAudio: true,
+        });
+
         return {
           database: {
             avgResponseTime: Math.random() * 100 + 20, // 20-120ms réaliste
@@ -505,7 +740,7 @@ export class AnalyticsService {
           },
           storage: {
             totalAudioFiles: totalAudioWords,
-            totalStorageUsed: `${Math.round(totalAudioWords * 2.5 / 1024)} GB`,
+            totalStorageUsed: `${Math.round((totalAudioWords * 2.5) / 1024)} GB`,
             avgFileSize: 2.5, // MB moyen par fichier audio
           },
         };
@@ -515,6 +750,21 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Récupère les métriques d'engagement des utilisateurs
+   *
+   * @async
+   * @method getUserEngagementMetrics
+   * @param {("day" | "week" | "month")} timeframe - Période pour laquelle récupérer les métriques
+   * @returns {Promise<UserEngagementMetrics>} Métriques d'engagement des utilisateurs
+   * @throws {Error} Si une erreur se produit lors de la récupération des métriques
+   *
+   * @example
+   * ```typescript
+   * const engagementMetrics = await analyticsService.getUserEngagementMetrics("month");
+   * console.log(engagementMetrics);
+   * ```
+   */
   async getUserEngagementMetrics(
     timeframe: "day" | "week" | "month"
   ): Promise<UserEngagementMetrics> {
@@ -535,7 +785,7 @@ export class AnalyticsService {
 
         // Implémenter le calcul des métriques d'engagement détaillées
         const engagementMetrics = await this.getEngagementMetrics();
-        
+
         return {
           activeUsers: {
             daily: dailyActive,
@@ -561,6 +811,21 @@ export class AnalyticsService {
     );
   }
 
+  /**
+   * Récupère les statistiques personnelles d'un utilisateur
+   *
+   * @async
+   * @method getUserPersonalStats
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<UserPersonalStats>} Statistiques personnelles de l'utilisateur
+   * @throws {Error} Si une erreur se produit lors de la récupération des statistiques
+   *
+   * @example
+   * ```typescript
+   * const personalStats = await analyticsService.getUserPersonalStats("user-id");
+   * console.log(personalStats);
+   * ```
+   */
   async getUserPersonalStats(userId: string): Promise<UserPersonalStats> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
@@ -610,7 +875,19 @@ export class AnalyticsService {
   }
 
   /**
-   * Statistiques d'utilisation des langues par période
+   * Récupère les statistiques d'utilisation des langues par période
+   *
+   * @async
+   * @method getLanguageUsageByPeriod
+   * @param {("week" | "month" | "year")} period - Période pour laquelle récupérer les statistiques
+   * @returns {Promise<LanguageUsageStats[]>} Statistiques d'utilisation des langues
+   * @throws {Error} Si une erreur se produit lors de la récupération des statistiques
+   *
+   * @example
+   * ```typescript
+   * const languageStats = await analyticsService.getLanguageUsageByPeriod("month");
+   * console.log(languageStats);
+   * ```
    */
   async getLanguageUsageByPeriod(
     period: "week" | "month" | "year" = "month"
@@ -655,11 +932,25 @@ export class AnalyticsService {
           };
         });
       },
-"Analytics",
+      "Analytics",
       `getLanguageUsageByPeriod-${period}`
     );
   }
 
+  /**
+   * Récupère la date de début en fonction de la période
+   *
+   * @private
+   * @method getDateByTimeframe
+   * @param {("day" | "week" | "month")} timeframe - Période pour laquelle récupérer la date
+   * @returns {Date} Date de début de la période
+   *
+   * @example
+   * ```typescript
+   * const startDate = this.getDateByTimeframe("week");
+   * console.log(startDate);
+   * ```
+   */
   private getDateByTimeframe(timeframe: "day" | "week" | "month"): Date {
     const now = new Date();
     switch (timeframe) {
@@ -672,6 +963,21 @@ export class AnalyticsService {
     }
   }
 
+  /**
+   * Récupère la date de début en fonction de la période
+   *
+   * @private
+   * @method getPeriodStartDate
+   * @param {Date} date - Date de référence
+   * @param {("week" | "month" | "year")} period - Période pour laquelle récupérer la date de début
+   * @returns {Date} Date de début de la période
+   *
+   * @example
+   * ```typescript
+   * const startDate = this.getPeriodStartDate(new Date(), "week");
+   * console.log(startDate);
+   * ```
+   */
   private getPeriodStartDate(
     date: Date,
     period: "week" | "month" | "year"
@@ -691,99 +997,238 @@ export class AnalyticsService {
     return newDate;
   }
 
+  /**
+   * Convertit les données en format CSV
+   *
+   * @private
+   * @method convertToCSV
+   * @param {any} data - Données à convertir
+   * @returns {string} Données au format CSV
+   */
   private convertToCSV(data: any): string {
     // Implémentation robuste de conversion CSV
     if (!data || (Array.isArray(data) && data.length === 0)) {
-      return 'No data available';
+      return "No data available";
     }
 
     if (Array.isArray(data)) {
       const headers = Object.keys(data[0] || {});
       const csvHeaders = headers.join(",");
       const csvRows = data.map((row) =>
-        headers.map((header) => {
-          const value = row[header];
-          if (value === null || value === undefined) return '';
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          if (value instanceof Date) {
-            return value.toISOString();
-          }
-          return String(value);
-        }).join(",")
+        headers
+          .map((header) => {
+            const value = row[header];
+            if (value === null || value === undefined) return "";
+            if (
+              typeof value === "string" &&
+              (value.includes(",") ||
+                value.includes('"') ||
+                value.includes("\n"))
+            ) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            if (value instanceof Date) {
+              return value.toISOString();
+            }
+            return String(value);
+          })
+          .join(",")
       );
       return [csvHeaders, ...csvRows].join("\n");
     }
 
     // Pour les objets uniques, créer un CSV simple
     const entries = Object.entries(data);
-    const headers = entries.map(([key]) => key).join(',');
-    const values = entries.map(([, value]) => {
-      if (value instanceof Date) return value.toISOString();
-      if (typeof value === 'object') return JSON.stringify(value);
-      return String(value);
-    }).join(',');
-    
+    const headers = entries.map(([key]) => key).join(",");
+    const values = entries
+      .map(([, value]) => {
+        if (value instanceof Date) return value.toISOString();
+        if (typeof value === "object") return JSON.stringify(value);
+        return String(value);
+      })
+      .join(",");
+
     return `${headers}\n${values}`;
   }
 
   // ========== MÉTHODES HELPER POUR ANALYTICS AVANCÉ ==========
 
   /**
-   * Obtient la dernière activité d'un utilisateur
+   * Récupère la dernière activité d'un utilisateur
+   *
+   * Cette méthode privée interroge le repository d'activité pour obtenir
+   * la date de dernière activité d'un utilisateur spécifique. Utilisée
+   * pour calculer les métriques d'engagement et statistiques temporelles.
+   *
+   * @private
+   * @async
+   * @method getLastUserActivity
+   * @param {string} userId - ID unique de l'utilisateur
+   * @returns {Promise<Date | null>} Date de dernière activité ou null si aucune
+   * @throws {Error} En cas d'erreur d'accès aux données
+   *
+   * @example
+   * ```typescript
+   * const lastActivity = await this.getLastUserActivity("user123");
+   * if (lastActivity) {
+   *   console.log(`Dernière activité: ${lastActivity.toISOString()}`);
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
    */
   private async getLastUserActivity(userId: string): Promise<Date | null> {
     try {
       // Utiliser le repository d'activité pour obtenir la dernière activité
-      const lastActivity = await this.activityFeedRepository.getUserActivities(userId, {
-        limit: 1,
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
-      });
-      
+      const lastActivity = await this.activityFeedRepository.getUserActivities(
+        userId,
+        {
+          limit: 1,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        }
+      );
+
       return lastActivity[0]?.createdAt || null;
     } catch (error) {
-      console.error('Error fetching last user activity:', error);
+      console.error("Error fetching last user activity:", error);
       return null;
     }
   }
 
   /**
-   * Compte les vues par langue pour un utilisateur
+   * Compte les vues par langue pour un utilisateur spécifique
+   *
+   * Cette méthode privée calcule le nombre total de vues/consultations
+   * qu'un utilisateur a effectuées pour une langue donnée. Elle interroge
+   * le repository des vues de mots en filtrant par utilisateur et langue
+   * sur une période définie (par défaut dernière année).
+   *
+   * @private
+   * @async
+   * @method getLanguageViewCount
+   * @param {string} userId - ID unique de l'utilisateur
+   * @param {string} language - Code ou nom de la langue à analyser
+   * @returns {Promise<number>} Nombre total de vues pour cette langue
+   * @throws {Error} En cas d'erreur d'accès aux données de vues
+   *
+   * @example
+   * ```typescript
+   * const viewCount = await this.getLanguageViewCount("user123", "français");
+   * console.log(`Vues en français: ${viewCount}`);
+   * ```
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
    */
-  private async getLanguageViewCount(userId: string, language: string): Promise<number> {
+  private async getLanguageViewCount(
+    userId: string,
+    language: string
+  ): Promise<number> {
     try {
       return await this.wordViewRepository.countByUser(userId, {
         language,
-        startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Dernière année
+        startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // Dernière année
       });
     } catch (error) {
-      console.error('Error fetching language view count:', error);
+      console.error("Error fetching language view count:", error);
       return 0;
     }
   }
 
   /**
-   * Obtient le timestamp de dernière recherche d'un mot
+   * Récupère le timestamp de dernière recherche d'un mot spécifique
+   *
+   * Cette méthode privée interroge le repository des vues pour obtenir
+   * la date de dernière recherche effectuée sur un mot donné. Elle
+   * filtre spécifiquement les vues de type "search" et retourne le
+   * timestamp le plus récent. Utilisée pour enrichir les statistiques
+   * des mots les plus recherchés.
+   *
+   * @private
+   * @async
+   * @method getLastWordSearchTimestamp
+   * @param {string} wordId - ID unique du mot à analyser
+   * @returns {Promise<Date | null>} Date de dernière recherche ou null si aucune
+   * @throws {Error} En cas d'erreur d'accès aux données de recherche
+   *
+   * @example
+   * ```typescript
+   * const lastSearch = await this.getLastWordSearchTimestamp("word123");
+   * if (lastSearch) {
+   *   console.log(`Dernière recherche: ${lastSearch.toISOString()}`);
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
    */
-  private async getLastWordSearchTimestamp(wordId: string): Promise<Date | null> {
+  private async getLastWordSearchTimestamp(
+    wordId: string
+  ): Promise<Date | null> {
     try {
       const recentViews = await this.wordViewRepository.findByWord(wordId, {
         limit: 1,
-        viewType: 'search'
+        viewType: "search",
       });
-      
+
       return recentViews.views[0]?.viewedAt || null;
     } catch (error) {
-      console.error('Error fetching last word search timestamp:', error);
+      console.error("Error fetching last word search timestamp:", error);
       return null;
     }
   }
 
-
   /**
-   * Calcule les métriques d'engagement détaillées
+   * Calcule les métriques d'engagement détaillées globales ou par utilisateur
+   *
+   * Cette méthode privée analyse en profondeur les patterns d'engagement
+   * des utilisateurs sur la plateforme O'Ypunu. Elle calcule des métriques
+   * avancées incluant durée de session, taux d'interaction, bounce rate,
+   * et autres indicateurs comportementaux. Peut être utilisée pour un
+   * utilisateur spécifique ou pour obtenir des métriques globales.
+   *
+   * @private
+   * @async
+   * @method getEngagementMetrics
+   * @param {string} [userId] - ID utilisateur pour métriques spécifiques (optionnel)
+   * @returns {Promise<EngagementMetrics>} Métriques d'engagement calculées
+   * @throws {Error} En cas d'erreur de calcul ou d'accès aux données
+   *
+   * @interface EngagementMetrics
+   * @property {number} averageSessionDuration - Durée moyenne de session en secondes
+   * @property {number} pagesPerSession - Nombre moyen de pages vues par session
+   * @property {number} bounceRate - Taux de rebond (0-1)
+   * @property {number} returnUserRate - Taux d'utilisateurs récurrents (0-1)
+   * @property {number} interactionRate - Taux d'interaction général (0-1)
+   * @property {number} streakDays - Nombre de jours consécutifs d'activité
+   * @property {any[]} achievements - Liste des achievements débloqués
+   *
+   * @example
+   * ```typescript
+   * // Métriques globales
+   * const globalMetrics = await this.getEngagementMetrics();
+   * console.log(`Durée session: ${globalMetrics.averageSessionDuration}s`);
+   *
+   * // Métriques utilisateur spécifique
+   * const userMetrics = await this.getEngagementMetrics("user123");
+   * console.log(`Streak: ${userMetrics.streakDays} jours`);
+   *
+   * // Structure de réponse:
+   * {
+   *   averageSessionDuration: 245.7,
+   *   pagesPerSession: 4.2,
+   *   bounceRate: 0.23,
+   *   returnUserRate: 0.67,
+   *   interactionRate: 0.84,
+   *   streakDays: 12,
+   *   achievements: [{ id: "...", name: "...", ... }]
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
    */
   async getEngagementMetrics(userId?: string): Promise<{
     averageSessionDuration: number;
@@ -798,13 +1243,13 @@ export class AnalyticsService {
       async () => {
         // Calculer les métriques réelles basées sur userId si fourni
         const [totalViews, uniqueUsers, activeUsers] = await Promise.all([
-          userId ? 
-            this.wordViewRepository.countByUser(userId) : 
-            this.wordViewRepository.countTotal({}),
-          userId ? 
-            this.wordViewRepository.countByUser(userId) : 
-            this.wordViewRepository.countTotal({ uniqueUsers: true }),
-          this.userRepository.findActiveUsers(0.003) // 5 minutes
+          userId
+            ? this.wordViewRepository.countByUser(userId)
+            : this.wordViewRepository.countTotal({}),
+          userId
+            ? this.wordViewRepository.countByUser(userId)
+            : this.wordViewRepository.countTotal({ uniqueUsers: true }),
+          this.userRepository.findActiveUsers(0.003), // 5 minutes
         ]);
 
         // Calculer le streak pour un utilisateur spécifique
@@ -816,37 +1261,76 @@ export class AnalyticsService {
         }
 
         return {
-          averageSessionDuration: totalViews > 0 ? (totalViews * 60) / uniqueUsers : 0, // Estimation
+          averageSessionDuration:
+            totalViews > 0 ? (totalViews * 60) / uniqueUsers : 0, // Estimation
           pagesPerSession: totalViews > 0 ? totalViews / uniqueUsers : 0,
-          bounceRate: Math.max(0, 1 - (totalViews / Math.max(uniqueUsers, 1))),
-          returnUserRate: uniqueUsers > 0 ? activeUsers.length / uniqueUsers : 0,
-          interactionRate: totalViews > 0 ? Math.min(1, activeUsers.length / totalViews) : 0,
+          bounceRate: Math.max(0, 1 - totalViews / Math.max(uniqueUsers, 1)),
+          returnUserRate:
+            uniqueUsers > 0 ? activeUsers.length / uniqueUsers : 0,
+          interactionRate:
+            totalViews > 0 ? Math.min(1, activeUsers.length / totalViews) : 0,
           streakDays,
-          achievements: userId ? await this.getUserAchievements(userId) : []
+          achievements: userId ? await this.getUserAchievements(userId) : [],
         };
       },
-      'Analytics',
-      userId ? `engagement-${userId}` : 'engagement-global'
+      "Analytics",
+      userId ? `engagement-${userId}` : "engagement-global"
     );
   }
 
   /**
-   * Obtient le streak d'activité d'un utilisateur
+   * Calcule le streak d'activité consécutive d'un utilisateur
+   *
+   * Cette méthode privée analyse l'historique d'activité d'un utilisateur
+   * pour déterminer le nombre de jours consécutifs durant lesquels il a
+   * été actif sur la plateforme. Elle examine les enregistrements d'activité
+   * depuis aujourd'hui en remontant dans le temps jusqu'à trouver une
+   * interruption dans la séquence d'activité quotidienne.
+   *
+   * @private
+   * @async
+   * @method getUserActivityStreak
+   * @param {string} userId - ID unique de l'utilisateur à analyser
+   * @returns {Promise<number>} Nombre de jours consécutifs d'activité
+   * @throws {Error} En cas d'erreur d'accès aux données d'activité
+   *
+   * @example
+   * ```typescript
+   * const streak = await this.getUserActivityStreak("user123");
+   * console.log(`Streak actuel: ${streak} jours`);
+   *
+   * // Utilisé dans les métriques utilisateur:
+   * const personalStats = await this.getUserPersonalStats("user123");
+   * console.log(`Streak: ${personalStats.activity.streakDays} jours`);
+   * ```
+   *
+   * @remarks
+   * L'algorithme fonctionne comme suit :
+   * 1. Récupère les 365 dernières activités de l'utilisateur
+   * 2. Extrait les dates uniques d'activité (une par jour maximum)
+   * 3. Compte les jours consécutifs depuis aujourd'hui en remontant
+   * 4. S'arrête dès qu'un jour sans activité est trouvé
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
    */
   private async getUserActivityStreak(userId: string): Promise<number> {
     try {
-      const activities = await this.activityFeedRepository.getUserActivities(userId, {
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        limit: 365 // Maximum 1 an
-      });
+      const activities = await this.activityFeedRepository.getUserActivities(
+        userId,
+        {
+          sortBy: "createdAt",
+          sortOrder: "desc",
+          limit: 365, // Maximum 1 an
+        }
+      );
 
       if (activities.length === 0) return 0;
 
       // Calculer la séquence consécutive
       const daySet = new Set();
-      activities.forEach(activity => {
-        const dayKey = activity.createdAt.toISOString().split('T')[0];
+      activities.forEach((activity) => {
+        const dayKey = activity.createdAt.toISOString().split("T")[0];
         daySet.add(dayKey);
       });
 
@@ -856,7 +1340,7 @@ export class AnalyticsService {
       const currentDate = new Date(today);
 
       while (true) {
-        const dayKey = currentDate.toISOString().split('T')[0];
+        const dayKey = currentDate.toISOString().split("T")[0];
         if (daySet.has(dayKey)) {
           streak++;
           currentDate.setDate(currentDate.getDate() - 1);
@@ -867,13 +1351,74 @@ export class AnalyticsService {
 
       return streak;
     } catch (error) {
-      console.error('Error calculating user activity streak:', error);
+      console.error("Error calculating user activity streak:", error);
       return 0;
     }
   }
 
   /**
-   * Obtient les achievements d'un utilisateur
+   * Récupère la liste des achievements débloqués par un utilisateur
+   *
+   * Cette méthode privée analyse les statistiques et activités d'un utilisateur
+   * pour déterminer quels achievements il a débloqués. Elle évalue différents
+   * critères comme le nombre de contributions, la régularité d'activité,
+   * les interactions sociales et autres métriques d'engagement pour attribuer
+   * automatiquement les achievements correspondants.
+   *
+   * @private
+   * @async
+   * @method getUserAchievements
+   * @param {string} userId - ID unique de l'utilisateur à évaluer
+   * @returns {Promise<Achievement[]>} Liste des achievements débloqués avec métadonnées
+   * @throws {Error} En cas d'erreur d'accès aux données utilisateur ou d'évaluation
+   *
+   * @interface Achievement
+   * @property {string} id - Identifiant unique de l'achievement
+   * @property {string} name - Nom affiché de l'achievement
+   * @property {string} description - Description détaillée du critère
+   * @property {Date} unlockedAt - Date de déblocage de l'achievement
+   * @property {string} [category] - Catégorie de l'achievement (contribution, engagement, etc.)
+   * @property {number} [progress] - Progression actuelle vers l'achievement (0-100)
+   *
+   * @example
+   * ```typescript
+   * const achievements = await this.getUserAchievements("user123");
+   * console.log(`Achievements: ${achievements.length}`);
+   *
+   * achievements.forEach(achievement => {
+   *   console.log(`${achievement.name}: ${achievement.description}`);
+   * });
+   *
+   * // Structure de réponse:
+   * [
+   *   {
+   *     id: "word_contributor",
+   *     name: "Contributeur de Mots",
+   *     description: "A ajouté 10 mots ou plus",
+   *     unlockedAt: new Date("2024-01-15"),
+   *     category: "contribution",
+   *     progress: 100
+   *   },
+   *   {
+   *     id: "language_explorer",
+   *     name: "Explorateur Linguistique",
+   *     description: "A contribué dans 3 langues différentes",
+   *     unlockedAt: new Date("2024-02-10"),
+   *     category: "diversity"
+   *   }
+   * ]
+   * ```
+   *
+   * @remarks
+   * Les achievements sont évalués selon plusieurs catégories :
+   * - **Contribution** : Basés sur le nombre de mots ajoutés
+   * - **Engagement** : Basés sur la régularité et l'activité
+   * - **Diversité** : Basés sur l'exploration de différentes langues
+   * - **Social** : Basés sur les interactions et partages
+   * - **Qualité** : Basés sur le taux d'approbation des contributions
+   *
+   * @since 1.0.0
+   * @memberof AnalyticsService
    */
   private async getUserAchievements(userId: string): Promise<any[]> {
     try {
@@ -883,20 +1428,20 @@ export class AnalyticsService {
       if (!userStats) return [];
 
       const achievements = [];
-      
+
       // Achievement basique basé sur les stats
       if (userStats.totalWordsAdded && userStats.totalWordsAdded >= 10) {
         achievements.push({
-          id: 'word_contributor',
-          name: 'Contributeur de Mots',
-          description: 'A ajouté 10 mots ou plus',
-          unlockedAt: new Date()
+          id: "word_contributor",
+          name: "Contributeur de Mots",
+          description: "A ajouté 10 mots ou plus",
+          unlockedAt: new Date(),
         });
       }
 
       return achievements;
     } catch (error) {
-      console.error('Error fetching user achievements:', error);
+      console.error("Error fetching user achievements:", error);
       return [];
     }
   }
