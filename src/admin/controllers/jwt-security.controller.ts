@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Contrôleur de sécurité JWT pour l'administration
+ *
+ * Ce contrôleur ultra-sécurisé gère la validation, génération et rotation
+ * des secrets JWT. Il inclut des outils d'audit avancés et de validation
+ * de la sécurité cryptographique. Réservé exclusivement aux super-administrateurs.
+ *
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Post,
@@ -23,24 +35,93 @@ import {
 } from "../../auth/security/jwt-secret-validator.service";
 
 /**
- * 🔐 CONTRÔLEUR SÉCURITÉ JWT
+ * Contrôleur de sécurité JWT pour l'administration système
  *
- * Contrôleur d'administration pour la gestion de la sécurité des secrets JWT.
- * Permet la validation, génération et audit des secrets JWT.
- * Réservé aux super-administrateurs pour des raisons de sécurité.
+ * Ce contrôleur de haute sécurité fournit des outils critiques pour la gestion
+ * des secrets JWT de la plateforme. Il permet aux super-administrateurs de:
+ * - Valider la robustesse cryptographique des secrets
+ * - Générer de nouveaux secrets sécurisés
+ * - Auditer la sécurité du système JWT actuel
+ * - Effectuer des rotations sécurisées de secrets
  *
- * Endpoints disponibles :
- * ✅ POST /admin/jwt-security/validate - Valider un secret JWT
- * ✅ POST /admin/jwt-security/generate - Générer un secret sécurisé
- * ✅ GET /admin/jwt-security/audit - Audit du secret actuel
+ * ## Sécurité :
+ * - Accès restreint aux super-administrateurs uniquement
+ * - Toutes les actions sont auditées et tracées
+ * - Utilisation de JWT Guard + Role Guard pour double protection
+ * - Validation cryptographique selon les standards OWASP
+ *
+ * ## Endpoints disponibles :
+ * - POST /admin/jwt-security/validate - Valider un secret JWT
+ * - POST /admin/jwt-security/generate - Générer un secret sécurisé
+ * - GET /admin/jwt-security/audit - Audit du secret actuel
+ *
+ * @class JwtSecurityController
+ * @version 1.0.0
  */
 @ApiTags("Administration - JWT Security")
 @Controller("admin/jwt-security")
 @UseGuards(JwtAuthGuard, RoleGuard)
 @ApiBearerAuth()
 export class JwtSecurityController {
-  constructor(private jwtSecretValidator: JwtSecretValidatorService) {}
+  /**
+   * Constructeur du contrôleur de sécurité JWT
+   *
+   * @constructor
+   * @param {JwtSecretValidatorService} jwtSecretValidator - Service de validation des secrets JWT
+   *
+   * @example
+   * ```typescript
+   * // Le constructeur est utilisé automatiquement par NestJS
+   * // Exemple d'injection automatique :
+   * @Controller('admin/jwt-security')
+   * export class JwtSecurityController {
+   *   constructor(
+   *     private readonly jwtSecretValidator: JwtSecretValidatorService
+   *   ) {}
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @memberof JwtSecurityController
+   */
+  constructor(private readonly jwtSecretValidator: JwtSecretValidatorService) {}
 
+  /**
+   * Valide la sécurité d'un secret JWT
+   *
+   * Cette méthode analyse la robustesse cryptographique d'un secret JWT proposé
+   * selon les standards de sécurité OWASP. Elle évalue la complexité, l'entropie
+   * et détecte les vulnérabilités potentielles. Accessible aux superadmins uniquement.
+   *
+   * @async
+   * @method validateSecret
+   * @param {Object} body - Corps de la requête
+   * @param {string} body.secret - Le secret JWT à valider
+   * @returns {Promise<JwtSecretValidationResult & { timestamp: string }>} Résultat de validation avec horodatage
+   * @throws {Error} Si le secret est manquant
+   *
+   * @example
+   * ```typescript
+   * // Appel API
+   * POST /admin/jwt-security/validate
+   * Authorization: Bearer <jwt-token>
+   * {
+   *   "secret": "MySecureJwtSecret123!@#$%^&*()_+ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg"
+   * }
+   *
+   * // Réponse typique:
+   * {
+   *   isValid: true,
+   *   strength: "excellent",
+   *   score: 95,
+   *   entropy: 4.2,
+   *   errors: [],
+   *   warnings: [],
+   *   recommendations: ["Excellent secret, aucune amélioration nécessaire"],
+   *   timestamp: "2024-01-01T00:00:00Z"
+   * }
+   * ```
+   */
   @Post("validate")
   @Roles("superadmin")
   @HttpCode(HttpStatus.OK)
@@ -103,6 +184,47 @@ export class JwtSecurityController {
     };
   }
 
+  /**
+   * Génère un secret JWT cryptographiquement sécurisé
+   *
+   * Cette méthode génère un nouveau secret JWT en utilisant des algorithmes
+   * cryptographiques sécurisés. Le secret généré respecte les standards OWASP
+   * et inclut une validation automatique. Réservé aux super-administrateurs.
+   *
+   * @async
+   * @method generateSecret
+   * @param {Object} body - Corps de la requête
+   * @param {number} [body.length=64] - Longueur du secret à générer (32-128 caractères)
+   * @returns {Promise<{secret: string, validation: JwtSecretValidationResult, usage: object, timestamp: string}>} Secret généré avec validation et exemples d'usage
+   * @throws {Error} Si la longueur est invalide
+   *
+   * @example
+   * ```typescript
+   * // Appel API
+   * POST /admin/jwt-security/generate
+   * Authorization: Bearer <jwt-token>
+   * {
+   *   "length": 64
+   * }
+   *
+   * // Réponse typique:
+   * {
+   *   secret: "Hy7k9P2mR8qL5vN3zX6wE1tY4uI0oP9aS8dF7gH2jK5lM3nB6vC9xZ2qW5eR8tY1",
+   *   validation: {
+   *     isValid: true,
+   *     strength: "excellent",
+   *     score: 98,
+   *     entropy: 4.5
+   *   },
+   *   usage: {
+   *     environment: "JWT_SECRET=Hy7k9P2mR8qL5vN3zX6wE1tY4uI0oP9aS8dF7gH2jK5lM3nB6vC9xZ2qW5eR8tY1",
+   *     dockerCompose: "      - JWT_SECRET=Hy7k9P2mR8qL5vN3zX6wE1tY4uI0oP9aS8dF7gH2jK5lM3nB6vC9xZ2qW5eR8tY1",
+   *     kubernetes: "  JWT_SECRET: \"Hy7k9P2mR8qL5vN3zX6wE1tY4uI0oP9aS8dF7gH2jK5lM3nB6vC9xZ2qW5eR8tY1\""
+   *   },
+   *   timestamp: "2024-01-01T00:00:00Z"
+   * }
+   * ```
+   */
   @Post("generate")
   @Roles("superadmin")
   @HttpCode(HttpStatus.OK)
@@ -186,6 +308,46 @@ export class JwtSecurityController {
     };
   }
 
+  /**
+   * Audite la sécurité du secret JWT actuellement configuré
+   *
+   * Cette méthode effectue un audit complet du secret JWT en production
+   * sans jamais exposer le secret lui-même. Elle analyse la configuration,
+   * évalue la robustesse cryptographique et fournit des recommandations
+   * de sécurité. Accessible aux administrateurs et super-administrateurs.
+   *
+   * @async
+   * @method auditCurrentSecret
+   * @returns {Promise<{configured: boolean, strength?: string, score?: number, entropy?: number, warnings: string[], recommendations: string[], securityLevel: string, auditDate: string}>} Rapport d'audit complet
+   *
+   * @example
+   * ```typescript
+   * // Appel API
+   * GET /admin/jwt-security/audit
+   * Authorization: Bearer <jwt-token>
+   *
+   * // Réponse typique (secret configuré):
+   * {
+   *   configured: true,
+   *   strength: "excellent",
+   *   score: 95,
+   *   entropy: 4.2,
+   *   warnings: [],
+   *   recommendations: ["Secret excellent, maintenir le niveau de sécurité"],
+   *   securityLevel: "EXCELLENT (95/100)",
+   *   auditDate: "2024-01-01T00:00:00Z"
+   * }
+   *
+   * // Réponse typique (secret non configuré):
+   * {
+   *   configured: false,
+   *   warnings: ["JWT_SECRET n'est pas configuré"],
+   *   recommendations: ["Configurer JWT_SECRET immédiatement"],
+   *   securityLevel: "CRITIQUE - Non configuré",
+   *   auditDate: "2024-01-01T00:00:00Z"
+   * }
+   * ```
+   */
   @Get("audit")
   @Roles("admin", "superadmin")
   @ApiOperation({
@@ -252,6 +414,46 @@ export class JwtSecurityController {
     };
   }
 
+  /**
+   * Récupère les standards de sécurité JWT
+   *
+   * Cette méthode fournit la documentation complète des standards de sécurité
+   * appliqués pour les secrets JWT, incluant les exigences minimales, les
+   * bonnes pratiques et des exemples concrets. Accessible aux administrateurs
+   * et super-administrateurs pour référence et formation.
+   *
+   * @async
+   * @method getSecurityStandards
+   * @returns {Promise<{standards: object, examples: object, tools: object}>} Documentation complète des standards
+   *
+   * @example
+   * ```typescript
+   * // Appel API
+   * GET /admin/jwt-security/standards
+   * Authorization: Bearer <jwt-token>
+   *
+   * // Réponse typique:
+   * {
+   *   standards: {
+   *     minimumLength: 32,
+   *     recommendedLength: 64,
+   *     minimumEntropy: 3.0,
+   *     recommendedEntropy: 4.0,
+   *     requiredComplexity: ["Lettres majuscules", "Lettres minuscules", "Chiffres", "Caractères spéciaux"],
+   *     forbiddenPatterns: ["Caractères répétés", "Séquences simples", "Mots communs"]
+   *   },
+   *   examples: {
+   *     weak: ["secret", "mysecret"],
+   *     good: "MyApp_JWT_Secret_2024_Prod_!@#...",
+   *     excellent: "Hy7k9P2mR8qL5vN3zX6wE1tY..."
+   *   },
+   *   tools: {
+   *     generation: ["openssl rand -base64 64", "POST /admin/jwt-security/generate"],
+   *     validation: ["POST /admin/jwt-security/validate", "GET /admin/jwt-security/audit"]
+   *   }
+   * }
+   * ```
+   */
   @Get("standards")
   @Roles("admin", "superadmin")
   @ApiOperation({
