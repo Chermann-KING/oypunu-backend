@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service de gestion des catégories du dictionnaire O'Ypunu
+ * 
+ * Ce service gère les opérations CRUD sur les catégories de mots
+ * avec organisation hiérarchique, validation d'unicité et intégration
+ * avec le pattern Repository pour abstraction des données.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -10,6 +22,23 @@ import { CreateCategoryDto } from '../dto/create-category.dto';
 import { UpdateCategoryDto } from '../dto/update-category.dto';
 import { ICategoryRepository } from '../../repositories/interfaces/category.repository.interface';
 
+/**
+ * Service de gestion des catégories du dictionnaire O'Ypunu
+ * 
+ * Gère l'organisation hiérarchique des mots par catégories avec
+ * validation d'unicité, opérations CRUD complètes et recherche
+ * optimisée via le pattern Repository.
+ * 
+ * ## Fonctionnalités principales :
+ * - Création de catégories avec validation d'unicité
+ * - Organisation hiérarchique parent/enfant
+ * - Recherche et filtrage de catégories
+ * - Mise à jour et suppression avec contrôles
+ * - Comptage des mots par catégorie
+ * 
+ * @class CategoriesService
+ * @version 1.0.0
+ */
 @Injectable()
 export class CategoriesService {
   constructor(

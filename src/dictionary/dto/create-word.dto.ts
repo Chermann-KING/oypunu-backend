@@ -1,3 +1,16 @@
+/**
+ * @fileoverview DTOs pour la création de mots dans le dictionnaire O'Ypunu
+ * 
+ * Ce fichier définit les Data Transfer Objects pour la création de mots
+ * avec validation complète des données, limites configurables et
+ * messages d'erreur contextualisés en français. Il inclut les DTOs
+ * pour définitions, phonétiques, significations et traductions.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
@@ -19,7 +32,22 @@ import {
 } from 'class-validator';
 import { DICTIONARY_LIMITS, VALIDATION_LIMITS, ARRAY_LIMITS, createValidationMessage } from '../../common/constants/validation-limits.constants';
 
+/**
+ * DTO pour les définitions de mots
+ * 
+ * Classe de validation pour une définition individuelle avec
+ * exemples d'usage et référence source optionnelle.
+ * 
+ * @class DefinitionDto
+ * @version 1.0.0
+ */
 class DefinitionDto {
+  /**
+   * Texte de la définition avec validation de longueur
+   * @type {string}
+   * @required
+   * @example "État de calme, de tranquillité, de confiance sur le plan moral"
+   */
   @ApiProperty({
     description: 'Définition du mot',
     example: 'État de calme, de tranquillité, de confiance sur le plan moral',

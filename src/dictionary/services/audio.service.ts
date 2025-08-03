@@ -1,7 +1,30 @@
+/**
+ * @fileoverview Service de gestion des fichiers audio pour le dictionnaire O'Ypunu
+ * 
+ * Ce service gère l'upload, la validation, le stockage et la suppression
+ * des fichiers audio (prononciation) via Cloudinary avec contrôles
+ * de qualité, formats supportés et optimisations pour le streaming.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary, ConfigOptions } from 'cloudinary';
 import { ConfigService } from '@nestjs/config';
 
+/**
+ * Interface pour le résultat d'upload Cloudinary
+ * 
+ * @interface CloudinaryUploadResult
+ * @property {string} secure_url - URL sécurisée HTTPS du fichier
+ * @property {string} public_id - ID public Cloudinary pour gestion
+ * @property {string} format - Format du fichier audio (mp3, wav, etc.)
+ * @property {number} duration - Durée en secondes
+ * @property {number} bytes - Taille du fichier en octets
+ * @property {string} resource_type - Type de ressource ('video' pour audio)
+ */
 interface CloudinaryUploadResult {
   secure_url: string;
   public_id: string;

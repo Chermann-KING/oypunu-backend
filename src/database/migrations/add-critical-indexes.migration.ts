@@ -1,24 +1,79 @@
+/**
+ * @fileoverview Migration critique d'ajout d'index de performance MongoDB
+ * 
+ * Cette migration fondamentale optimise drastiquement les performances
+ * de la base de données O'Ypunu en ajoutant tous les index critiques
+ * identifiés lors de l'audit de performance. Elle améliore significativement
+ * les temps de réponse des requêtes fréquentes et complexes.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 
 /**
- * 🗂️ MIGRATION - AJOUT D'INDEX CRITIQUES
+ * Migration d'ajout d'index critiques pour optimisation performance
  * 
- * Cette migration ajoute les indexes critiques identifiés lors de l'audit de performance.
- * Ces indexes sont essentiels pour améliorer significativement les performances des requêtes.
+ * Cette migration critique implémente une stratégie d'indexation complète
+ * pour toutes les collections principales de l'application O'Ypunu.
+ * Elle couvre les patterns de requêtes les plus fréquents et complexes :
  * 
- * Indexes ajoutés :
- * ✅ Users - email (recherche rapide utilisateur)
- * ✅ Users - username (recherche rapide utilisateur)
- * ✅ Words - word (recherche textuelle)
- * ✅ Words - status (filtrage statut)
- * ✅ Words - language (filtrage langue)
- * ✅ Words - category (filtrage catégorie)
- * ✅ Words - compound indexes pour requêtes complexes
- * ✅ Communities - language (recherche par langue)
- * ✅ Messages - conversation + timestamp (chat performance)
- * ✅ ActivityFeed - user + timestamp (flux activité)
+ * ## Index ajoutés par collection :
+ * 
+ * ### 👤 Users (6 index)
+ * - email (unique) : Authentification et recherche utilisateur
+ * - username (unique) : Recherche et profils utilisateur
+ * - role : Filtrage par rôle (admin, contributeur, etc.)
+ * - isEmailVerified : Filtrage utilisateurs vérifiés
+ * - email + isEmailVerified : Authentification optimisée
+ * 
+ * ### 📚 Words (10 index)
+ * - word : Recherche textuelle principale
+ * - status : Filtrage par statut (pending, approved, rejected)
+ * - language : Filtrage par langue (crucial pour navigation)
+ * - category : Filtrage par catégorie grammaticale
+ * - contributedBy : Mots par contributeur
+ * - status + language : Requêtes approuvées par langue
+ * - language + category : Navigation thématique
+ * - status + language + category : Requêtes complexes
+ * - Full-text search : Recherche avancée avec pondération
+ * - createdAt : Tri chronologique
+ * 
+ * ### 🏘️ Communities (4 index)
+ * - language : Recherche communautés par langue
+ * - name : Recherche par nom de communauté
+ * - createdBy : Communautés par créateur
+ * - membersCount : Tri par popularité
+ * 
+ * ### 💬 Messages (3 index)
+ * - conversation + createdAt : Performance chat temps réel
+ * - sender : Messages par expéditeur
+ * - readBy.user : Gestion messages lus (sparse)
+ * 
+ * ### 📈 ActivityFeed (3 index)
+ * - user + createdAt : Flux activité personnel
+ * - type : Filtrage par type d'activité
+ * - type + createdAt : Flux global par type
+ * 
+ * ### 🔐 RefreshTokens (3 index)
+ * - token (unique) : Authentification token
+ * - user : Tokens par utilisateur
+ * - expiresAt (TTL) : Nettoyage automatique
+ * 
+ * ## Optimisations techniques :
+ * - Index background pour éviter le blocage
+ * - Index composés pour requêtes multi-critères
+ * - Index TTL pour nettoyage automatique
+ * - Index sparse pour champs optionnels
+ * - Pondération pour recherche textuelle
+ * - Rollback complet avec suppression sélective
+ * 
+ * @class AddCriticalIndexesMigration
+ * @version 1.0.0
  */
 @Injectable()
 export class AddCriticalIndexesMigration {
@@ -27,7 +82,35 @@ export class AddCriticalIndexesMigration {
   constructor(@InjectConnection() private connection: Connection) {}
 
   /**
-   * 🚀 Exécute la migration - Ajoute tous les indexes critiques
+   * Exécute la migration d'ajout des index critiques
+   * 
+   * Cette méthode principale orchestre l'ajout de tous les index
+   * critiques sur toutes les collections. Elle procède de manière
+   * séquentielle pour garantir la cohérence et gère les erreurs
+   * avec rollback automatique si nécessaire.
+   * 
+   * ## Ordre d'exécution optimisé :
+   * 1. Users - Base utilisateur (priorité authentification)
+   * 2. Words - Collection principale (cœur métier)
+   * 3. Communities - Structure sociale
+   * 4. Messages - Communication temps réel
+   * 5. ActivityFeed - Notifications et activité
+   * 6. RefreshTokens - Sécurité et sessions
+   * 
+   * @async
+   * @method up
+   * @returns {Promise<void>}
+   * @throws {Error} Si la création d'un index échoue
+   * 
+   * @example
+   * ```typescript
+   * // Exécution manuelle via CLI
+   * await migrationService.runCriticalIndexesMigration();
+   * 
+   * // Ou via le service de migration
+   * const migration = new AddCriticalIndexesMigration(connection);
+   * await migration.up();
+   * ```
    */
   async up(): Promise<void> {
     this.logger.log('🗂️ Début de la migration - Ajout des indexes critiques');
@@ -225,6 +308,24 @@ export class AddCriticalIndexesMigration {
       }
     );
 
+    // Index sur isFeatured + status pour findFeatured() optimisé
+    await wordCollection.createIndex(
+      { isFeatured: 1, status: 1 },
+      { 
+        name: 'idx_words_featured_status',
+        background: true
+      }
+    );
+
+    // Index sur categoryId + createdBy pour requêtes avec populate optimisé
+    await wordCollection.createIndex(
+      { categoryId: 1, createdBy: 1 },
+      { 
+        name: 'idx_words_category_creator',
+        background: true
+      }
+    );
+
     this.logger.log('✅ Indexes Words créés');
   }
 
@@ -418,7 +519,7 @@ export class AddCriticalIndexesMigration {
       { collection: 'users', indexes: ['idx_users_email_unique', 'idx_users_username_unique', 'idx_users_role', 'idx_users_email_verified', 'idx_users_email_verification'] },
       
       // Words
-      { collection: 'words', indexes: ['idx_words_word_text', 'idx_words_status', 'idx_words_language', 'idx_words_category', 'idx_words_contributor', 'idx_words_status_language', 'idx_words_language_category', 'idx_words_status_language_category', 'idx_words_fulltext_search', 'idx_words_created_desc'] },
+      { collection: 'words', indexes: ['idx_words_word_text', 'idx_words_status', 'idx_words_language', 'idx_words_category', 'idx_words_contributor', 'idx_words_status_language', 'idx_words_language_category', 'idx_words_status_language_category', 'idx_words_fulltext_search', 'idx_words_created_desc', 'idx_words_featured_status', 'idx_words_category_creator'] },
       
       // Communities
       { collection: 'communities', indexes: ['idx_communities_language', 'idx_communities_name', 'idx_communities_creator', 'idx_communities_members_desc'] },

@@ -1,49 +1,129 @@
+/**
+ * @fileoverview Service de monitoring et analytics audio pour O'Ypunu
+ * 
+ * Ce service surveille en temps réel les performances, l'usage et la qualité
+ * du système audio de la plateforme avec alertes intelligentes, métriques
+ * détaillées et reporting automatique pour optimiser l'expérience utilisateur.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+/**
+ * Interface des métriques audio collectées
+ * 
+ * @interface AudioMetrics
+ */
 interface AudioMetrics {
+  /** Nombre total d'uploads */
   totalUploads: number;
+  /** Uploads réussis */
   successfulUploads: number;
+  /** Uploads échoués */
   failedUploads: number;
+  /** Temps moyen d'upload (ms) */
   avgUploadTime: number;
+  /** Taille moyenne de fichier (bytes) */
   avgFileSize: number;
+  /** Durée moyenne audio (secondes) */
   avgDuration: number;
+  /** Accents les plus utilisés */
   topAccents: Array<{ accent: string; count: number }>;
+  /** Langues les plus utilisées */
   topLanguages: Array<{ language: string; count: number }>;
+  /** Types d'erreurs rencontrées */
   errorTypes: Record<string, number>;
+  /** Bande passante utilisée (bytes) */
   bandwidthUsed: number;
+  /** Espace de stockage utilisé (bytes) */
   storageUsed: number;
 }
 
+/**
+ * Interface des événements audio trackés
+ * 
+ * @interface AudioEvent
+ */
 interface AudioEvent {
+  /** Type d'événement */
   type:
     | 'upload_start'
     | 'upload_success'
     | 'upload_error'
     | 'delete'
     | 'url_request';
+  /** Timestamp de l'événement */
   timestamp: number;
+  /** ID du mot concerné */
   wordId?: string;
+  /** Accent de la prononciation */
   accent?: string;
+  /** Langue du mot */
   language?: string;
+  /** Taille du fichier */
   fileSize?: number;
+  /** Durée audio */
   duration?: number;
+  /** Message d'erreur */
   error?: string;
+  /** Temps de réponse */
   responseTime?: number;
+  /** ID utilisateur */
   userId?: string;
 }
 
+/**
+ * Interface des alertes de performance
+ * 
+ * @interface PerformanceAlert
+ */
 interface PerformanceAlert {
+  /** Niveau de criticité */
   level: 'info' | 'warning' | 'error' | 'critical';
+  /** Message descriptif */
   message: string;
+  /** Métrique concernée */
   metric: string;
+  /** Valeur actuelle */
   value: number;
+  /** Seuil dépassé */
   threshold: number;
+  /** Horodatage */
   timestamp: number;
 }
 
+/**
+ * Service de monitoring et analytics du système audio
+ * 
+ * Ce service fournit une surveillance complète du système audio O'Ypunu :
+ * 
+ * ## 📊 Métriques collectées :
+ * - **Performance** : Temps d'upload, taux de succès, latence
+ * - **Usage** : Volumes, accents populaires, langues tendances  
+ * - **Qualité** : Erreurs, formats, durées moyennes
+ * - **Ressources** : Bande passante, stockage, optimisations
+ * 
+ * ## 🚨 Alertes intelligentes :
+ * - **Seuils configurables** : Warning/Critical personnalisables
+ * - **Escalade automatique** : Notifications selon criticité
+ * - **Détection anomalies** : Patterns inhabituels d'usage
+ * - **Prédiction charge** : Anticipation pics de trafic
+ * 
+ * ## 📈 Reporting automatique :
+ * - **Rapports quotidiens** : Synthèse des métriques
+ * - **Tendances hebdomadaires** : Évolution des performances
+ * - **Analytics mensuelles** : Insights d'usage détaillés
+ * - **Optimisations suggérées** : Recommandations amélioration
+ * 
+ * @class AudioMonitoringService
+ * @version 1.0.0
+ */
 @Injectable()
 export class AudioMonitoringService {
   private readonly logger = new Logger(AudioMonitoringService.name);

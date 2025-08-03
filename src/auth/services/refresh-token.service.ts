@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service de gestion des tokens de rafraîchissement sécurisés pour O'Ypunu
+ * 
+ * Ce service implémente un système avancé de gestion des refresh tokens avec
+ * rotation automatique, détection de réutilisation, révocation en chaîne et
+ * protection contre les attaques de vol de tokens pour sécuriser les sessions.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   UnauthorizedException,
@@ -13,23 +25,74 @@ import {
   CreateRefreshTokenData,
 } from "../../repositories/interfaces/refresh-token.repository.interface";
 
+/**
+ * Interface des métadonnées de token
+ * 
+ * @interface TokenMetadata
+ */
 export interface TokenMetadata {
+  /** Adresse IP du client */
   ipAddress?: string;
+  /** User-Agent du navigateur */
   userAgent?: string;
+  /** Identifiant unique d'appareil */
   deviceId?: string;
+  /** Identifiant de session */
   sessionId?: string;
 }
 
+/**
+ * Interface d'une paire de tokens
+ * 
+ * @interface TokenPair
+ */
 export interface TokenPair {
+  /** Token d'accès JWT */
   accessToken: string;
+  /** Token de rafraîchissement */
   refreshToken: string;
+  /** Durée d'expiration en secondes */
   expiresIn: number;
 }
 
+/**
+ * Service de gestion des refresh tokens avec sécurité avancée
+ * 
+ * Ce service implémente un système de refresh tokens hautement sécurisé :
+ * 
+ * ## 🔄 Rotation automatique :
+ * - **Nouveaux tokens** : Génération à chaque utilisation
+ * - **Révocation immédiate** : Anciens tokens invalidés
+ * - **Chaînage sécurisé** : Traçabilité des remplacements
+ * - **Nettoyage automatique** : Suppression des tokens expirés
+ * 
+ * ## 🛡️ Détection d'attaques :
+ * - **Réutilisation** : Détection de tokens déjà utilisés
+ * - **Vol présumé** : Révocation en cascade des tokens
+ * - **Anomalies IP** : Tracking des changements d'adresse
+ * - **Expiration stricte** : Validation temporelle rigoureuse
+ * 
+ * ## 🔐 Sécurité cryptographique :
+ * - **Tokens aléatoires** : Génération cryptographiquement sécurisée
+ * - **Hachage SHA-256** : Stockage sécurisé des tokens
+ * - **Entropie maximale** : Combinaison timestamp + UUID + random
+ * - **Révocation granulaire** : Par token, utilisateur ou chaîne
+ * 
+ * @class RefreshTokenService
+ * @version 1.0.0
+ */
 @Injectable()
 export class RefreshTokenService {
   private readonly logger = new Logger(RefreshTokenService.name);
 
+  /**
+   * Constructeur du service de refresh tokens
+   * 
+   * @constructor
+   * @param {IRefreshTokenRepository} refreshTokenRepository - Repository des refresh tokens
+   * @param {JwtService} jwtService - Service JWT de NestJS
+   * @param {ConfigService} configService - Service de configuration
+   */
   constructor(
     @Inject("IRefreshTokenRepository")
     private readonly refreshTokenRepository: IRefreshTokenRepository,
@@ -38,7 +101,16 @@ export class RefreshTokenService {
   ) {}
 
   /**
-   * Crée un nouveau refresh token
+   * Crée un nouveau refresh token sécurisé
+   * 
+   * Génère un refresh token cryptographiquement sécurisé avec métadonnées
+   * d'environnement pour tracking et expiration configurée.
+   * 
+   * @async
+   * @method createRefreshToken
+   * @param {string} userId - ID de l'utilisateur
+   * @param {TokenMetadata} metadata - Métadonnées optionnelles du token
+   * @returns {Promise<RefreshTokenInterface>} Token de rafraîchissement créé
    */
   async createRefreshToken(
     userId: string,

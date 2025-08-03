@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Interface de repository pour la gestion des mots du dictionnaire O'Ypunu
+ *
+ * Cette interface définit le contrat d'accès aux données pour les mots du dictionnaire
+ * multilingue. Elle découple complètement la logique métier de la couche de persistance
+ * en fournissant une abstraction claire pour toutes les opérations CRUD, recherches
+ * avancées, statistiques et opérations en masse sur les mots.
+ *
+ * @author Équipe O'Ypunu  
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Types } from "mongoose";
 import { Word } from "../../dictionary/schemas/word.schema";
 import { CreateWordDto } from "../../dictionary/dto/create-word.dto";
@@ -5,22 +18,57 @@ import { UpdateWordDto } from "../../dictionary/dto/update-word.dto";
 import { SearchWordsDto } from "../../dictionary/dto/search-words.dto";
 
 /**
- * 📚 INTERFACE WORD REPOSITORY
+ * Interface de repository pour la gestion des mots du dictionnaire
  *
- * Contrat abstrait pour l'accès aux données des mots.
- * Découple complètement les services de la couche de persistance.
+ * Cette interface abstraite définit tous les contrats d'accès aux données pour
+ * les mots du dictionnaire multilingue O'Ypunu. Elle applique le pattern Repository
+ * pour découpler la logique métier de la couche de persistance.
  *
- * Avantages :
- * ✅ Testabilité : Mock facile pour les tests unitaires
- * ✅ Flexibilité : Changer de DB sans impact sur les services
- * ✅ Séparation responsabilités : Services = logique métier, Repository = accès données
- * ✅ Évolutivité : Ajouter cache, multi-DB, etc. sans casser les services
+ * ## 🏗️ Architecture et avantages :
+ *
+ * ### Testabilité maximale
+ * - Mock facile pour les tests unitaires et d'intégration
+ * - Isolation complète de la logique métier des détails d'implémentation
+ * - Tests rapides sans dépendance base de données
+ *
+ * ### Flexibilité d'implémentation
+ * - Changement de base de données sans impact sur les services
+ * - Support multi-base (MongoDB, PostgreSQL, etc.) transparent
+ * - Migration et évolution facilitées
+ *
+ * ### Séparation des responsabilités
+ * - Services = logique métier et règles business
+ * - Repository = accès données et opérations de persistance
+ * - Controllers = gestion HTTP et validation
+ *
+ * ### Évolutivité système
+ * - Ajout de cache transparent (Redis, Memcached)
+ * - Sharding et réplication sans modification des services
+ * - Monitoring et métriques centralisées
+ *
+ * ## 📋 Fonctionnalités couvertes :
+ * - **CRUD de base** : Créer, lire, modifier, supprimer
+ * - **Recherche avancée** : Filtres complexes, texte intégral
+ * - **Statistiques** : Compteurs, analytics, exports
+ * - **Relations** : Utilisateurs, catégories, traductions
+ * - **Opérations masse** : Modifications groupées efficaces
+ *
+ * @interface IWordRepository
+ * @version 1.0.0
  */
 export interface IWordRepository {
   // ========== CRUD DE BASE ==========
 
   /**
-   * Créer un nouveau mot
+   * Crée un nouveau mot dans le dictionnaire
+   * 
+   * @method create
+   * @param {CreateWordDto} wordData - Données du mot à créer
+   * @param {string} userId - ID de l'utilisateur créateur
+   * @param {string} [status='pending'] - Statut initial du mot
+   * @returns {Promise<Word>} Mot créé avec son ID généré
+   * @throws {ValidationError} Si les données sont invalides
+   * @throws {DuplicationError} Si le mot existe déjà dans cette langue
    */
   create(
     wordData: CreateWordDto,
@@ -29,7 +77,12 @@ export interface IWordRepository {
   ): Promise<Word>;
 
   /**
-   * Récupérer un mot par ID
+   * Récupère un mot par son identifiant unique
+   * 
+   * @method findById
+   * @param {string} id - Identifiant MongoDB du mot
+   * @returns {Promise<Word | null>} Mot trouvé ou null si inexistant
+   * @throws {InvalidObjectIdError} Si l'ID a un format invalide
    */
   findById(id: string): Promise<Word | null>;
 
@@ -62,7 +115,21 @@ export interface IWordRepository {
   // ========== RECHERCHE AVANCÉE ==========
 
   /**
-   * Rechercher des mots avec filtres complexes
+   * Recherche avancée de mots avec filtres et pagination
+   * 
+   * @method search
+   * @param {SearchWordsDto} searchParams - Paramètres de recherche avancée
+   * @returns {Promise<{words: Word[], total: number, page: number, limit: number}>} Résultats paginés
+   * @example
+   * ```typescript
+   * const results = await repository.search({
+   *   query: 'bonjour',
+   *   languages: ['fr', 'en'],
+   *   status: 'approved',
+   *   page: 1,
+   *   limit: 20
+   * });
+   * ```
    */
   search(searchParams: SearchWordsDto): Promise<{
     words: Word[];
@@ -77,7 +144,13 @@ export interface IWordRepository {
   findByTranslationId(translationId: string): Promise<Word | null>;
 
   /**
-   * Vérifier si un mot existe déjà
+   * Vérifie l'existence d'un mot dans une langue spécifique
+   * 
+   * @method existsByWordAndLanguage
+   * @param {string} word - Terme à vérifier
+   * @param {string} language - Code de langue (ex: 'fr', 'en')
+   * @param {string} [languageId] - ID optionnel de la langue pour validation croisée
+   * @returns {Promise<boolean>} True si le mot existe déjà
    */
   existsByWordAndLanguage(
     word: string,
@@ -106,7 +179,11 @@ export interface IWordRepository {
   // ========== STATISTIQUES ==========
 
   /**
-   * Compter mots par statut
+   * Compte le nombre de mots par statut
+   * 
+   * @method countByStatus
+   * @param {string} status - Statut à compter ('pending', 'approved', 'rejected')
+   * @returns {Promise<number>} Nombre de mots avec ce statut
    */
   countByStatus(status: string): Promise<number>;
 
@@ -145,7 +222,16 @@ export interface IWordRepository {
   countByCreatorAndStatus(creatorId: string, status: string): Promise<number>;
 
   /**
-   * Obtenir les statistiques linguistiques d'un utilisateur
+   * Obtient les statistiques de contribution par langue pour un utilisateur
+   * 
+   * @method getUserLanguageStats
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<Array<{language: string, languageId: string, count: number, percentage: number}>>} Statistiques par langue
+   * @example
+   * ```typescript
+   * const stats = await repository.getUserLanguageStats('user123');
+   * // Résultat: [{ language: 'fr', languageId: 'lang456', count: 150, percentage: 75.0 }]
+   * ```
    */
   getUserLanguageStats(userId: string): Promise<
     Array<{

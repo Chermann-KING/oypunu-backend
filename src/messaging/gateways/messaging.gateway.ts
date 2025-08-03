@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Gateway WebSocket pour messagerie temps réel O'Ypunu
+ * 
+ * Cette gateway gère toute la communication temps réel de la messagerie
+ * avec authentification JWT, gestion des sessions utilisateur, rooms
+ * par conversation et fonctionnalités avancées (présence, typing indicators).
+ * Elle constitue le cœur de l'expérience messagerie en temps réel.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   WebSocketGateway,
   SubscribeMessage,
@@ -14,11 +27,60 @@ import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+/**
+ * Type étendu de Socket avec données d'authentification
+ * 
+ * @typedef {Socket & Object} AuthenticatedSocket
+ * @property {string} [userId] - ID de l'utilisateur authentifié
+ * @property {string} [username] - Nom d'utilisateur pour affichage
+ */
 type AuthenticatedSocket = Socket & {
   userId?: string;
   username?: string;
 };
 
+/**
+ * Gateway WebSocket de messagerie temps réel O'Ypunu
+ * 
+ * Cette gateway fournit une communication bidirectionnelle temps réel
+ * pour la messagerie avec architecture room-based et fonctionnalités avancées :
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 🔐 Authentification sécurisée
+ * - Authentification JWT obligatoire à la connexion
+ * - Support multiple pour token (query, auth, headers)
+ * - Validation et vérification automatique des tokens
+ * - Déconnexion automatique si authentification échoue
+ * 
+ * ### 🏠 Système de rooms intelligent
+ * - Room personnelle par utilisateur (user_${userId})
+ * - Rooms par conversation (conversation_${conversationId})
+ * - Gestion automatique des jointures/sorties
+ * - Diffusion ciblée par room
+ * 
+ * ### 📡 Messagerie temps réel
+ * - Envoi messages instantané via WebSocket
+ * - Notification automatique au destinataire connecté
+ * - Accusé de réception pour l'expéditeur
+ * - Persistance via MessagingService intégré
+ * 
+ * ### 👀 Fonctionnalités avancées
+ * - Indicateurs de présence (online/offline)
+ * - Typing indicators avec start/stop
+ * - Gestion des sessions multiples par utilisateur
+ * - Debug mode pour développement
+ * 
+ * ### 🛠️ Utilitaires d'administration
+ * - Tracking des utilisateurs connectés
+ * - Logging détaillé pour monitoring
+ * - Méthodes utilitaires pour diffusion ciblée
+ * - Gestion d'erreurs contextualisée
+ * 
+ * @class MessagingGateway
+ * @implements {OnGatewayConnection, OnGatewayDisconnect}
+ * @version 1.0.0
+ */
 @WebSocketGateway({
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:4200',
@@ -29,18 +91,51 @@ type AuthenticatedSocket = Socket & {
 export class MessagingGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  /** Serveur Socket.IO pour diffusion */
   @WebSocketServer()
   server: Server;
 
+  /** Logger pour traçabilité */
   private readonly logger = new Logger(MessagingGateway.name);
-  private connectedUsers = new Map<string, string>(); // userId -> socketId
+  
+  /** Map des utilisateurs connectés : userId -> socketId */
+  private connectedUsers = new Map<string, string>();
 
+  /**
+   * Constructeur avec injection des services
+   * 
+   * @constructor
+   * @param {MessagingService} _messagingService - Service de messagerie
+   * @param {JwtService} _jwtService - Service JWT pour authentification
+   * @param {ConfigService} _configService - Service de configuration
+   */
   constructor(
     private readonly _messagingService: MessagingService,
     private readonly _jwtService: JwtService,
     private readonly _configService: ConfigService,
   ) {}
 
+  /**
+   * Gère la connexion d'un nouveau client WebSocket
+   * 
+   * Cette méthode critique authentifie le client via JWT, l'ajoute
+   * aux utilisateurs connectés et configure ses rooms personnelles.
+   * Elle diffuse également sa présence aux autres utilisateurs.
+   * 
+   * @async
+   * @method handleConnection
+   * @param {AuthenticatedSocket} client - Socket client à authentifier
+   * @returns {Promise<void>}
+   * 
+   * @example
+   * ```javascript
+   * // Côté client - Connexion avec token
+   * const socket = io('/messaging', {
+   *   auth: { token: jwtToken },
+   *   query: { token: jwtToken } // Alternative
+   * });
+   * ```
+   */
   async handleConnection(client: AuthenticatedSocket) {
     try {
       // Extraire le token du query ou des headers
@@ -51,7 +146,11 @@ export class MessagingGateway
 
       if (!token) {
         this.logger.warn("Client connecté sans token d'authentification");
-        client.disconnect();
+        this._sendErrorAndDisconnect(
+          client, 
+          'AUTH_TOKEN_MISSING', 
+          "Token d'authentification requis pour utiliser la messagerie"
+        );
         return;
       }
 
@@ -80,15 +179,18 @@ export class MessagingGateway
         username: client.username,
       });
     } catch (error) {
-      this.logger.error("❌ Erreur lors de l'authentification WebSocket:");
-      this.logger.error(error);
+      this.logger.error("❌ Erreur lors de l'authentification WebSocket:", error);
 
-      // Debug du token en cas d'erreur
+      // Debug du token en cas d'erreur (uniquement en dev)
       if (process.env.NODE_ENV === 'development') {
         this._debugTokenError(client, error);
       }
 
-      client.disconnect();
+      // Déterminer le type d'erreur et envoyer une réponse appropriée
+      const errorCode = this._getAuthErrorCode(error);
+      const errorMessage = this._getAuthErrorMessage(errorCode);
+      
+      this._sendErrorAndDisconnect(client, errorCode, errorMessage);
     }
   }
 
@@ -109,6 +211,30 @@ export class MessagingGateway
     }
   }
 
+  /**
+   * Gère l'envoi d'un message via WebSocket
+   * 
+   * Cette méthode handler reçoit un message du client, le persiste
+   * via le service de messagerie et le diffuse en temps réel au
+   * destinataire s'il est connecté. L'expéditeur reçoit confirmation.
+   * 
+   * @async
+   * @method handleSendMessage
+   * @param {AuthenticatedSocket} client - Client expéditeur
+   * @param {SendMessageDto} data - Données du message à envoyer
+   * @returns {Promise<void>}
+   * 
+   * @example
+   * ```javascript
+   * // Côté client - Envoi de message
+   * socket.emit('send_message', {
+   *   receiverId: 'recipient-user-id',
+   *   content: 'Bonjour en Yipunu!',
+   *   messageType: 'text',
+   *   metadata: { language: 'yipunu' }
+   * });
+   * ```
+   */
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -275,5 +401,58 @@ export class MessagingGateway
    */
   sendToConversation(conversationId: string, event: string, data: any) {
     this.server.to(`conversation_${conversationId}`).emit(event, data);
+  }
+
+  /**
+   * Envoie une erreur structurée au client avant de le déconnecter
+   */
+  private _sendErrorAndDisconnect(
+    client: AuthenticatedSocket, 
+    errorCode: string, 
+    message: string
+  ): void {
+    // Envoyer l'erreur au client avant la déconnexion
+    client.emit('auth_error', {
+      code: errorCode,
+      message: message,
+      timestamp: new Date().toISOString(),
+      action: 'disconnect'
+    });
+
+    // Délai court pour permettre l'envoi du message d'erreur
+    setTimeout(() => {
+      client.disconnect(true);
+    }, 100);
+  }
+
+  /**
+   * Détermine le code d'erreur d'authentification
+   */
+  private _getAuthErrorCode(error: any): string {
+    if (error.name === 'JsonWebTokenError') {
+      return 'AUTH_TOKEN_INVALID';
+    }
+    if (error.name === 'TokenExpiredError') {
+      return 'AUTH_TOKEN_EXPIRED';
+    }
+    if (error.name === 'NotBeforeError') {
+      return 'AUTH_TOKEN_NOT_ACTIVE';
+    }
+    return 'AUTH_FAILED';
+  }
+
+  /**
+   * Génère un message d'erreur utilisateur approprié
+   */
+  private _getAuthErrorMessage(errorCode: string): string {
+    const messages = {
+      'AUTH_TOKEN_MISSING': "Token d'authentification manquant",
+      'AUTH_TOKEN_INVALID': "Token d'authentification invalide",
+      'AUTH_TOKEN_EXPIRED': "Session expirée, veuillez vous reconnecter",
+      'AUTH_TOKEN_NOT_ACTIVE': "Token d'authentification pas encore valide",
+      'AUTH_FAILED': "Échec de l'authentification WebSocket"
+    };
+    
+    return messages[errorCode] || messages['AUTH_FAILED'];
   }
 }

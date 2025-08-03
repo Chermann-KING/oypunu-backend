@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TranslationGroup, TranslationGroupDocument } from '../../translation/schemas/translation-group.schema';
 import { ITranslationGroupRepository } from '../interfaces/translation-group.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 @Injectable()
 export class TranslationGroupRepository implements ITranslationGroupRepository {

@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service de gestion des permissions pour les mots O'Ypunu
+ * 
+ * Ce service centralise toute la logique de permissions pour les opérations
+ * sur les mots du dictionnaire avec validation des rôles, quotas utilisateur
+ * et contrôles d'accès granulaires selon les statuts et droits.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, ForbiddenException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { User, UserRole } from '../../../users/schemas/user.schema';
 import { CreateWordDto } from '../../dto/create-word.dto';
@@ -8,8 +20,22 @@ import { WordCoreService } from './word-core.service';
 import { QuotaService } from '../../../common/services/quota.service';
 
 /**
- * Implémentation du service de permissions pour les mots
- * PHASE 1 - ÉTAPE 1 : Centralisation permissions
+ * Service de gestion des permissions pour les mots O'Ypunu
+ * 
+ * Centralise toute la logique de permissions et de contrôle d'accès
+ * pour les opérations sur les mots avec validation des rôles,
+ * gestion des quotas et contrôles granulaires selon les statuts.
+ * 
+ * ## Fonctionnalités de permissions :
+ * - Validation création/modification selon rôles utilisateur
+ * - Contrôle d'accès granulaire par statut de mot
+ * - Gestion quotas par utilisateur et période
+ * - Permissions spéciales pour modérateurs/administrateurs
+ * - Validation des droits d'approbation et révision
+ * 
+ * @class WordPermissionService
+ * @implements {IWordPermissionService}
+ * @version 1.0.0
  */
 @Injectable()
 export class WordPermissionService implements IWordPermissionService {

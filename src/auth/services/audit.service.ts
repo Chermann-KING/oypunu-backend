@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service d'audit et de traçabilité pour O'Ypunu
+ * 
+ * Ce service gère l'enregistrement, la recherche et l'analyse des événements
+ * d'audit pour assurer la traçabilité, la conformité réglementaire et la
+ * sécurité de la plateforme O'Ypunu.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -8,36 +20,106 @@ import {
   AuditSeverity,
 } from '../schemas/audit-log.schema';
 
+/**
+ * Interface du contexte d'audit
+ * 
+ * @interface AuditContext
+ */
 export interface AuditContext {
+  /** ID de l'utilisateur effectuant l'action */
   userId?: string;
+  /** Nom d'utilisateur */
   username?: string;
+  /** Rôle de l'utilisateur */
   userRole?: string;
+  /** Adresse IP source */
   ipAddress?: string;
+  /** User-Agent du navigateur */
   userAgent?: string;
+  /** ID de session */
   sessionId?: string;
+  /** Chemin de la requête */
   requestPath?: string;
+  /** Méthode HTTP */
   requestMethod?: string;
 }
 
+/**
+ * Interface des détails d'audit
+ * 
+ * @interface AuditDetails
+ */
 export interface AuditDetails {
+  /** Ressource affectée */
   resource?: string;
+  /** Détails spécifiques à l'action */
   details?: Record<string, any>;
+  /** État avant modification */
   beforeState?: Record<string, any>;
+  /** État après modification */
   afterState?: Record<string, any>;
+  /** Métadonnées additionnelles */
   metadata?: Record<string, any>;
 }
 
+/**
+ * Service d'audit et de traçabilité des événements système
+ * 
+ * Ce service centralise l'enregistrement et l'analyse de tous les événements
+ * d'audit de la plateforme O'Ypunu pour assurer :
+ * 
+ * ## 📋 Fonctionnalités principales :
+ * - **Logging événements** : Enregistrement automatique des actions
+ * - **Recherche avancée** : Filtrage et pagination des logs
+ * - **Statistiques** : Analyse et métriques d'audit
+ * - **Nettoyage** : Gestion de la rétention des données
+ * 
+ * ## 🔐 Types d'événements trackés :
+ * - **Authentification** : Login, logout, échecs
+ * - **Autorisations** : Accès refusés, violations
+ * - **Modifications** : CRUD utilisateurs, contenu
+ * - **Sécurité** : Tentatives d'intrusion, anomalies
+ * 
+ * ## 📊 Niveaux de sévérité :
+ * - **LOW** : Événements informatifs normaux
+ * - **MEDIUM** : Événements nécessitant attention
+ * - **HIGH** : Événements de sécurité importants
+ * - **CRITICAL** : Événements critiques nécessitant intervention
+ * 
+ * @class AuditService
+ * @version 1.0.0
+ */
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
+  /**
+   * Constructeur du service d'audit
+   * 
+   * @constructor
+   * @param {Model<AuditLogDocument>} auditLogModel - Modèle Mongoose des logs d'audit
+   */
   constructor(
     @InjectModel(AuditLog.name)
     private auditLogModel: Model<AuditLogDocument>,
   ) {}
 
   /**
-   * 📊 Enregistre un événement d'audit
+   * Enregistre un événement d'audit dans le système
+   * 
+   * Méthode principale d'enregistrement qui persiste tous les événements
+   * d'audit avec leur contexte complet et déclenche des alertes pour
+   * les événements critiques.
+   * 
+   * @async
+   * @method logEvent
+   * @param {AuditAction} action - Type d'action auditée
+   * @param {AuditContext} context - Contexte utilisateur et technique
+   * @param {boolean} success - Indicateur de succès de l'opération
+   * @param {AuditSeverity} severity - Niveau de sévérité de l'événement
+   * @param {AuditDetails} auditDetails - Détails spécifiques à l'action
+   * @param {string} errorMessage - Message d'erreur en cas d'échec
+   * @returns {Promise<void>}
    */
   async logEvent(
     action: AuditAction,

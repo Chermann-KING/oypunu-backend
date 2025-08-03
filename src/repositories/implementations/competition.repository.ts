@@ -11,7 +11,7 @@ import {
   CompetitionFilters,
   LeaderboardEntry
 } from '../interfaces/competition.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 @Injectable()
 export class CompetitionRepository implements ICompetitionRepository {

@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Contrôleur REST pour la gestion des mots du dictionnaire
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -62,11 +69,35 @@ interface RequestWithUser {
 // Assertion de type
 const typedRolesGuard = RolesGuard as unknown as CanActivate;
 
+/**
+ * Contrôleur REST pour la gestion des mots du dictionnaire O'Ypunu
+ * 
+ * Expose les endpoints pour les opérations CRUD sur les mots, recherche avancée,
+ * gestion des traductions, upload audio et administration des contenus.
+ * 
+ * @class WordsController
+ */
 @ApiTags("dictionary")
 @Controller("words")
 export class WordsController {
+  /**
+   * Constructeur du contrôleur de mots
+   * @param {WordsService} wordsService - Service principal de gestion des mots
+   */
   constructor(private readonly wordsService: WordsService) {}
 
+  /**
+   * Crée un nouveau mot dans le dictionnaire
+   * 
+   * @async
+   * @function create
+   * @param {CreateWordDto} createWordDto - Données du mot à créer
+   * @param {RequestWithUser} req - Requête avec utilisateur authentifié
+   * @returns {Promise<Word>} Le mot créé
+   * @throws {BadRequestException} Si les données sont invalides
+   * @throws {UnauthorizedException} Si l'utilisateur n'est pas authentifié
+   * @throws {ForbiddenException} Si l'utilisateur n'a pas les permissions
+   */
   @Post()
   @ApiOperation({ summary: "Créer un nouveau mot" })
   @ApiResponse({

@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Service principal de gestion des communautés O'Ypunu
+ * 
+ * Ce service centralise toute la logique métier liée aux communautés,
+ * incluant création, gestion des membres, recherche, et modération.
+ * Il fournit une API complète pour les interactions communautaires
+ * avec validation des permissions et gestion d'erreurs robuste.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, NotFoundException, Inject } from "@nestjs/common";
 import { CommunityFiltersDto } from "../dto/community-filters.dto";
 import { CreateCommunityDto } from "../dto/create-community.dto";
@@ -6,6 +19,15 @@ import { Community } from "../schemas/community.schema";
 import { ICommunityRepository } from "../../repositories/interfaces/community.repository.interface";
 import { ICommunityMemberRepository } from "../../repositories/interfaces/community-member.repository.interface";
 
+/**
+ * Interface pour les requêtes de recherche de communautés MongoDB
+ * 
+ * @interface CommunityQuery
+ * @property {Array} [$or] - Conditions OR pour recherche textuelle
+ * @property {string} [language] - Filtre par langue de la communauté
+ * @property {string} [tags] - Filtre par tag spécifique
+ * @property {boolean} [isPrivate] - Filtre par visibilité publique/privée
+ */
 interface CommunityQuery {
   $or?: Array<{ [key: string]: { $regex: string; $options: string } }>;
   language?: string;
@@ -13,6 +35,16 @@ interface CommunityQuery {
   isPrivate?: boolean;
 }
 
+/**
+ * Interface pour les données utilisateur JWT
+ * 
+ * @interface JwtUser
+ * @property {string} [userId] - ID utilisateur alternatif
+ * @property {string} [_id] - ID utilisateur MongoDB
+ * @property {string} username - Nom d'utilisateur
+ * @property {string} email - Email utilisateur
+ * @property {string} role - Rôle utilisateur (USER, CONTRIBUTOR, ADMIN, etc.)
+ */
 interface JwtUser {
   userId?: string;
   _id?: string;
@@ -21,8 +53,51 @@ interface JwtUser {
   role: string;
 }
 
+/**
+ * Service principal de gestion des communautés O'Ypunu
+ * 
+ * Ce service centralise toute la logique métier des communautés avec
+ * une architecture robuste basée sur le pattern Repository et une
+ * gestion complète des permissions et validations.
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 🏗️ Gestion de communautés
+ * - Création avec assignation automatique d'admin
+ * - Mise à jour avec contrôle de permissions
+ * - Suppression en cascade (membres + posts)
+ * - Recherche multicritères optimisée
+ * 
+ * ### 👥 Gestion des membres
+ * - Adhésion et désadhésion sécurisées
+ * - Système de rôles hiérarchiques (member < moderator < admin)
+ * - Compteurs de membres automatiques
+ * - Validation des permissions pour actions sensibles
+ * 
+ * ### 🔍 Recherche et découverte
+ * - Recherche textuelle avec regex insensible à la casse
+ * - Filtrage par langue, tags et visibilité
+ * - Pagination optimisée pour grandes collections
+ * - Tri personnalisable (date, nom, nombre de membres)
+ * 
+ * ### 🛡️ Sécurité et permissions
+ * - Extraction sécurisée des IDs utilisateur
+ * - Validation des rôles pour toutes les actions
+ * - Protection contre les actions non autorisées
+ * - Logging détaillé pour audit et debugging
+ * 
+ * @class CommunitiesService
+ * @version 1.0.0
+ */
 @Injectable()
 export class CommunitiesService {
+  /**
+   * Constructeur du service avec injection des repositories
+   * 
+   * @constructor
+   * @param {ICommunityRepository} communityRepository - Repository des communautés
+   * @param {ICommunityMemberRepository} communityMemberRepository - Repository des membres
+   */
   constructor(
     @Inject("ICommunityRepository")
     private communityRepository: ICommunityRepository,
@@ -30,7 +105,26 @@ export class CommunitiesService {
     private communityMemberRepository: ICommunityMemberRepository
   ) {}
 
-  // Fonction utilitaire pour extraire l'ID utilisateur
+  /**
+   * Extrait l'ID utilisateur d'un objet JwtUser ou d'une chaîne
+   * 
+   * Méthode utilitaire qui normalise l'extraction de l'ID utilisateur
+   * à partir de différents formats d'entrée (string directe ou objet JWT).
+   * Gère les variations de noms de champs (_id vs userId).
+   * 
+   * @private
+   * @method _extractUserId
+   * @param {JwtUser | string} userOrId - Utilisateur JWT ou ID direct
+   * @returns {string} ID utilisateur extrait
+   * @throws {Error} Si aucun ID valide n'est trouvé
+   * 
+   * @example
+   * ```typescript
+   * const userId1 = this._extractUserId("507f1f77bcf86cd799439011");
+   * const userId2 = this._extractUserId({ userId: "507f...", username: "john" });
+   * const userId3 = this._extractUserId({ _id: "507f...", email: "john@example.com" });
+   * ```
+   */
   private _extractUserId(userOrId: JwtUser | string): string {
     if (typeof userOrId === "string") {
       return userOrId;
@@ -44,7 +138,31 @@ export class CommunitiesService {
     return userId;
   }
 
-  // Créer une communauté
+  /**
+   * Crée une nouvelle communauté avec assignation automatique d'admin
+   * 
+   * Cette méthode centrale crée une communauté et configure automatiquement
+   * le créateur comme administrateur. Elle effectue les opérations en
+   * deux étapes atomiques : création de la communauté puis ajout du membre admin.
+   * 
+   * @async
+   * @method create
+   * @param {CreateCommunityDto} createCommunityDto - Données de création
+   * @param {JwtUser | string} user - Utilisateur créateur
+   * @returns {Promise<Community>} Communauté créée avec métadonnées
+   * @throws {Error} Si la création échoue ou l'utilisateur est invalide
+   * 
+   * @example
+   * ```typescript
+   * const newCommunity = await this.communitiesService.create({
+   *   name: 'Développeurs Yipunu',
+   *   description: 'Communauté des développeurs de langues africaines',
+   *   language: 'fr',
+   *   tags: ['développement', 'yipunu'],
+   *   isPrivate: false
+   * }, currentUser);
+   * ```
+   */
   async create(
     createCommunityDto: CreateCommunityDto,
     user: JwtUser | string
@@ -69,7 +187,38 @@ export class CommunitiesService {
     return community;
   }
 
-  // Récupérer toutes les communautés (avec filtrage)
+  /**
+   * Récupère toutes les communautés avec filtrage avancé et pagination
+   * 
+   * Cette méthode complexe gère la recherche multicritères de communautés
+   * avec optimisations spécifiques selon le type de recherche :
+   * - Recherche textuelle : regex sur nom et description
+   * - Filtrage par langue : utilise l'index langue
+   * - Filtrage par tags : recherche dans tableau de tags
+   * - Tri personnalisable et pagination optimisée
+   * 
+   * @async
+   * @method findAll
+   * @param {CommunityFiltersDto} filters - Critères de recherche et pagination
+   * @returns {Promise<Object>} Résultat paginé avec communautés et métadonnées
+   * @property {Community[]} communities - Liste des communautés trouvées
+   * @property {number} total - Nombre total de résultats
+   * @property {number} page - Page actuelle
+   * @property {number} limit - Limite par page
+   * 
+   * @example
+   * ```typescript
+   * const result = await this.communitiesService.findAll({
+   *   page: 1,
+   *   limit: 20,
+   *   searchTerm: 'développement',
+   *   language: 'fr',
+   *   includePrivate: false,
+   *   sortBy: 'memberCount',
+   *   sortOrder: 'desc'
+   * });
+   * ```
+   */
   async findAll(filters: CommunityFiltersDto): Promise<{
     communities: Community[];
     total: number;
@@ -159,7 +308,32 @@ export class CommunitiesService {
     }
   }
 
-  // Rejoindre une communauté
+  /**
+   * Permet à un utilisateur de rejoindre une communauté
+   * 
+   * Cette méthode gère l'adhésion d'un utilisateur à une communauté avec
+   * vérification anti-duplication et mise à jour automatique des compteurs.
+   * Elle est idempotente : si l'utilisateur est déjà membre, elle retourne
+   * success=true sans erreur.
+   * 
+   * @async
+   * @method joinCommunity
+   * @param {string} communityId - ID de la communauté à rejoindre
+   * @param {JwtUser | string} userOrId - Utilisateur demandant l'adhésion
+   * @returns {Promise<Object>} Résultat de l'opération
+   * @property {boolean} success - Succès de l'adhésion
+   * 
+   * @example
+   * ```typescript
+   * const result = await this.communitiesService.joinCommunity(
+   *   '507f1f77bcf86cd799439011',
+   *   currentUser
+   * );
+   * if (result.success) {
+   *   console.log('Utilisateur ajouté à la communauté');
+   * }
+   * ```
+   */
   async joinCommunity(
     communityId: string,
     userOrId: JwtUser | string
@@ -252,7 +426,37 @@ export class CommunitiesService {
     return result.members;
   }
 
-  // Changer le rôle d'un membre
+  /**
+   * Met à jour le rôle d'un membre dans une communauté
+   * 
+   * Cette méthode critique gère la promotion/rétrogradation des membres
+   * avec validation stricte des permissions. Seuls les administrateurs
+   * peuvent modifier les rôles des autres membres. Elle inclut des
+   * vérifications de sécurité pour éviter les escalades de privilèges.
+   * 
+   * @async
+   * @method updateMemberRole
+   * @param {string} communityId - ID de la communauté
+   * @param {string} memberUserId - ID du membre à modifier
+   * @param {"admin" | "moderator" | "member"} newRole - Nouveau rôle à assigner
+   * @param {JwtUser | string} adminUserOrId - Administrateur effectuant la modification
+   * @returns {Promise<Object>} Résultat de l'opération
+   * @property {boolean} success - Succès de la modification
+   * @property {string} message - Message explicatif du résultat
+   * 
+   * @example
+   * ```typescript
+   * const result = await this.communitiesService.updateMemberRole(
+   *   communityId,
+   *   memberUserId,
+   *   'moderator',
+   *   adminUser
+   * );
+   * if (result.success) {
+   *   console.log('Rôle mis à jour:', result.message);
+   * }
+   * ```
+   */
   async updateMemberRole(
     communityId: string,
     memberUserId: string,
@@ -336,7 +540,29 @@ export class CommunitiesService {
     return { communities, total, page, limit };
   }
 
-  // Récupérer une communauté par son ID
+  /**
+   * Récupère une communauté spécifique par son ID
+   * 
+   * Méthode simple de récupération d'une communauté avec gestion d'erreur
+   * automatique si la communauté n'existe pas. Utilisée comme base pour
+   * de nombreuses autres opérations nécessitant une validation d'existence.
+   * 
+   * @async
+   * @method findOne
+   * @param {string} communityId - ID de la communauté à récupérer
+   * @returns {Promise<Community>} Communauté trouvée
+   * @throws {NotFoundException} Si la communauté n'existe pas
+   * 
+   * @example
+   * ```typescript
+   * try {
+   *   const community = await this.communitiesService.findOne(communityId);
+   *   console.log('Communauté trouvée:', community.name);
+   * } catch (error) {
+   *   console.error('Communauté non trouvée');
+   * }
+   * ```
+   */
   async findOne(communityId: string): Promise<Community> {
     const community = await this.communityRepository.findById(communityId);
 

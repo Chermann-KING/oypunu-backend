@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Service principal de gestion des mots - Orchestrateur des services spécialisés
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -28,14 +35,41 @@ import { IWordRepository } from "../../repositories/interfaces/word.repository.i
 import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-word.repository.interface";
 import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
 
+/**
+ * Service principal de gestion des mots du dictionnaire O'Ypunu
+ * 
+ * Agit comme orchestrateur en déléguant les opérations spécialisées vers des services dédiés.
+ * Gère les opérations CRUD, permissions, révisions, traductions, audio et analytiques.
+ * 
+ * @class WordsService
+ */
 @Injectable()
 export class WordsService {
+  /**
+   * Constructeur du service de gestion des mots
+   * 
+   * @param {CategoriesService} categoriesService - Service de gestion des catégories
+   * @param {UsersService} usersService - Service de gestion des utilisateurs
+   * @param {AudioService} audioService - Service de gestion audio (legacy)
+   * @param {ActivityService} activityService - Service de logging d'activités
+   * @param {WordAudioService} wordAudioService - Service spécialisé pour l'audio des mots
+   * @param {WordFavoriteService} wordFavoriteService - Service de gestion des favoris
+   * @param {WordAnalyticsService} wordAnalyticsService - Service d'analyses et statistiques
+   * @param {WordRevisionService} wordRevisionService - Service de gestion des révisions
+   * @param {WordTranslationService} wordTranslationService - Service de traductions
+   * @param {WordCoreService} wordCoreService - Service des opérations de base (CRUD)
+   * @param {WordPermissionService} wordPermissionService - Service de gestion des permissions
+   * @param {IRevisionHistoryRepository} revisionHistoryRepository - Repository des révisions
+   * @param {IWordRepository} wordRepository - Repository principal des mots
+   * @param {IFavoriteWordRepository} favoriteWordRepository - Repository des favoris
+   * @param {IWordViewRepository} wordViewRepository - Repository des vues de mots
+   */
   constructor(
     private categoriesService: CategoriesService,
     private usersService: UsersService,
     private audioService: AudioService,
     private activityService: ActivityService,
-    // PHASE 2-7 - Injection services spécialisés
+    // Services spécialisés par domaine métier
     private wordAudioService: WordAudioService,
     private wordFavoriteService: WordFavoriteService,
     private wordAnalyticsService: WordAnalyticsService,
@@ -43,7 +77,7 @@ export class WordsService {
     private wordTranslationService: WordTranslationService,
     private wordCoreService: WordCoreService,
     private wordPermissionService: WordPermissionService,
-    // Injection des repositories
+    // Repositories pour accès direct aux données
     @Inject("IRevisionHistoryRepository")
     private revisionHistoryRepository: IRevisionHistoryRepository,
     @Inject("IWordRepository")
@@ -63,6 +97,25 @@ export class WordsService {
     }
   }
 
+  /**
+   * Crée un nouveau mot dans le dictionnaire
+   * 
+   * @async
+   * @function create
+   * @param {CreateWordDto} createWordDto - Données du mot à créer
+   * @param {object} user - Utilisateur créateur
+   * @param {string} user._id - ID de l'utilisateur (format MongoDB)
+   * @param {string} user.userId - ID alternatif de l'utilisateur
+   * @param {string} user.role - Rôle de l'utilisateur
+   * @returns {Promise<Word>} Le mot créé avec son ID
+   * @throws {BadRequestException} Si l'utilisateur est invalide
+   * @example
+   * const word = await wordsService.create({
+   *   word: 'ubuntu',
+   *   language: 'zu',
+   *   definition: 'humanité envers les autres'
+   * }, { _id: 'user-id', role: 'CONTRIBUTOR' });
+   */
   async create(
     createWordDto: CreateWordDto,
     user: { _id?: string; userId?: string; role: string }
@@ -99,7 +152,19 @@ export class WordsService {
     );
   }
 
-  // PHASE 2-1: DÉLÉGATION COMPLÈTE vers WordCoreService (sans adaptation)
+  /**
+   * Récupère une liste paginée de mots avec filtrage par statut
+   * 
+   * @async
+   * @function findAll
+   * @param {number} page - Numéro de page (défaut: 1)
+   * @param {number} limit - Nombre d'éléments par page (défaut: 10)  
+   * @param {string} status - Statut des mots à récupérer (défaut: "approved")
+   * @returns {Promise<{words: Word[], total: number, page: number, limit: number, totalPages: number}>} Liste paginée de mots
+   * @example
+   * const result = await wordsService.findAll(1, 20, 'approved');
+   * // { words: [...], total: 150, page: 1, limit: 20, totalPages: 8 }
+   */
   async findAll(
     page = 1,
     limit = 10,
@@ -116,8 +181,15 @@ export class WordsService {
   }
 
   /**
-   * Récupère un mot par ID
-   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   * Récupère un mot spécifique par son ID
+   * 
+   * @async
+   * @function findOne
+   * @param {string} id - ID unique du mot
+   * @returns {Promise<Word>} Le mot correspondant à l'ID
+   * @throws {NotFoundException} Si le mot n'existe pas
+   * @example
+   * const word = await wordsService.findOne('60f7b3b3b3b3b3b3b3b3b3b3');
    */
   async findOne(id: string): Promise<Word> {
     console.log("🎭 WordsService.findOne - Délégation vers WordCoreService");
@@ -697,8 +769,19 @@ export class WordsService {
   }
 
   /**
-   * Recherche des mots avec filtres
-   * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
+   * Effectue une recherche avancée de mots avec filtres multiples
+   * 
+   * @async
+   * @function search
+   * @param {SearchWordsDto} searchDto - Critères de recherche
+   * @returns {Promise<{words: Word[], total: number, page: number, limit: number}>} Résultats de recherche paginés
+   * @example
+   * const results = await wordsService.search({
+   *   query: 'ubuntu',
+   *   language: 'zu',
+   *   page: 1,
+   *   limit: 10
+   * });
    */
   async search(searchDto: SearchWordsDto): Promise<{
     words: Word[];

@@ -1,20 +1,56 @@
+/**
+ * @fileoverview Schéma Mongoose pour les demandes de contribution O'Ypunu
+ * 
+ * Ce schéma définit le modèle des demandes de statut contributeur avec workflow
+ * complet de modération, système de priorités, tracking temporel et intégration
+ * aux notifications pour un processus d'approbation transparent.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { User } from './user.schema';
 
+/**
+ * Type document Mongoose pour les demandes de contribution
+ * @typedef {ContributorRequest & Document} ContributorRequestDocument
+ */
 export type ContributorRequestDocument = ContributorRequest & Document;
 
+/**
+ * Énumération des statuts de demande de contribution
+ * 
+ * @enum {string} ContributorRequestStatus
+ * @readonly
+ */
 export enum ContributorRequestStatus {
+  /** Demande en attente de révision */
   PENDING = 'pending',
+  /** Demande approuvée, utilisateur promu */
   APPROVED = 'approved',
+  /** Demande rejetée avec justification */
   REJECTED = 'rejected',
+  /** Demande en cours d'examen détaillé */
   UNDER_REVIEW = 'under_review',
 }
 
+/**
+ * Énumération des priorités de traitement des demandes
+ * 
+ * @enum {string} ContributorRequestPriority
+ * @readonly
+ */
 export enum ContributorRequestPriority {
+  /** Priorité basse - traitement standard */
   LOW = 'low',
+  /** Priorité moyenne - traitement normal */
   MEDIUM = 'medium',
+  /** Priorité haute - traitement accéléré */
   HIGH = 'high',
+  /** Priorité urgente - traitement immédiat */
   URGENT = 'urgent',
 }
 

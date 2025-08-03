@@ -1,17 +1,44 @@
+/**
+ * @fileoverview Middleware de sécurité HTTP headers pour O'Ypunu
+ * 
+ * Ce middleware applique automatiquement les headers de sécurité HTTP essentiels
+ * pour protéger contre les attaques web courantes (XSS, clickjacking, MIME sniffing)
+ * et implémenter les meilleures pratiques de sécurité navigateur.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { ConfigService } from '@nestjs/config';
 
 /**
- * 🛡️ MIDDLEWARE DE SÉCURITÉ - HEADERS HTTP
+ * Middleware de sécurité HTTP headers avec détection d'intrusions
  * 
- * Ce middleware applique les headers de sécurité essentiels :
- * - Content Security Policy (CSP)
- * - X-Frame-Options (protection clickjacking)
- * - X-Content-Type-Options (protection MIME sniffing)
- * - Strict-Transport-Security (HTTPS forcé)
- * - X-XSS-Protection (protection XSS)
- * - Referrer-Policy (contrôle des référents)
+ * Ce middleware implémente une défense en profondeur en appliquant
+ * automatiquement les headers de sécurité modernes et en détectant
+ * les tentatives d'attaques via l'analyse des requêtes.
+ * 
+ * ## 🛡️ Headers de sécurité appliqués :
+ * - **Content Security Policy** : Prévention XSS et injection de code
+ * - **X-Frame-Options** : Protection contre le clickjacking
+ * - **X-Content-Type-Options** : Prévention du MIME sniffing
+ * - **Strict-Transport-Security** : Force HTTPS en production
+ * - **X-XSS-Protection** : Protection XSS legacy
+ * - **Referrer-Policy** : Contrôle des informations de référent
+ * - **Permissions-Policy** : Contrôle des APIs navigateur
+ * 
+ * ## 🔍 Détection d'intrusions :
+ * - User-Agents suspects (outils de hacking)
+ * - Tentatives d'injection (SQL, XSS, path traversal)
+ * - Scans de ports et répertoires
+ * - Volume de requêtes anormal
+ * 
+ * @class SecurityHeadersMiddleware
+ * @implements NestMiddleware
+ * @version 1.0.0
  */
 @Injectable()
 export class SecurityHeadersMiddleware implements NestMiddleware {

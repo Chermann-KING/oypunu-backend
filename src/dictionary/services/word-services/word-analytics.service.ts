@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service spécialisé pour les analytics et statistiques des mots O'Ypunu
+ * 
+ * Ce service gère toutes les opérations d'analytics et de statistiques
+ * sur les mots du dictionnaire avec calculs optimisés, agrégations
+ * MongoDB et rapports détaillés pour tableaux de bord administrateurs.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -6,11 +18,24 @@ import {
   WordView,
   WordViewDocument,
 } from "../../../users/schemas/word-view.schema";
-import { DatabaseErrorHandler } from "../../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../../common/errors";
 
 /**
- * Service spécialisé pour les analytics et statistiques des mots
- * PHASE 4 - Extraction des responsabilités analytics depuis WordsService
+ * Service spécialisé pour les analytics et statistiques des mots O'Ypunu
+ * 
+ * Service dédié extrait du WordsService principal pour séparer les
+ * responsabilités analytics avec calculs optimisés, agrégations
+ * MongoDB performantes et génération de rapports statistiques.
+ * 
+ * ## Fonctionnalités analytics :
+ * - Comptages de mots par statut et période
+ * - Statistiques de consultation et d'usage
+ * - Analytics par langue et catégorie
+ * - Rapports d'activité temporels
+ * - Métriques de performance du dictionnaire
+ * 
+ * @class WordAnalyticsService
+ * @version 1.0.0
  */
 @Injectable()
 export class WordAnalyticsService {

@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Service de messagerie basique pour O'Ypunu
+ * 
+ * Ce service fournit les fonctionnalités de base de messagerie privée
+ * entre utilisateurs avec gestion des conversations, envoi/réception
+ * de messages et suivi des messages non lus. Il constitue l'API
+ * de compatibilité pour les intégrations existantes.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -12,8 +25,51 @@ import { IMessageRepository } from "../../repositories/interfaces/message.reposi
 import { IConversationRepository } from "../../repositories/interfaces/conversation.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 
+/**
+ * Service de messagerie basique O'Ypunu
+ * 
+ * Service fondamental de messagerie privée entre utilisateurs avec
+ * fonctionnalités essentielles et architecture repository pattern :
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 💬 Gestion des messages
+ * - Envoi de messages privés entre utilisateurs
+ * - Support types multiples (text, image, file, system)
+ * - Validation expéditeur/destinataire avec vérifications d'existence
+ * - Métadonnées extensibles pour enrichissements futurs
+ * 
+ * ### 🗨️ Gestion des conversations
+ * - Création automatique de conversations privées
+ * - Récupération historique avec pagination optimisée
+ * - Validation des permissions d'accès par participant
+ * - Mise à jour des derniers messages pour UI
+ * 
+ * ### 🔍 Suivi et notifications
+ * - Marquage messages lus/non lus par conversation
+ * - Compteur global messages non lus par utilisateur
+ * - Validation stricte des permissions d'accès
+ * - Transformation données pour cohérence frontend
+ * 
+ * ### 🛡️ Sécurité intégrée
+ * - Vérification d'appartenance aux conversations
+ * - Protection contre auto-messages
+ * - Validation existence utilisateurs
+ * - Contrôle d'accès granulaire
+ * 
+ * @class MessagingService
+ * @version 1.0.0
+ */
 @Injectable()
 export class MessagingService {
+  /**
+   * Constructeur avec injection des repositories
+   * 
+   * @constructor
+   * @param {IMessageRepository} messageRepository - Repository des messages
+   * @param {IConversationRepository} conversationRepository - Repository des conversations
+   * @param {IUserRepository} userRepository - Repository des utilisateurs
+   */
   constructor(
     @Inject("IMessageRepository") private messageRepository: IMessageRepository,
     @Inject("IConversationRepository")
@@ -22,7 +78,33 @@ export class MessagingService {
   ) {}
 
   /**
-   * Envoyer un message
+   * Envoie un message privé entre deux utilisateurs
+   * 
+   * Cette méthode centrale gère l'envoi de messages avec création
+   * automatique de conversation si nécessaire. Elle valide les
+   * participants, empêche l'auto-envoi et maintient la cohérence
+   * des conversations avec mise à jour des métadonnées.
+   * 
+   * @async
+   * @method sendMessage
+   * @param {string} senderId - ID de l'utilisateur expéditeur
+   * @param {SendMessageDto} sendMessageDto - Données du message à envoyer
+   * @returns {Promise<any>} Message créé avec données enrichies
+   * @throws {NotFoundException} Si expéditeur ou destinataire n'existe pas
+   * @throws {BadRequestException} Si tentative d'auto-envoi
+   * 
+   * @example
+   * ```typescript
+   * const message = await this.messagingService.sendMessage(
+   *   userId,
+   *   {
+   *     receiverId: 'recipient-id',
+   *     content: 'Bonjour en Yipunu!',
+   *     messageType: 'text',
+   *     metadata: { language: 'yipunu' }
+   *   }
+   * );
+   * ```
    */
   async sendMessage(
     senderId: string,

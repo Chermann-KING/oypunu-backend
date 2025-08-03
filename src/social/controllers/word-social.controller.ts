@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Contrôleur REST pour les fonctionnalités sociales O'Ypunu
+ * 
+ * Ce contrôleur orchestre toutes les interactions sociales autour des mots
+ * du dictionnaire : votes, commentaires, partages, tendances, mot du jour
+ * et analytics communautaires pour créer une expérience sociale riche.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -22,6 +34,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { WordSocialService } from '../services/word-social.service';
 
+/**
+ * Interface pour les requêtes avec utilisateur authentifié optionnel
+ * @interface RequestWithUser
+ */
 interface RequestWithUser {
   user?: {
     _id: string;
@@ -29,35 +45,117 @@ interface RequestWithUser {
   };
 }
 
-// DTOs
+/**
+ * DTO pour l'ajout de commentaires sur les mots
+ * @class CommentDto
+ */
 class CommentDto {
+  /** Contenu du commentaire */
   content: string;
-  parentId?: string; // Pour les réponses aux commentaires
+  /** ID du commentaire parent pour les réponses hiérarchiques */
+  parentId?: string;
 }
 
+/**
+ * DTO pour le partage de mots sur les réseaux sociaux
+ * @class ShareDto
+ */
 class ShareDto {
+  /** Plateforme de partage cible */
   platform: 'facebook' | 'twitter' | 'linkedin' | 'whatsapp' | 'telegram' | 'email';
+  /** Message personnalisé pour le partage */
   message?: string;
-  recipients?: string[]; // Pour email ou messages privés
+  /** Liste des destinataires pour email ou messages privés */
+  recipients?: string[];
 }
 
+/**
+ * DTO pour la notation des mots (système 1-5 étoiles)
+ * @class RatingDto
+ */
 class RatingDto {
-  rating: number; // 1-5 étoiles
+  /** Note attribuée de 1 à 5 étoiles */
+  rating: number;
+  /** Commentaire optionnel expliquant la note */
   comment?: string;
 }
 
+/**
+ * DTO pour les votes sophistiqués avec réactions contextuelles
+ * @class VoteDto
+ */
 class VoteDto {
+  /** Type de réaction spécifique */
   reactionType: 'like' | 'love' | 'helpful' | 'accurate' | 'clear' | 'funny' | 'insightful' | 'disagree';
+  /** Contexte de la réaction (mot global, définition spécifique, etc.) */
   context?: 'word' | 'definition' | 'pronunciation' | 'etymology' | 'example' | 'translation';
+  /** ID spécifique du contexte (ex: ID d'une définition particulière) */
   contextId?: string;
+  /** Commentaire expliquant la réaction */
   comment?: string;
 }
 
+/**
+ * Contrôleur REST pour les fonctionnalités sociales O'Ypunu
+ * 
+ * Orchestre un écosystème social complet autour des mots du dictionnaire
+ * avec interactions avancées, analytics communautaires et engagement
+ * utilisateur pour enrichir l'expérience d'apprentissage linguistique.
+ * 
+ * ## 🎯 Fonctionnalités principales :
+ * 
+ * ### 🗳️ Système de votes sophistiqué
+ * - **Réactions contextuelles** : Votes spécifiques par composant (définition, prononciation, etc.)
+ * - **Pondération intelligente** : Basée sur la réputation utilisateur
+ * - **Analytics avancées** : Statistiques de qualité et popularité
+ * 
+ * ### 💬 Commentaires et discussions
+ * - **Hiérarchie de réponses** : Commentaires imbriqués avec threads
+ * - **Modération communautaire** : Likes/dislikes sur commentaires
+ * - **Gestion des droits** : Suppression par auteurs et modérateurs
+ * 
+ * ### 📊 Tendances et découverte
+ * - **Mot du jour** : Challenge quotidien avec statistiques
+ * - **Mots tendance** : Algorithme de scoring dynamique temporel
+ * - **Qualité communautaire** : Classement par excellence des contributions
+ * 
+ * ### 🤝 Partage social
+ * - **Multi-plateformes** : Facebook, Twitter, LinkedIn, WhatsApp, etc.
+ * - **Personnalisation** : Messages adaptés par plateforme
+ * - **Analytics de partage** : Tracking et métriques d'engagement
+ * 
+ * ### 📈 Examples et enrichissement
+ * - **Contributions communautaires** : Exemples d'usage authentiques
+ * - **Contextes variés** : Formel, informel, technique, littéraire
+ * - **Validation collaborative** : Système de votes sur exemples
+ * 
+ * @class WordSocialController
+ * @version 1.0.0
+ */
 @ApiTags('word-social')
 @Controller('words')
 export class WordSocialController {
+  /**
+   * Constructeur du contrôleur social
+   * @param {WordSocialService} wordSocialService - Service de logique métier sociale
+   */
   constructor(private readonly wordSocialService: WordSocialService) {}
 
+  /**
+   * Récupère le mot du jour avec challenge et statistiques sociales
+   * 
+   * Endpoint central pour l'engagement quotidien des utilisateurs.
+   * Retourne un mot sélectionné avec son challenge associé, ses statistiques
+   * de popularité et des informations enrichissantes pour stimuler l'apprentissage.
+   * 
+   * @method getWordOfTheDay
+   * @returns {Promise<Object>} Mot du jour avec challenge, stats et infos enrichissantes
+   * @throws {InternalServerErrorException} Si erreur lors de la récupération
+   * 
+   * @example
+   * GET /words/word-of-the-day
+   * // Retourne: { word: {...}, challenge: {...}, stats: {...}, didYouKnow: "..." }
+   */
   @Get('word-of-the-day')
   @ApiOperation({ summary: 'Récupérer le mot du jour' })
   @ApiResponse({
@@ -636,6 +734,28 @@ export class WordSocialController {
     return this.wordSocialService.getRelatedDiscussions(wordId, +limit);
   }
 
+  /**
+   * Enregistre un vote sophistiqué avec réaction contextuelle sur un mot
+   * 
+   * Système de vote avancé permettant des réactions granulaires sur différents
+   * aspects d'un mot (définition, prononciation, étymologie, etc.) avec
+   * pondération basée sur la réputation utilisateur et gestion intelligente
+   * des votes multiples/changements d'avis.
+   * 
+   * @method voteForWord
+   * @param {string} wordId - ID du mot à voter
+   * @param {VoteDto} voteDto - Données du vote avec type de réaction et contexte
+   * @param {RequestWithUser} req - Requête avec informations utilisateur
+   * @returns {Promise<Object>} Résultat du vote avec action effectuée et statistiques
+   * @throws {UnauthorizedException} Si utilisateur non authentifié
+   * @throws {BadRequestException} Si paramètres de vote invalides
+   * @throws {NotFoundException} Si mot non trouvé
+   * 
+   * @example
+   * POST /words/60a1b2c3d4e5f6a7b8c9d0e1/vote
+   * Body: { reactionType: "accurate", context: "definition", contextId: "def_1", comment: "Très précis!" }
+   * // Retourne: { action: "created", reactionType: "accurate", totalVotes: 15, message: "Vote enregistré" }
+   */
   @Post(':id/vote')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

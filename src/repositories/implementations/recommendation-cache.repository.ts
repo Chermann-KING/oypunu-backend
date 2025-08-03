@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { RecommendationCache, RecommendationCacheDocument } from '../../recommendations/schemas/recommendation-cache.schema';
 import { IRecommendationCacheRepository } from '../interfaces/recommendation-cache.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 @Injectable()
 export class RecommendationCacheRepository implements IRecommendationCacheRepository {

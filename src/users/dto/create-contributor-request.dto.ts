@@ -1,3 +1,15 @@
+/**
+ * @fileoverview DTO pour la création de demandes de contribution O'Ypunu
+ * 
+ * Ce fichier définit la structure de données pour soumettre une demande
+ * de statut contributeur avec validation complète des informations requises,
+ * liens professionnels et engagement communautaire pour évaluation.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   IsString,
   IsEmail,
@@ -13,6 +25,48 @@ import {
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { USER_LIMITS, VALIDATION_LIMITS, VALIDATION_MESSAGES } from "../../common/constants/validation-limits.constants";
 
+/**
+ * DTO pour la création d'une demande de contribution
+ * 
+ * Structure de données complète pour soumettre une candidature au statut
+ * de contributeur avec informations personnelles, expérience et engagement.
+ * 
+ * ## 📝 Informations obligatoires :
+ * - **Motivation** : Explication détaillée des raisons de candidature
+ * - **Engagement** : Acceptation des règles de la communauté
+ * 
+ * ## 📊 Informations optionnelles :
+ * - **Expérience** : Background linguistique et professionnel
+ * - **Langues maîtrisées** : Compétences linguistiques
+ * - **Profils professionnels** : LinkedIn, GitHub, portfolio
+ * 
+ * ## 🔒 Validation stricte :
+ * - **Longueurs** : Limites min/max respectées pour tous les champs
+ * - **URLs** : Validation des formats et domaines autorisés
+ * - **Engagement** : Confirmation obligatoire des règles
+ * - **Patterns** : Regex pour LinkedIn et GitHub spécifiques
+ * 
+ * ## 🌍 Contexte O'Ypunu :
+ * - **Patrimoine linguistique** : Focus sur les langues africaines
+ * - **Qualité** : Sélection rigoureuse des contributeurs
+ * - **Communauté** : Respect des valeurs et objectifs partagés
+ * 
+ * @class CreateContributorRequestDto
+ * @version 1.0.0
+ * 
+ * @example
+ * ```typescript
+ * const request: CreateContributorRequestDto = {
+ *   motivation: "Passionné par les langues africaines...",
+ *   experience: "Diplômé en linguistique, 5 ans d'enseignement...",
+ *   languages: "Ypunu (natif), Français (courant), Anglais (intermédiaire)",
+ *   commitment: true,
+ *   linkedIn: "https://linkedin.com/in/monprofil",
+ *   github: "https://github.com/moncompte",
+ *   portfolio: "https://monportfolio.com"
+ * };
+ * ```
+ */
 export class CreateContributorRequestDto {
   @ApiProperty({
     description: "Motivation pour devenir contributeur",

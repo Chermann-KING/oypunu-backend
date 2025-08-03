@@ -13,7 +13,7 @@ import {
   UpdateRefreshTokenData,
   RefreshTokenQueryOptions,
 } from '../interfaces/refresh-token.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 🔐 REFRESH TOKEN REPOSITORY - IMPLÉMENTATION MONGOOSE

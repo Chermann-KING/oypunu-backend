@@ -4,7 +4,7 @@ import { IUserRepository } from '../../repositories/interfaces/user.repository.i
 import { IWordViewRepository } from '../../repositories/interfaces/word-view.repository.interface';
 import { IWordVoteRepository } from '../../repositories/interfaces/word-vote.repository.interface';
 import { IFavoriteWordRepository } from '../../repositories/interfaces/favorite-word.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 export interface RecommendationItem {
   id: string;

@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Contrôleur REST de messagerie basique pour O'Ypunu
+ * 
+ * Ce contrôleur fournit une API REST de compatibilité pour la messagerie
+ * tout en utilisant le service Enhanced en arrière-plan. Il maintient
+ * la compatibilité ascendante pour les clients existants avec une
+ * transition transparente vers les fonctionnalités avancées.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -23,6 +36,16 @@ import { SendMessageDto } from "../dto/send-message.dto";
 import { GetMessagesDto } from "../dto/get-messages.dto";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 
+/**
+ * Interface pour les requêtes authentifiées avec données utilisateur JWT
+ * 
+ * @interface AuthenticatedRequest
+ * @extends Request
+ * @property {Object} user - Données utilisateur extraites du token JWT
+ * @property {string} user.userId - ID unique de l'utilisateur
+ * @property {string} user.username - Nom d'utilisateur
+ * @property {string} user.email - Email de l'utilisateur
+ */
 interface AuthenticatedRequest extends Request {
   user: {
     userId: string;
@@ -31,16 +54,79 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+/**
+ * Contrôleur REST de messagerie de compatibilité O'Ypunu
+ * 
+ * Ce contrôleur maintient l'API REST existante pour la messagerie
+ * tout en utilisant le service Enhanced pour bénéficier des
+ * fonctionnalités avancées. Il assure une transition en douceur :
+ * 
+ * ## Fonctionnalités de compatibilité :
+ * 
+ * ### 📡 API REST standard
+ * - Endpoints familiers pour clients existants
+ * - Authentification JWT obligatoire sur tous les endpoints
+ * - Documentation Swagger complète et cohérente
+ * - Codes de statut HTTP standards et descriptifs
+ * 
+ * ### 🔄 Migration transparente
+ * - Utilise MessagingEnhancedService en arrière-plan
+ * - Maintient les interfaces existantes intactes
+ * - Format de réponse uniforme avec structure success/data
+ * - Gestion d'erreurs harmonisée
+ * 
+ * ### 🛡️ Sécurité intégrée
+ * - JwtAuthGuard sur tous les endpoints
+ * - Validation des permissions automatique
+ * - Extraction sécurisée des données utilisateur
+ * - Protection contre l'accès non autorisé
+ * 
+ * @class MessagingController
+ * @version 1.0.0
+ */
 @ApiTags("messaging")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller("messaging")
 export class MessagingController {
+  /**
+   * Constructeur avec injection des services
+   * 
+   * @constructor
+   * @param {MessagingService} messagingService - Service basique (compatibilité)
+   * @param {MessagingEnhancedService} messagingEnhancedService - Service avancé utilisé
+   */
   constructor(
-    private readonly messagingService: MessagingService, // 👈 Garde l'ancien pour compatibilité
-    private readonly messagingEnhancedService: MessagingEnhancedService // 👈 Ajoute le nouveau
+    private readonly messagingService: MessagingService,
+    private readonly messagingEnhancedService: MessagingEnhancedService
   ) {}
 
+  /**
+   * Envoie un message privé via API REST
+   * 
+   * Endpoint de compatibilité pour l'envoi de messages qui utilise
+   * le service Enhanced tout en maintenant l'interface familière.
+   * Valide automatiquement l'authentification et les permissions.
+   * 
+   * @async
+   * @method sendMessage
+   * @param {AuthenticatedRequest} req - Requête avec utilisateur authentifié
+   * @param {SendMessageDto} sendMessageDto - Données validées du message
+   * @returns {Promise<Object>} Réponse avec success/data structure
+   * 
+   * @example
+   * ```bash
+   * POST /messaging/send
+   * Authorization: Bearer <jwt-token>
+   * Content-Type: application/json
+   * 
+   * {
+   *   "receiverId": "user-id-456",
+   *   "content": "Salut! Comment ça va?",
+   *   "messageType": "text"
+   * }
+   * ```
+   */
   @Post("send")
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Envoyer un message" })

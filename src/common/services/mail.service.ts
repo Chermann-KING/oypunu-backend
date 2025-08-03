@@ -1,48 +1,117 @@
+/**
+ * @fileoverview Service d'envoi d'emails transactionnels pour O'Ypunu
+ * 
+ * Ce service gère l'envoi de tous les emails transactionnels de la plateforme
+ * avec des templates HTML personnalisés, gestion d'erreurs robuste et
+ * support multi-langues. Il inclut des emails pour l'authentification,
+ * les demandes de contributeur, les notifications admin et les rapports.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
-// Interfaces pour les templates d'emails
+// === INTERFACES POUR TEMPLATES D'EMAILS ===
+
+/**
+ * Interface pour confirmation de demande contributeur
+ * 
+ * @interface ContributorRequestConfirmationData
+ */
 interface ContributorRequestConfirmationData {
+  /** Adresse email du destinataire */
   to: string;
+  /** Nom d'utilisateur du demandeur */
   username: string;
+  /** ID de la demande pour tracking */
   requestId: string;
 }
 
+/**
+ * Interface pour notification d'approbation contributeur
+ * 
+ * @interface ContributorRequestApprovedData
+ */
 interface ContributorRequestApprovedData {
+  /** Adresse email du destinataire */
   to: string;
+  /** Nom d'utilisateur du nouveau contributeur */
   username: string;
+  /** Nom du réviseur qui a approuvé */
   reviewerName: string;
+  /** Notes optionnelles du réviseur */
   reviewNotes?: string;
 }
 
+/**
+ * Interface pour notification de rejet contributeur
+ * 
+ * @interface ContributorRequestRejectedData
+ */
 interface ContributorRequestRejectedData {
+  /** Adresse email du destinataire */
   to: string;
+  /** Nom d'utilisateur du demandeur */
   username: string;
+  /** Nom du réviseur qui a rejeté */
   reviewerName: string;
+  /** Raison du rejet */
   rejectionReason?: string;
+  /** Notes détaillées du réviseur */
   reviewNotes?: string;
 }
 
+/**
+ * Interface pour notification de mise sous révision
+ * 
+ * @interface ContributorRequestUnderReviewData
+ */
 interface ContributorRequestUnderReviewData {
+  /** Adresse email du destinataire */
   to: string;
+  /** Nom d'utilisateur du demandeur */
   username: string;
+  /** Nom du réviseur assigné */
   reviewerName: string;
+  /** Notes initiales du réviseur */
   reviewNotes?: string;
 }
 
+/**
+ * Interface pour email de bienvenue contributeur
+ * 
+ * @interface ContributorWelcomeData
+ */
 interface ContributorWelcomeData {
+  /** Adresse email du destinataire */
   to: string;
+  /** Nom d'utilisateur du nouveau contributeur */
   username: string;
+  /** Nouveau rôle attribué */
   newRole: string;
+  /** Date de promotion */
   promotedAt: Date;
 }
 
+/**
+ * Interface pour notification admin de nouvelle demande
+ * 
+ * @interface AdminNewContributorRequestData
+ */
 interface AdminNewContributorRequestData {
+  /** Adresse email de l'administrateur */
   to: string;
+  /** Nom de l'administrateur */
   adminName: string;
+  /** Nom du candidat */
   applicantName: string;
+  /** ID de la demande */
   requestId: string;
+  /** Niveau de priorité */
   priority: string;
 }
 
@@ -65,11 +134,92 @@ interface WeeklyContributorStatsData {
   };
 }
 
+/**
+ * Interface pour alerte urgente de demande contributeur
+ * 
+ * @interface UrgentContributorRequestAlertData
+ */
+interface UrgentContributorRequestAlertData {
+  /** Adresse email de l'administrateur */
+  to: string;
+  /** Nom de l'administrateur */
+  adminName: string;
+  /** Nom du candidat */
+  applicantName: string;
+  /** ID de la demande */
+  requestId: string;
+  /** Niveau de priorité */
+  priority: string;
+  /** Raison de l'alerte */
+  reason: string;
+}
+
+/**
+ * Interface pour alerte de métriques critiques
+ * 
+ * @interface CriticalMetricsAlertData
+ */
+interface CriticalMetricsAlertData {
+  /** Adresse email de l'administrateur */
+  to: string;
+  /** Nom de l'administrateur */
+  adminName: string;
+  /** Métriques critiques */
+  metrics: {
+    pendingCount: number;
+    urgentCount: number;
+    avgProcessingTime: number;
+    approvalRate: number;
+  };
+  /** Recommandations d'amélioration */
+  recommendations: string[];
+}
+
+/**
+ * Service d'envoi d'emails transactionnels pour O'Ypunu
+ * 
+ * Ce service fournit une interface unifiée pour l'envoi d'emails
+ * transactionnels avec des fonctionnalités avancées :
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 📧 Emails transactionnels
+ * - Templates HTML responsive personnalisés
+ * - Emails d'authentification (vérification, réinitialisation)
+ * - Notifications de workflow contributeur
+ * - Rapports administrateur automatiques
+ * 
+ * ### 🌐 Support multi-environnement
+ * - Configuration SMTP flexible
+ * - Mode développement avec logging
+ * - Gestion gracieuse des échecs
+ * - Retry automatique sur échec temporaire
+ * 
+ * ### 🛡️ Sécurité et conformité
+ * - Validation des adresses email
+ * - Protection contre le spam
+ * - Logging détaillé pour audit
+ * - Gestion des erreurs robuste
+ * 
+ * @class MailService
+ * @version 1.0.0
+ */
 @Injectable()
 export class MailService {
+  /** Transporteur Nodemailer pour envoi SMTP */
   private _transporter: nodemailer.Transporter;
+  /** Logger pour traçabilité des envois */
   private readonly _logger = new Logger(MailService.name);
 
+  /**
+   * Constructeur du service mail
+   * 
+   * Initialise le transporteur SMTP avec la configuration d'environnement
+   * et gère gracieusement les configurations manquantes.
+   * 
+   * @constructor
+   * @param {ConfigService} _configService - Service de configuration NestJS
+   */
   constructor(private _configService: ConfigService) {
     // Vérifier si les variables d'environnement sont définies
     const mailHost = this._configService.get<string>('MAIL_HOST');
@@ -1653,6 +1803,315 @@ export class MailService {
       this._logger.error(
         `❌ Erreur lors de l'envoi du rapport hebdomadaire: ${errorMessage}`,
       );
+    }
+  }
+
+  /**
+   * Envoie une alerte urgente pour les demandes de contributeur
+   */
+  async sendUrgentContributorRequestAlert(data: UrgentContributorRequestAlertData) {
+    if (!this._transporter) {
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
+      return;
+    }
+
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+    const adminUrl = `${frontendUrl}/admin/contributor-requests`;
+
+    const emailTemplate = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🚨 ALERTE URGENTE - Demande de contribution</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f8f9fa;
+            }
+            .container {
+                background-color: white;
+                border-radius: 10px;
+                padding: 40px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border: 3px solid #dc2626;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .alert-badge {
+                background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 50px;
+                font-weight: 700;
+                font-size: 16px;
+                display: inline-block;
+                margin: 10px 0;
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .urgent-box {
+                background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+                border: 2px solid #dc2626;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 8px;
+            }
+            .action-button {
+                display: inline-block;
+                background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+                color: white !important;
+                padding: 15px 30px;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 16px;
+                text-align: center;
+                margin: 20px 0;
+                transition: transform 0.2s;
+            }
+            .action-button:hover {
+                transform: translateY(-2px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div style="font-size: 3em; color: #dc2626;">🚨</div>
+                <h1 style="color: #dc2626; font-size: 28px; font-weight: 700; margin: 10px 0;">ALERTE URGENTE</h1>
+                <div class="alert-badge">ACTION IMMÉDIATE REQUISE</div>
+            </div>
+            
+            <div style="color: #4b5563; font-size: 16px;">
+                <p>Bonjour <strong>${data.adminName}</strong>,</p>
+                
+                <div class="urgent-box">
+                    <h2 style="color: #dc2626; margin-top: 0;">⚡ Demande de contribution critique</h2>
+                    <p><strong>👤 Candidat :</strong> ${data.applicantName}</p>
+                    <p><strong>🆔 ID de la demande :</strong> ${data.requestId}</p>
+                    <p><strong>⚡ Priorité :</strong> <span style="color: #dc2626; font-weight: 700;">${data.priority.toUpperCase()}</span></p>
+                    <p><strong>🚨 Raison de l'alerte :</strong> ${data.reason}</p>
+                </div>
+                
+                <p><strong style="color: #dc2626;">Cette demande nécessite une attention immédiate et doit être traitée dans les plus brefs délais.</strong></p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${adminUrl}" class="action-button">
+                        🚨 TRAITER IMMÉDIATEMENT
+                    </a>
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center;">
+                <p><strong>O'Ypunu Admin</strong> - Système d'alerte automatique</p>
+                <p style="color: #dc2626; font-weight: 600;">Alerte envoyée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    try {
+      await this._transporter.sendMail({
+        from: `"🚨 O'Ypunu ALERTE" <${this._configService.get('MAIL_FROM')}>`,
+        to: data.to,
+        subject: `🚨 ALERTE URGENTE - Demande de contribution ${data.priority.toUpperCase()}`,
+        html: emailTemplate,
+        priority: 'high',
+      });
+      this._logger.log(`🚨 Alerte urgente envoyée à ${data.to} pour la demande ${data.requestId}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(`❌ Erreur lors de l'envoi de l'alerte urgente: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Envoie une alerte pour des métriques critiques
+   */
+  async sendCriticalMetricsAlert(data: CriticalMetricsAlertData) {
+    if (!this._transporter) {
+      this._logger.warn(
+        "Tentative d'envoi d'email alors que le service est désactivé",
+      );
+      return;
+    }
+
+    const frontendUrl = this._configService.get<string>('FRONTEND_URL');
+    const adminUrl = `${frontendUrl}/admin/analytics`;
+
+    const emailTemplate = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>📊 ALERTE - Métriques critiques détectées</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f8f9fa;
+            }
+            .container {
+                background-color: white;
+                border-radius: 10px;
+                padding: 40px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border-left: 5px solid #f59e0b;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .warning-badge {
+                background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-weight: 600;
+                font-size: 14px;
+                display: inline-block;
+                margin: 10px 0;
+            }
+            .metrics-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+                margin: 20px 0;
+            }
+            .metric-card {
+                background-color: #fef3c7;
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+                border: 1px solid #f59e0b;
+            }
+            .metric-number {
+                font-size: 20px;
+                font-weight: 700;
+                color: #f59e0b;
+            }
+            .metric-label {
+                font-size: 12px;
+                color: #92400e;
+                text-transform: uppercase;
+                font-weight: 600;
+            }
+            .recommendations {
+                background-color: #f0f9ff;
+                border-left: 4px solid #0ea5e9;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }
+            .action-button {
+                display: inline-block;
+                background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+                color: white !important;
+                padding: 15px 30px;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 16px;
+                text-align: center;
+                margin: 20px 0;
+                transition: transform 0.2s;
+            }
+            .action-button:hover {
+                transform: translateY(-2px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div style="font-size: 2.5em; color: #f59e0b;">📊</div>
+                <h1 style="color: #f59e0b; font-size: 24px; font-weight: 600; margin: 10px 0;">Alerte Métriques Critiques</h1>
+                <div class="warning-badge">⚠️ ATTENTION REQUISE</div>
+            </div>
+            
+            <div style="color: #4b5563; font-size: 16px;">
+                <p>Bonjour <strong>${data.adminName}</strong>,</p>
+                
+                <p>Nos systèmes ont détecté des métriques critiques concernant les demandes de contribution qui nécessitent votre attention.</p>
+                
+                <h3 style="color: #f59e0b;">📊 Métriques actuelles :</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-number">${data.metrics.pendingCount}</div>
+                        <div class="metric-label">En attente</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">${data.metrics.urgentCount}</div>
+                        <div class="metric-label">Urgentes</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">${data.metrics.avgProcessingTime}h</div>
+                        <div class="metric-label">Temps moyen</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">${(data.metrics.approvalRate * 100).toFixed(1)}%</div>
+                        <div class="metric-label">Taux d'approbation</div>
+                    </div>
+                </div>
+                
+                <div class="recommendations">
+                    <h4 style="color: #0ea5e9; margin-top: 0;">💡 Recommandations :</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        ${data.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${adminUrl}" class="action-button">
+                        📊 Voir les analytics détaillées
+                    </a>
+                </div>
+                
+                <p>Merci de prendre les mesures appropriées pour optimiser le processus de traitement des demandes.</p>
+            </div>
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center;">
+                <p><strong>O'Ypunu Analytics</strong> - Système de monitoring automatique</p>
+                <p style="color: #f59e0b; font-weight: 600;">Alerte générée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    try {
+      await this._transporter.sendMail({
+        from: `"📊 O'Ypunu Analytics" <${this._configService.get('MAIL_FROM')}>`,
+        to: data.to,
+        subject: '📊 ALERTE - Métriques critiques détectées',
+        html: emailTemplate,
+        priority: 'high',
+      });
+      this._logger.log(`📊 Alerte de métriques critiques envoyée à ${data.to}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      this._logger.error(`❌ Erreur lors de l'envoi de l'alerte de métriques: ${errorMessage}`);
     }
   }
 }

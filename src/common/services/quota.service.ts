@@ -1,6 +1,6 @@
 import { Injectable, Logger, ForbiddenException, Inject } from '@nestjs/common';
 import { IUserRepository } from '../../repositories/interfaces/user.repository.interface';
-import { DatabaseErrorHandler } from '../utils/database-error-handler.util';
+import { DatabaseErrorHandler } from '../errors';
 
 export interface QuotaLimits {
   // Limites par jour

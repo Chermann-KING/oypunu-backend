@@ -6,7 +6,7 @@ import {
   ConversationDocument,
 } from "../../messaging/schemas/conversation.schema";
 import { IConversationRepository } from "../interfaces/conversation.repository.interface";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 
 /**
  * 💬 REPOSITORY CONVERSATION - IMPLÉMENTATION MONGOOSE

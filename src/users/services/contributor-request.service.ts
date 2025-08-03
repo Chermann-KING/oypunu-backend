@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service de gestion des demandes de contribution O'Ypunu
+ * 
+ * Ce service implémente le workflow complet des demandes de contribution avec
+ * gestion des statuts, modération administrative, système de priorités et
+ * notifications automatiques pour un processus d'approbation efficace.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,

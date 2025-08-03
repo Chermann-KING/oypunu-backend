@@ -14,7 +14,7 @@ import {
   ActivityStreakData,
   ActivityStatistics,
 } from '../interfaces/activity-feed.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 📊 ACTIVITY FEED REPOSITORY - IMPLÉMENTATION MONGOOSE

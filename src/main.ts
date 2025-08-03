@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Point d'entrée principal de l'application O'Ypunu Backend
+ * 
+ * Ce fichier configure et démarre l'application NestJS avec toutes les
+ * configurations de sécurité, CORS, validation, Swagger et WebSockets
+ * pour le dictionnaire communautaire multilingue O'Ypunu.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -6,6 +18,21 @@ import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { SecurityHeadersMiddleware } from './auth/security/security-headers.middleware';
 
+/**
+ * Fonction de bootstrap de l'application O'Ypunu Backend
+ * 
+ * Configure et démarre l'application NestJS avec :
+ * - Configuration CORS sécurisée (dev/prod)
+ * - Middleware de sécurité personnalisé
+ * - Validation globale des données
+ * - Documentation Swagger interactive
+ * - Support WebSocket pour messagerie temps réel
+ * - Logging adapté à l'environnement
+ * 
+ * @async
+ * @function bootstrap
+ * @returns {Promise<void>}
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: process.env.NODE_ENV === 'production' 

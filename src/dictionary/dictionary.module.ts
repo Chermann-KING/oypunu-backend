@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Module du dictionnaire O'Ypunu - Cœur du système linguistique
+ * 
+ * Ce module constitue le cœur du système de dictionnaire multilingue O'Ypunu
+ * avec architecture modulaire avancée, services spécialisés et contrôleurs
+ * découplés pour une maintenabilité optimale. Il intègre gestion complète
+ * des mots, catégories, favoris, révisions et fonctionnalités avancées.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 // import { RedisModule } from '@nestjs-modules/ioredis';
@@ -57,6 +70,43 @@ import { TranslationModule } from '../translation/translation.module';
 import { ActivityModule } from '../common/activity.module';
 import { RepositoriesModule } from '../repositories/repositories.module';
 
+/**
+ * Module du dictionnaire O'Ypunu - Architecture avancée
+ * 
+ * Ce module implémente une architecture modulaire sophistiquée pour
+ * le système de dictionnaire multilingue avec services découplés,
+ * contrôleurs spécialisés et intégrations externes optimisées.
+ * 
+ * ## 🏗️ Architecture modulaire :
+ * 
+ * ### 📊 Schémas MongoDB
+ * - Word : Schéma principal des mots avec métadonnées complètes
+ * - Category : Organisation hiérarchique des mots par catégories
+ * - FavoriteWord : Gestion des favoris utilisateur
+ * - RevisionHistory : Historique complet des modifications
+ * - WordNotification : Système de notifications linguistiques
+ * - Language : Support multilingue avec métadonnées
+ * - WordView : Tracking des consultations pour analytics
+ * 
+ * ### 🎯 Services spécialisés (Pattern de découplage)
+ * - **Phase 1** : Services utilitaires (validation, permissions, notifications, traductions)
+ * - **Phase 2-7** : Services métier (audio, favoris, analytics, révisions, core)
+ * - **Intégrations** : Translation, Activity, Repositories modules
+ * 
+ * ### 🎮 Contrôleurs découplés
+ * - **Existants** : Words, Categories, FavoriteWords (legacy)
+ * - **Spécialisés** : Core, Admin, Analytics, Revision, Permission, Translation
+ * - **Bénéfices** : Single Responsibility, testabilité, maintenabilité
+ * 
+ * ## 🔗 Dépendances externes :
+ * - **UsersModule** : Intégration utilisateurs et permissions
+ * - **TranslationModule** : Détection automatique et traductions
+ * - **ActivityModule** : Logging d'activités et auditabilité
+ * - **RepositoriesModule** : Pattern Repository pour abstraction données
+ * 
+ * @class DictionaryModule
+ * @version 1.0.0
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([

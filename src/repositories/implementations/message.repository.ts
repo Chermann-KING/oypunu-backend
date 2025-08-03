@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Message, MessageDocument } from '../../messaging/schemas/message.schema';
 import { IMessageRepository } from '../interfaces/message.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 💬 REPOSITORY MESSAGE - IMPLÉMENTATION MONGOOSE

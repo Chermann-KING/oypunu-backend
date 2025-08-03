@@ -1,3 +1,15 @@
+/**
+ * @fileoverview DTO pour la mise à jour du profil utilisateur O'Ypunu
+ * 
+ * Ce fichier définit la structure de données pour la modification du profil
+ * utilisateur avec validation des limites de caractères et contraintes de
+ * sécurité pour maintenir la qualité des données de la plateforme.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   IsString,
   IsOptional,
@@ -10,6 +22,42 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { USER_LIMITS, VALIDATION_LIMITS, ARRAY_LIMITS, VALIDATION_MESSAGES } from '../../common/constants/validation-limits.constants';
 
+/**
+ * DTO pour la mise à jour du profil utilisateur
+ * 
+ * Structure de données flexible pour la modification partielle du profil
+ * avec validation des contraintes et limites de caractères appropriées.
+ * 
+ * ## ✏️ Champs modifiables :
+ * - **Nom d'utilisateur** : 3-30 caractères alphanumériques
+ * - **Langue native** : Code ISO ou identifiant de langue
+ * - **Langues d'apprentissage** : Tableau limité à 10 langues
+ * - **Photo de profil** : URL valide avec limite de taille
+ * - **Biographie** : Texte libre avec limites min/max
+ * 
+ * ## 🔒 Contraintes de validation :
+ * - **Longueurs minimales/maximales** : Respectées pour tous les champs
+ * - **Formats URL** : Validation stricte pour les liens
+ * - **Tableaux** : Limites sur le nombre d'éléments
+ * - **Messages d'erreur** : Centralisés et localisés
+ * 
+ * ## 🌍 Support multilingue :
+ * - **Codes ISO** : Validation des identifiants de langue
+ * - **Préférences** : Personnalisation des langues d'apprentissage
+ * - **Flexibilité** : Modification indépendante des préférences
+ * 
+ * @class UpdateProfileDto
+ * @version 1.0.0
+ * 
+ * @example
+ * ```typescript
+ * const updateData: UpdateProfileDto = {
+ *   username: "nouveau_nom",
+ *   bio: "Nouvelle biographie passionnante...",
+ *   learningLanguages: ["en", "es", "it"]
+ * };
+ * ```
+ */
 export class UpdateProfileDto {
   @ApiPropertyOptional({
     description: "Nom d'utilisateur",

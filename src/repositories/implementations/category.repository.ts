@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Category, CategoryDocument } from '../../dictionary/schemas/category.schema';
 import { CreateCategoryDto } from '../../dictionary/dto/create-category.dto';
 import { ICategoryRepository } from '../interfaces/category.repository.interface';
-import { DatabaseErrorHandler } from '../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 📚 REPOSITORY CATEGORY - IMPLÉMENTATION MONGOOSE

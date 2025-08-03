@@ -1,11 +1,33 @@
+/**
+ * @fileoverview Schéma Mongoose pour l'historique des révisions O'Ypunu
+ * 
+ * Ce schéma définit la structure complète pour le suivi des révisions
+ * et modifications des mots avec workflow d'approbation, métadonnées
+ * administratives et index optimisés pour performance des requêtes.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
 
+/**
+ * Type document Mongoose pour l'historique des révisions
+ * @typedef {RevisionHistory & Document} RevisionHistoryDocument
+ */
 export type RevisionHistoryDocument = RevisionHistory & Document;
 
 /**
- * Schéma pour l'historique des révisions des mots
- * Suit les patterns de l'application pour le suivi des modifications
+ * Schéma pour l'historique des révisions des mots O'Ypunu
+ * 
+ * Suit les patterns de l'application pour le suivi complet des modifications
+ * avec workflow d'approbation, gestion des priorités et métadonnées
+ * administratives pour traçabilité et auditabilité complètes.
+ * 
+ * @class RevisionHistory
+ * @version 1.0.0
  */
 @Schema({ timestamps: true })
 export class RevisionHistory {

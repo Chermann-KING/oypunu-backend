@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service spécialisé pour la gestion des traductions bidirectionnelles O'Ypunu
+ * 
+ * Ce service gère la logique complexe des traductions bidirectionnelles
+ * entre langues avec création automatique de liens, validation des
+ * correspondances et maintenance de la cohérence des traductions.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -9,10 +21,27 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Word, WordDocument } from '../../schemas/word.schema';
 import { User } from '../../../users/schemas/user.schema';
-import { DatabaseErrorHandler } from '../../../common/utils/database-error-handler.util';
+import { DatabaseErrorHandler } from "../../../common/errors";
 
 /**
- * Interface pour une traduction standardisée
+ * Interface pour une traduction standardisée O'Ypunu
+ * 
+ * Structure unifiée pour représenter une traduction avec toutes
+ * ses métadonnées et informations de liaison bidirectionnelle.
+ * 
+ * @interface Translation
+ * @property {string} id - Identifiant unique de la traduction
+ * @property {string} sourceWord - Mot source original
+ * @property {Types.ObjectId} [sourceLanguageId] - ID langue source (nouveau système)
+ * @property {string} [sourceLanguage] - Langue source (compatibilité)
+ * @property {string} targetWord - Mot cible traduit
+ * @property {Types.ObjectId} [targetLanguageId] - ID langue cible (nouveau système)
+ * @property {string} [targetLanguage] - Langue cible (compatibilité)
+ * @property {string[]} [context] - Contextes d'usage
+ * @property {number} [confidence] - Score de confiance 0-1
+ * @property {Types.ObjectId[]} [verifiedBy] - Utilisateurs ayant vérifié
+ * @property {Types.ObjectId} [targetWordId] - ID du mot cible lié
+ * @property {'direct'|'reverse'} direction - Direction de la traduction
  */
 export interface Translation {
   id: string;
@@ -30,8 +59,21 @@ export interface Translation {
 }
 
 /**
- * Service spécialisé pour la gestion des traductions bidirectionnelles
- * PHASE 1 - Service utilitaire pour centraliser la logique de traduction
+ * Service spécialisé pour la gestion des traductions bidirectionnelles O'Ypunu
+ * 
+ * Service central pour toute la logique de traduction avec création
+ * automatique de liens bidirectionnels, validation des correspondances
+ * et maintenance de la cohérence entre toutes les langues supportées.
+ * 
+ * ## Fonctionnalités de traduction :
+ * - Création automatique de traductions bidirectionnelles
+ * - Liaison intelligente entre mots de langues différentes
+ * - Validation et vérification communautaire des traductions
+ * - Gestion des contextes et nuances linguistiques
+ * - Calcul de scores de confiance et recommandations
+ * 
+ * @class WordTranslationService
+ * @version 1.0.0
  */
 @Injectable()
 export class WordTranslationService {

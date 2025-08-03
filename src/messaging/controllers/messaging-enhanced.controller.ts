@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Contrôleur REST avancé de messagerie O'Ypunu
+ * 
+ * Ce contrôleur offre une API REST complète pour les fonctionnalités
+ * avancées de messagerie incluant groupes, multimédia, réactions,
+ * gestion de présence, recherche et statistiques. Il constitue
+ * l'interface moderne pour toutes les fonctionnalités de messagerie.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -26,6 +39,16 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MessagingEnhancedService } from '../services/messaging-enhanced.service';
 
+/**
+ * Interface pour les requêtes authentifiées avec données utilisateur JWT
+ * 
+ * @interface AuthenticatedRequest
+ * @extends Request
+ * @property {Object} user - Données utilisateur extraites du token JWT
+ * @property {string} user.userId - ID unique de l'utilisateur
+ * @property {string} user.username - Nom d'utilisateur
+ * @property {string} user.email - Email de l'utilisateur
+ */
 interface AuthenticatedRequest extends Request {
   user: {
     userId: string;
@@ -34,7 +57,16 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-// DTOs pour les nouvelles fonctionnalités
+/**
+ * DTO pour la création de groupes de discussion
+ * 
+ * @class CreateGroupDto
+ * @property {string} name - Nom du groupe (requis)
+ * @property {string} [description] - Description optionnelle du groupe
+ * @property {string[]} participants - Array des IDs utilisateurs participants
+ * @property {string} [avatar] - URL/path de l'avatar du groupe
+ * @property {boolean} [isPrivate] - Groupe privé ou public
+ */
 class CreateGroupDto {
   name: string;
   description?: string;
@@ -43,6 +75,18 @@ class CreateGroupDto {
   isPrivate?: boolean;
 }
 
+/**
+ * DTO pour l'envoi de messages enrichis
+ * 
+ * @class SendMessageEnhancedDto
+ * @property {string} [recipientId] - Pour messages privés
+ * @property {string} [groupId] - Pour messages de groupe
+ * @property {string} content - Contenu du message
+ * @property {string} messageType - Type de message supporté
+ * @property {string} [replyToMessageId] - Pour répondre à un message
+ * @property {boolean} [isEphemeral] - Messages éphémères
+ * @property {number} [ephemeralDuration] - Durée en secondes
+ */
 class SendMessageEnhancedDto {
   recipientId?: string; // Pour messages privés
   groupId?: string; // Pour messages de groupe
@@ -53,11 +97,27 @@ class SendMessageEnhancedDto {
   ephemeralDuration?: number; // Durée en secondes
 }
 
+/**
+ * DTO pour les réactions aux messages
+ * 
+ * @class ReactToMessageDto
+ * @property {string} messageId - ID du message à réagir
+ * @property {string} reaction - Emoji de réaction autorisé
+ */
 class ReactToMessageDto {
   messageId: string;
   reaction: '👍' | '❤️' | '😂' | '😮' | '😢' | '😡' | '🔥' | '👏';
 }
 
+/**
+ * DTO pour la mise à jour des groupes
+ * 
+ * @class UpdateGroupDto
+ * @property {string} [name] - Nouveau nom du groupe
+ * @property {string} [description] - Nouvelle description
+ * @property {string} [avatar] - Nouvel avatar
+ * @property {boolean} [isPrivate] - Nouveau statut privé/public
+ */
 class UpdateGroupDto {
   name?: string;
   description?: string;
@@ -65,11 +125,64 @@ class UpdateGroupDto {
   isPrivate?: boolean;
 }
 
+/**
+ * Contrôleur REST avancé de messagerie O'Ypunu
+ * 
+ * Ce contrôleur offre une API REST moderne et complète pour toutes
+ * les fonctionnalités avancées de messagerie. Il s'organise en
+ * sections thématiques pour une navigation claire de l'API :
+ * 
+ * ## 🏠 Sections principales :
+ * 
+ * ### 👥 Gestion des groupes
+ * - Création, modification, suppression de groupes
+ * - Gestion des participants (ajout/suppression)
+ * - Paramètres de groupe et permissions
+ * 
+ * ### 📎 Messages multimédia
+ * - Support images, vidéos, audio, documents
+ * - Messages vocaux avec durée
+ * - Partage de localisation GPS
+ * - Upload multiple de fichiers
+ * 
+ * ### 💝 Réactions et interactions
+ * - Système de réactions emoji complet
+ * - Transfert de messages entre conversations
+ * - Réponses à des messages spécifiques
+ * - Épinglage de messages importants
+ * 
+ * ### 🔍 Recherche et historique
+ * - Recherche full-text dans les messages
+ * - Filtrage par type de message
+ * - Galerie multimédia par conversation
+ * - Statistiques d'usage personnalisées
+ * 
+ * ### 👁️ Présence et statuts
+ * - Gestion des statuts en ligne/hors ligne
+ * - Indicateurs de frappe en temps réel
+ * - Statuts personnalisés avec messages
+ * - Notifications de présence
+ * 
+ * ### ⚙️ Paramètres avancés
+ * - Personnalisation des conversations
+ * - Modes silencieux temporaires
+ * - Messages éphémères avec durée
+ * - Thèmes et fonds d'écran
+ * 
+ * @class MessagingEnhancedController
+ * @version 1.0.0
+ */
 @ApiTags('messaging-enhanced')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('messaging/enhanced')
 export class MessagingEnhancedController {
+  /**
+   * Constructeur avec injection du service avancé
+   * 
+   * @constructor
+   * @param {MessagingEnhancedService} messagingEnhancedService - Service des fonctionnalités avancées
+   */
   constructor(private readonly messagingEnhancedService: MessagingEnhancedService) {}
 
   // ========== GESTION DES GROUPES ==========

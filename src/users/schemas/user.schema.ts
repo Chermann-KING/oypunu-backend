@@ -1,17 +1,74 @@
+/**
+ * @fileoverview Schéma Mongoose pour les utilisateurs O'Ypunu
+ * 
+ * Ce schéma définit le modèle principal des utilisateurs avec gestion
+ * complète des profils, authentification, rôles hiérarchiques,
+ * préférences linguistiques et fonctionnalités sociales avancées.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Schema as MongooseSchema } from "mongoose";
 import { Language } from "../../languages/schemas/language.schema";
 
+/**
+ * Type document Mongoose pour les utilisateurs
+ * @typedef {User & Document} UserDocument
+ */
 export type UserDocument = User & Document;
 
-// Enum pour les rôles avec hiérarchie
+/**
+ * Énumération des rôles utilisateur avec hiérarchie de permissions
+ * 
+ * @enum {string} UserRole
+ * @readonly
+ */
 export enum UserRole {
+  /** Utilisateur standard avec accès de base */
   USER = "user",
-  CONTRIBUTOR = "contributor",
+  /** Contributeur avec droits d'ajout/modification de contenu */
+  CONTRIBUTOR = "contributor", 
+  /** Administrateur avec droits de modération */
   ADMIN = "admin",
+  /** Super-administrateur avec tous les droits */
   SUPERADMIN = "superadmin",
 }
 
+/**
+ * Schéma utilisateur O'Ypunu - Profils complets et authentification sécurisée
+ *
+ * Modèle central pour la gestion des utilisateurs avec authentification
+ * sécurisée, profils enrichis, préférences linguistiques et système
+ * de rôles hiérarchiques pour la collaboration communautaire.
+ *
+ * ## 🔐 Authentification et sécurité :
+ * - **Tokens sécurisés** : Vérification email et réinitialisation mot de passe
+ * - **Hashage avancé** : Mots de passe protégés avec bcrypt
+ * - **OAuth intégré** : Support des fournisseurs sociaux (Google, Facebook, etc.)
+ * - **Sessions persistantes** : Tracking de la dernière activité
+ * 
+ * ## 👤 Profil utilisateur enrichi :
+ * - **Informations personnelles** : Bio, localisation, site web, date de naissance
+ * - **Avatar personnalisé** : Photo de profil avec gestion de fichiers
+ * - **Préférences sociales** : Paramètres de visibilité et notifications
+ * 
+ * ## 🌍 Préférences linguistiques :
+ * - **Langue native** : Référence à la langue maternelle de l'utilisateur
+ * - **Langues d'apprentissage** : Collection des langues étudiées
+ * - **Mots favoris** : Liste personnalisée de mots préférés
+ * 
+ * ## 🎯 Système de rôles :
+ * - **USER** : Accès standard au dictionnaire et fonctionnalités de base
+ * - **CONTRIBUTOR** : Droits d'ajout et modification de contenu
+ * - **ADMIN** : Pouvoirs de modération et gestion utilisateurs
+ * - **SUPERADMIN** : Contrôle total de la plateforme
+ *
+ * @class User
+ * @version 1.0.0
+ */
 @Schema({ timestamps: true })
 export class User {
   _id: string;
