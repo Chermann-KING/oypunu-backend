@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Contrôleur REST pour la gestion des langues O'Ypunu
+ * 
+ * Ce contrôleur gère toutes les opérations sur les langues du dictionnaire
+ * avec endpoints publics, authentifiés et administratifs. Il inclut la
+ * gestion des propositions de langues, approbations et migrations.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -33,10 +45,47 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Language } from '../schemas/language.schema';
 import { User } from '../../users/schemas/user.schema';
 
+/**
+ * Interface pour les requêtes avec utilisateur authentifié
+ * 
+ * @interface RequestWithUser
+ * @property {User} user - Utilisateur authentifié avec rôles
+ */
 interface RequestWithUser {
   user: User;
 }
 
+/**
+ * Contrôleur REST pour la gestion des langues O'Ypunu
+ * 
+ * Gère toutes les opérations sur les langues du dictionnaire multilingue
+ * avec trois niveaux d'accès : public, authentifié et administratif.
+ * Inclut système complet de proposition/approbation et outils de migration.
+ * 
+ * ## Sections d'endpoints :
+ * 
+ * ### 🌍 Endpoints publics
+ * - Consultation des langues actives et africaines
+ * - Recherche et filtrage par région
+ * - Statistiques publiques des langues
+ * 
+ * ### 🔐 Endpoints authentifiés
+ * - Proposition de nouvelles langues (contributeurs+)
+ * - Soumission avec validation et workflow d'approbation
+ * 
+ * ### 👑 Endpoints administratifs
+ * - Approbation/rejet des langues proposées
+ * - Gestion du workflow de validation
+ * - Accès aux langues en attente
+ * 
+ * ### 🔧 Endpoints de migration (superadmin)
+ * - Seeding des langues africaines
+ * - Migration des données existantes
+ * - Nettoyage et maintenance
+ * 
+ * @class LanguagesController
+ * @version 1.0.0
+ */
 @ApiTags('languages')
 @Controller('languages')
 export class LanguagesController {

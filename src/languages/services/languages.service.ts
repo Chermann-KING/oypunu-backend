@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Service de gestion des langues pour O'Ypunu
+ * 
+ * Ce service gère la création, validation et modération des langues de la plateforme
+ * avec workflow d'approbation, vérification d'unicité et support des standards
+ * internationaux ISO pour enrichir l'écosystème linguistique O'Ypunu.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -13,9 +25,35 @@ import {
   ApproveLanguageDto,
   RejectLanguageDto,
 } from "../dto/create-language.dto";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 import { ILanguageRepository } from "../../repositories/interfaces/language.repository.interface";
 
+/**
+ * Service de gestion des langues avec workflow de modération
+ * 
+ * Ce service centralise la gestion des langues de la plateforme O'Ypunu :
+ * 
+ * ## 🌍 Fonctionnalités principales :
+ * - **Proposition langues** : Utilisateurs peuvent proposer de nouvelles langues
+ * - **Workflow modération** : Processus d'approbation/rejet par les admins
+ * - **Standards ISO** : Support des codes ISO 639-1, 639-2, 639-3
+ * - **Validation unicité** : Prévention des doublons par nom/code
+ * - **Gestion scripts** : Support des différents systèmes d'écriture
+ * 
+ * ## 📊 Processus de validation :
+ * 1. **Proposition** : Utilisateur soumet une nouvelle langue
+ * 2. **Vérification** : Contrôle d'unicité et format
+ * 3. **Modération** : Admin approuve ou rejette
+ * 4. **Activation** : Langue disponible pour les mots
+ * 
+ * ## 🔐 Permissions :
+ * - **Proposer** : Tous les utilisateurs authentifiés
+ * - **Modérer** : Admins et super-admins uniquement
+ * - **Consulter** : Public (langues approuvées)
+ * 
+ * @class LanguagesService
+ * @version 1.0.0
+ */
 @Injectable()
 export class LanguagesService {
   constructor(

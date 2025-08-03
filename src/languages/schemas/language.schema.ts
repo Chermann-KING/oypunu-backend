@@ -1,9 +1,35 @@
+/**
+ * @fileoverview Schémas Mongoose pour le système de langues O'Ypunu
+ * 
+ * Ce fichier définit les schémas complets pour la gestion des langues
+ * du dictionnaire multilingue avec support des variantes régionales,
+ * scripts d'écriture, statuts d'endangement et métadonnées complètes
+ * pour les langues africaines et mondiales.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 import { User } from '../../users/schemas/user.schema';
 
+/**
+ * Type document Mongoose pour les langues
+ * @typedef {Language & Document} LanguageDocument
+ */
 export type LanguageDocument = Language & Document;
 
+/**
+ * Schéma pour les variantes régionales de langues
+ * 
+ * Représente les différences dialectales et régionales d'une même
+ * langue avec informations géographiques et noms alternatifs.
+ * 
+ * @class LanguageVariant
+ * @version 1.0.0
+ */
 @Schema()
 export class LanguageVariant {
   @Prop({ required: true })

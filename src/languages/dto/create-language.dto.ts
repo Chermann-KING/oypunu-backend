@@ -1,3 +1,15 @@
+/**
+ * @fileoverview DTOs pour la création et modération des langues O'Ypunu
+ * 
+ * Ce fichier définit les structures de données pour la proposition, validation
+ * et modération des langues avec support complet des standards ISO, variantes
+ * linguistiques et métadonnées culturelles pour enrichir la plateforme.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   IsString,
   IsOptional,
@@ -11,6 +23,15 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * DTO pour les variantes linguistiques
+ * 
+ * Définit les variantes régionales ou dialectales d'une langue
+ * avec informations géographiques et noms alternatifs.
+ * 
+ * @class CreateLanguageVariantDto
+ * @version 1.0.0
+ */
 export class CreateLanguageVariantDto {
   @ApiProperty({ description: 'Nom de la variante', example: 'Fang du Nord' })
   @IsString()
@@ -35,6 +56,15 @@ export class CreateLanguageVariantDto {
   alternativeNames?: string[];
 }
 
+/**
+ * DTO pour les systèmes d'écriture
+ * 
+ * Définit les scripts utilisés pour écrire une langue avec
+ * direction d'écriture et script par défaut.
+ * 
+ * @class CreateLanguageScriptDto
+ * @version 1.0.0
+ */
 export class CreateLanguageScriptDto {
   @ApiProperty({ description: 'Nom du script', example: 'Latin' })
   @IsString()
@@ -59,6 +89,22 @@ export class CreateLanguageScriptDto {
   isDefault?: boolean;
 }
 
+/**
+ * DTO principal pour la création d'une langue
+ * 
+ * Structure complète pour proposer une nouvelle langue à la plateforme
+ * avec informations linguistiques, géographiques et culturelles.
+ * 
+ * ## 📊 Données collectées :
+ * - **Identification** : Noms, codes ISO 639-1/2/3
+ * - **Géographie** : Régions, pays, variantes locales
+ * - **Linguistique** : Scripts, statut, nombre de locuteurs
+ * - **Culture** : Emojis drapeaux, couleurs, références
+ * - **Modération** : Statut d'approbation, notes admin
+ * 
+ * @class CreateLanguageDto
+ * @version 1.0.0
+ */
 export class CreateLanguageDto {
   @ApiProperty({ description: 'Nom de la langue', example: 'Fang' })
   @IsString()
@@ -211,6 +257,15 @@ export class CreateLanguageDto {
   primaryColor?: string;
 }
 
+/**
+ * DTO pour l'approbation d'une langue
+ * 
+ * Structure pour approuver une langue proposée avec notes
+ * et options de mise en avant pour les administrateurs.
+ * 
+ * @class ApproveLanguageDto
+ * @version 1.0.0
+ */
 export class ApproveLanguageDto {
   @ApiProperty({ description: "Notes d'approbation", required: false })
   @IsOptional()
@@ -228,6 +283,15 @@ export class ApproveLanguageDto {
   sortOrder?: number;
 }
 
+/**
+ * DTO pour le rejet d'une langue
+ * 
+ * Structure pour rejeter une langue proposée avec raison
+ * détaillée et suggestions d'amélioration pour l'utilisateur.
+ * 
+ * @class RejectLanguageDto
+ * @version 1.0.0
+ */
 export class RejectLanguageDto {
   @ApiProperty({ description: 'Raison du rejet' })
   @IsString()
