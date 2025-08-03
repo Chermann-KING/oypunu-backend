@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Service de gestion des publications et commentaires communautaires
+ * 
+ * Ce service gère l'écosystème complet des publications dans les communautés
+ * O'Ypunu, incluant création, modération, votes, commentaires et statistiques.
+ * Il fournit un système sophistiqué de contenu généré par les utilisateurs
+ * avec validation des permissions et anti-spam.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -22,12 +35,31 @@ import {
 import { Vote, VoteDocument } from '../schemas/vote.schema';
 import { VotingService, VoteResult } from './voting.service';
 
+/**
+ * Interface pour les données d'auteur populées
+ * 
+ * @interface Author
+ * @property {string} _id - ID de l'utilisateur auteur
+ * @property {string} username - Nom d'utilisateur affiché
+ * @property {string} [profilePicture] - URL optionnelle de la photo de profil
+ */
 interface Author {
   _id: string;
   username: string;
   profilePicture?: string;
 }
 
+/**
+ * Interface pour les filtres de recherche de publications
+ * 
+ * @interface PostFilters
+ * @property {string} [sortBy] - Critère de tri (score, newest, oldest, activity, controversial)
+ * @property {string} [postType] - Type de publication (question, explanation, etc.)
+ * @property {string[]} [languages] - Langues des publications
+ * @property {string} [difficulty] - Niveau de difficulté
+ * @property {string[]} [tags] - Tags à inclure
+ * @property {string} [timeRange] - Période de temps (day, week, month, year, all)
+ */
 interface PostFilters {
   sortBy?: 'score' | 'newest' | 'oldest' | 'activity' | 'controversial';
   postType?: string;
@@ -37,8 +69,66 @@ interface PostFilters {
   timeRange?: 'day' | 'week' | 'month' | 'year' | 'all';
 }
 
+/**
+ * Service de gestion des publications et commentaires communautaires
+ * 
+ * Ce service sophistiqué gère l'écosystème complet des publications
+ * dans les communautés O'Ypunu avec des fonctionnalités avancées :
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 📝 Gestion de publications
+ * - Création avec validation des permissions et contenus
+ * - Types multiples (question, explication, étymologie, usage, etc.)
+ * - Support multilingue et tags thématiques
+ * - Système anti-spam et validation de longueur
+ * 
+ * ### 💬 Système de commentaires
+ * - Commentaires hiérarchiques (threads imbriqués)
+ * - Types de commentaires spécialisés (correction, explication, exemple)
+ * - Réponses acceptées pour les questions
+ * - Modération collaborative
+ * 
+ * ### 🗳️ Système de votes sophistiqué
+ * - Upvotes/downvotes avec raisons optionnelles
+ * - Calcul de score avec algorithmes anti-manipulation
+ * - Votes sur publications et commentaires
+ * - Historique et analytics de votes
+ * 
+ * ### 🔍 Recherche et tri avancés
+ * - Tri par score, activité, date, controverse
+ * - Filtres multicritères (langue, type, difficulté, tags)
+ * - Recherche dans plages temporelles
+ * - Posts tendances avec méthiques de popularité
+ * 
+ * ### 📊 Analytics et statistiques
+ * - Compteurs de vues anti-triche
+ * - Statistiques par communauté et contributeur
+ * - Métriques d'engagement et qualité
+ * - Rapports de modération
+ * 
+ * ### 🛡️ Modération et sécurité
+ * - Vérification des permissions (membre, modérateur, admin)
+ * - Soft delete avec archivage
+ * - Épinglage de contenu important
+ * - Protection contre abus et spam
+ * 
+ * @class CommunityPostsService
+ * @version 1.0.0
+ */
 @Injectable()
 export class CommunityPostsService {
+  /**
+   * Constructeur avec injection des modèles Mongoose et services
+   * 
+   * @constructor
+   * @param {Model<CommunityDocument>} communityModel - Modèle des communautés
+   * @param {Model<CommunityPostDocument>} postModel - Modèle des publications
+   * @param {Model<PostCommentDocument>} commentModel - Modèle des commentaires
+   * @param {Model<CommunityMemberDocument>} memberModel - Modèle des membres
+   * @param {Model<VoteDocument>} voteModel - Modèle des votes
+   * @param {VotingService} votingService - Service de gestion des votes
+   */
   constructor(
     @InjectModel(Community.name)
     private communityModel: Model<CommunityDocument>,
@@ -153,7 +243,47 @@ export class CommunityPostsService {
     return { sort, timeFilter };
   }
 
-  // Créer une publication
+  /**
+   * Crée une nouvelle publication dans une communauté
+   * 
+   * Cette méthode centrale gère la création de publications avec validation
+   * complète des permissions, données et appartenance à la communauté.
+   * Elle applique des règles anti-spam et valide le contenu selon les
+   * standards de qualité de la plateforme.
+   * 
+   * @async
+   * @method createPost
+   * @param {string} communityId - ID de la communauté cible
+   * @param {string} userId - ID de l'utilisateur créateur
+   * @param {Object} postData - Données de la publication
+   * @param {string} postData.title - Titre (max 200 caractères)
+   * @param {string} postData.content - Contenu (max 5000 caractères)
+   * @param {string} postData.postType - Type (question, explanation, etymology, usage, translation, discussion)
+   * @param {string[]} [postData.languages] - Langues concernées
+   * @param {string[]} [postData.tags] - Tags thématiques (max 5)
+   * @param {string} [postData.targetWord] - Mot cible pour étymologies/explications
+   * @param {string} [postData.difficulty] - Niveau de difficulté
+   * @returns {Promise<CommunityPost>} Publication créée
+   * @throws {NotFoundException} Si la communauté n'existe pas
+   * @throws {ForbiddenException} Si l'utilisateur n'est pas membre
+   * @throws {BadRequestException} Si les données sont invalides
+   * 
+   * @example
+   * ```typescript
+   * const newPost = await this.communityPostsService.createPost(
+   *   communityId,
+   *   userId,
+   *   {
+   *     title: 'Comment dit-on "bonjour" en Yipunu ?',
+   *     content: 'Je cherche la traduction exacte avec la prononciation.',
+   *     postType: 'question',
+   *     languages: ['yipunu', 'français'],
+   *     tags: ['salutations', 'débutant'],
+   *     difficulty: 'beginner'
+   *   }
+   * );
+   * ```
+   */
   async createPost(
     communityId: string,
     userId: string,
@@ -262,7 +392,43 @@ export class CommunityPostsService {
     return savedPost;
   }
 
-  // Récupérer les publications d'une communauté avec filtres avancés
+  /**
+   * Récupère les publications d'une communauté avec filtrage avancé
+   * 
+   * Cette méthode complexe gère la récupération paginée des publications
+   * avec support complet pour les filtres multicritères, tri sophistiqué
+   * et optimisations de performance. Elle enrichit chaque publication
+   * avec les données de l'auteur et métadonnées.
+   * 
+   * @async
+   * @method getPostsByCommunity
+   * @param {string} communityId - ID de la communauté
+   * @param {number} [page=1] - Numéro de page pour pagination
+   * @param {number} [limit=10] - Nombre de publications par page
+   * @param {PostFilters} [filters={}] - Filtres de recherche et tri
+   * @returns {Promise<Object>} Résultat paginé avec publications enrichies
+   * @property {any[]} posts - Publications avec données auteur
+   * @property {number} total - Nombre total de publications
+   * @property {number} page - Page actuelle
+   * @property {number} limit - Limite par page
+   * @property {number} totalPages - Nombre total de pages
+   * @throws {NotFoundException} Si la communauté n'existe pas
+   * 
+   * @example
+   * ```typescript
+   * const result = await this.communityPostsService.getPostsByCommunity(
+   *   communityId,
+   *   1,
+   *   20,
+   *   {
+   *     sortBy: 'score',
+   *     postType: 'question',
+   *     languages: ['yipunu'],
+   *     timeRange: 'week'
+   *   }
+   * );
+   * ```
+   */
   async getPostsByCommunity(
     communityId: string,
     page = 1,
@@ -486,7 +652,45 @@ export class CommunityPostsService {
     return { posts, comments };
   }
 
-  // Ajouter un commentaire à une publication
+  /**
+   * Ajoute un commentaire à une publication avec validation complète
+   * 
+   * Cette méthode gère l'ajout de commentaires avec support pour les threads
+   * imbriqués, types de commentaires spécialisés et validation des permissions.
+   * Elle vérifie l'appartenance à la communauté et applique les règles
+   * de longueur et de contenu.
+   * 
+   * @async
+   * @method addComment
+   * @param {string} postId - ID de la publication à commenter
+   * @param {string} userId - ID de l'utilisateur commentateur
+   * @param {string} content - Contenu du commentaire (max 2000 caractères)
+   * @param {string} [commentType='general'] - Type (correction, explanation, example, translation, general)
+   * @param {string} [parentCommentId] - ID du commentaire parent pour threads imbriqués
+   * @returns {Promise<PostComment>} Commentaire créé
+   * @throws {NotFoundException} Si la publication ou le parent n'existe pas
+   * @throws {ForbiddenException} Si l'utilisateur n'est pas membre
+   * @throws {BadRequestException} Si les données sont invalides
+   * 
+   * @example
+   * ```typescript
+   * const comment = await this.communityPostsService.addComment(
+   *   postId,
+   *   userId,
+   *   'En Yipunu, on dit "mbolo" pour dire bonjour.',
+   *   'explanation'
+   * );
+   * 
+   * // Réponse à un commentaire
+   * const reply = await this.communityPostsService.addComment(
+   *   postId,
+   *   userId,
+   *   'Merci pour cette explication !',
+   *   'general',
+   *   comment._id
+   * );
+   * ```
+   */
   async addComment(
     postId: string,
     userId: string,

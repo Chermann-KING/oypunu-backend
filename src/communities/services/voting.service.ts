@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Service de gestion du système de votes sophistiqué O'Ypunu
+ * 
+ * Ce service implémente un système de votes avancé avec protection anti-spam,
+ * validation des permissions, cooldowns, limites quotidiennes et détection
+ * de contenu controversé. Il gère les votes sur publications et commentaires
+ * avec calculs de scores intelligents et mesures anti-manipulation.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NotFoundException,
@@ -14,6 +27,17 @@ import { ICommunityMemberRepository } from '../../repositories/interfaces/commun
 import { ICommunityPostRepository } from '../../repositories/interfaces/community-post.repository.interface';
 import { IPostCommentRepository } from '../../repositories/interfaces/post-comment.repository.interface';
 
+/**
+ * Interface pour le résultat d'une opération de vote
+ * 
+ * @interface VoteResult
+ * @property {boolean} success - Succès de l'opération
+ * @property {number} newScore - Nouveau score après vote
+ * @property {number} upvotes - Nombre total d'upvotes
+ * @property {number} downvotes - Nombre total de downvotes
+ * @property {'up' | 'down' | null} userVote - Vote actuel de l'utilisateur
+ * @property {string} message - Message descriptif du résultat
+ */
 export interface VoteResult {
   success: boolean;
   newScore: number;
@@ -23,12 +47,29 @@ export interface VoteResult {
   message: string;
 }
 
+/**
+ * Interface pour la validation des permissions de vote
+ * 
+ * @interface VoteValidation
+ * @property {boolean} canVote - Si l'utilisateur peut voter
+ * @property {string} [reason] - Raison en cas de refus
+ * @property {number} [cooldownRemaining] - Temps de cooldown restant en secondes
+ */
 interface VoteValidation {
   canVote: boolean;
   reason?: string;
   cooldownRemaining?: number;
 }
 
+/**
+ * Interface pour les éléments controversés
+ * 
+ * @interface ControversialItem
+ * @property {string} type - Type d'élément (post, comment)
+ * @property {string} id - ID de l'élément
+ * @property {number} score - Score net (upvotes - downvotes)
+ * @property {number} controversy - Score de controverse calculé
+ */
 interface ControversialItem {
   type: string;
   id: string;
@@ -36,12 +77,67 @@ interface ControversialItem {
   controversy: number;
 }
 
+/**
+ * Service de gestion du système de votes sophistiqué O'Ypunu
+ * 
+ * Ce service implémente un écosystème de votes avancé avec des fonctionnalités
+ * de sécurité et d'intégrité pour maintenir la qualité des interactions :
+ * 
+ * ## Fonctionnalités principales :
+ * 
+ * ### 🗳️ Système de votes intelligent
+ * - Upvotes et downvotes avec raisons optionnelles
+ * - Modification et suppression de votes existants
+ * - Calcul de scores avec algorithmes anti-manipulation
+ * - Support publications et commentaires
+ * 
+ * ### 🛡️ Protection anti-spam et abus
+ * - Cooldown entre votes (1 minute par défaut)
+ * - Limite quotidienne de 100 votes par utilisateur
+ * - Validation âge minimum du compte (24h)
+ * - Interdiction de voter pour son propre contenu
+ * 
+ * ### 🔒 Validation des permissions
+ * - Vérification appartenance à la communauté
+ * - Contrôle statut actif du contenu cible
+ * - Validation des IDs et types de cibles
+ * - Gestion erreurs contextualisées
+ * 
+ * ### 📊 Analytics et métriques
+ * - Statistiques détaillées par contenu
+ * - Calcul pourcentages et totaux
+ * - Détection contenu controversé
+ * - Nettoyage votes orphelins
+ * 
+ * ### 🎯 Optimisations performance
+ * - Mise à jour scores en batch
+ * - Requêtes optimisées multi-cibles
+ * - Cache des validations fréquentes
+ * - Gestion asynchrone des calculs
+ * 
+ * @class VotingService
+ * @version 1.0.0
+ */
 @Injectable()
 export class VotingService {
-  private readonly VOTE_COOLDOWN_MINUTES = 1; // Cooldown entre votes du même utilisateur
-  private readonly MAX_DAILY_VOTES = 100; // Limite quotidienne de votes par utilisateur
-  private readonly MIN_ACCOUNT_AGE_HOURS = 24; // Âge minimum du compte pour voter
+  /** Temps d'attente entre votes du même utilisateur (minutes) */
+  private readonly VOTE_COOLDOWN_MINUTES = 1;
+  
+  /** Limite quotidienne de votes par utilisateur */
+  private readonly MAX_DAILY_VOTES = 100;
+  
+  /** Âge minimum du compte pour pouvoir voter (heures) */
+  private readonly MIN_ACCOUNT_AGE_HOURS = 24;
 
+  /**
+   * Constructeur avec injection des repositories
+   * 
+   * @constructor
+   * @param {IVoteRepository} voteRepository - Repository des votes
+   * @param {ICommunityMemberRepository} communityMemberRepository - Repository des membres
+   * @param {ICommunityPostRepository} postRepository - Repository des publications
+   * @param {IPostCommentRepository} commentRepository - Repository des commentaires
+   */
   constructor(
     @Inject('IVoteRepository') private voteRepository: IVoteRepository,
     @Inject('ICommunityMemberRepository') private communityMemberRepository: ICommunityMemberRepository,
@@ -160,7 +256,44 @@ export class VotingService {
   }
 
   /**
-   * Voter pour un post ou commentaire
+   * Émet un vote pour une publication ou un commentaire
+   * 
+   * Cette méthode centrale du système de votes gère toute la logique
+   * de validation, création, modification et suppression de votes.
+   * Elle effectue des vérifications complètes de sécurité et met
+   * à jour les scores automatiquement avec gestion des erreurs.
+   * 
+   * @async
+   * @method castVote
+   * @param {string} userId - ID de l'utilisateur votant
+   * @param {'community_post' | 'post_comment'} targetType - Type de cible
+   * @param {string} targetId - ID de la cible (publication ou commentaire)
+   * @param {'up' | 'down'} voteType - Type de vote (positif ou négatif)
+   * @param {string} [reason] - Raison optionnelle du vote (pour downvotes)
+   * @returns {Promise<VoteResult>} Résultat avec nouveau score et statistiques
+   * @throws {BadRequestException} Si les paramètres sont invalides
+   * @throws {ForbiddenException} Si l'utilisateur n'a pas les permissions
+   * @throws {NotFoundException} Si la cible n'existe pas
+   * 
+   * @example
+   * ```typescript
+   * // Upvote sur une publication
+   * const result = await this.votingService.castVote(
+   *   userId,
+   *   'community_post',
+   *   postId,
+   *   'up'
+   * );
+   * 
+   * // Downvote avec raison sur un commentaire
+   * const result = await this.votingService.castVote(
+   *   userId,
+   *   'post_comment',
+   *   commentId,
+   *   'down',
+   *   'Information incorrecte'
+   * );
+   * ```
    */
   async castVote(
     userId: string,
