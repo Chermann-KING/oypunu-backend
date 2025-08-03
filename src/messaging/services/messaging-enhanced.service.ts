@@ -8,7 +8,7 @@ import { IMessageRepository } from "../../repositories/interfaces/message.reposi
 import { IConversationRepository } from "../../repositories/interfaces/conversation.repository.interface";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { AudioService } from "../../dictionary/services/audio.service";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
