@@ -1,13 +1,78 @@
+/**
+ * @fileoverview Contrôleur principal de l'application O'Ypunu
+ * 
+ * Ce contrôleur gère les endpoints racine de l'API, notamment la page d'accueil
+ * avec documentation interactive, les vérifications de santé du service et
+ * l'orientation des développeurs vers les ressources principales.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
+/**
+ * Contrôleur principal de l'application O'Ypunu
+ * 
+ * Point d'entrée central de l'API fournissant la page d'accueil interactive,
+ * la documentation développeur et les endpoints de monitoring pour garantir
+ * une excellente expérience d'intégration.
+ * 
+ * ## 🎯 Fonctionnalités principales :
+ * 
+ * ### 🏠 Page d'accueil interactive
+ * - **Interface développeur** : Page HTML élégante avec design professionnel
+ * - **Navigation intuitive** : Liens directs vers Swagger UI et documentation
+ * - **Exemples pratiques** : Code samples pour authentification et usage
+ * - **Endpoints référence** : Liste visuelle des endpoints principaux
+ * 
+ * ### 📋 Documentation intégrée
+ * - **Guide de démarrage** : Instructions step-by-step pour l'intégration
+ * - **Exemples d'authentification** : Patterns JWT et gestion des tokens
+ * - **Ressources développeur** : Liens vers GitHub, support et documentation
+ * 
+ * ### 🔍 Monitoring et santé
+ * - **Health check** : Endpoint de vérification de l'état du service
+ * - **Métadonnées temps réel** : Timestamp et statut pour monitoring
+ * - **Intégration CI/CD** : Support pour pipelines et déploiements
+ * 
+ * ## 🎨 Interface utilisateur :
+ * - **Design moderne** : UI dark theme avec animations CSS
+ * - **Responsive** : Adaptation mobile et desktop
+ * - **Accessibilité** : Couleurs et contrastes optimisés
+ * - **Performance** : CSS inline pour chargement instantané
+ * 
+ * @class AppController
+ * @version 1.0.0
+ */
 @ApiTags('app')
 @Controller()
 export class AppController {
+  /**
+   * Constructeur du contrôleur principal
+   * @param {AppService} appService - Service principal de l'application
+   */
   constructor(private readonly appService: AppService) {}
 
+  /**
+   * Affiche la page d'accueil interactive de l'API O'Ypunu
+   * 
+   * Endpoint racine qui présente une interface développeur élégante avec
+   * documentation intégrée, guide de démarrage, exemples de code et
+   * navigation directe vers les ressources principales de l'API.
+   * 
+   * @method getApiInfo
+   * @param {Response} res - Objet Response Express pour rendu HTML
+   * @returns {void} Page HTML complète avec CSS intégré et navigation
+   * 
+   * @example
+   * GET /
+   * // Retourne: Page HTML interactive avec documentation développeur
+   */
   @Get()
   @ApiOperation({ summary: "Page d'accueil de l'API" })
   @ApiResponse({
@@ -257,6 +322,22 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code></pre>
     `);
   }
 
+  /**
+   * Endpoint de vérification de l'état de santé de l'API
+   * 
+   * Endpoint essentiel pour le monitoring, les health checks automatisés
+   * et l'intégration dans les pipelines CI/CD. Fournit un statut temps réel
+   * de la disponibilité du service.
+   * 
+   * @method healthCheck
+   * @returns {Object} Statut de santé avec timestamp ISO
+   * @returns {string} returns.status - Statut "ok" si service opérationnel
+   * @returns {string} returns.timestamp - Timestamp ISO de la vérification
+   * 
+   * @example
+   * GET /api/health
+   * // Retourne: { "status": "ok", "timestamp": "2025-01-31T10:30:00.000Z" }
+   */
   @Get('api/health')
   healthCheck() {
     return {

@@ -1,19 +1,28 @@
 #!/usr/bin/env node
 
 /**
- * 🔐 CLI JWT SECURITY TOOL
+ * @fileoverview CLI de sécurité JWT pour O'Ypunu
  * 
- * Outil en ligne de commande pour la gestion de la sécurité des secrets JWT.
- * Permet la validation, génération et audit des secrets JWT en local.
+ * Outil en ligne de commande professionnel pour la gestion avancée
+ * de la sécurité des secrets JWT. Inclut validation cryptographique,
+ * génération sécurisée, audit complet et vérification de configuration
+ * avec scoring détaillé et recommandations de sécurité.
  * 
- * Usage:
- *   npm run jwt:validate [secret]  - Valider un secret JWT
- *   npm run jwt:generate [length]  - Générer un secret sécurisé
- *   npm run jwt:audit              - Auditer le secret actuel
- *   npm run jwt:check              - Vérifier la configuration
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
  * 
- * Variables d'environnement:
- *   JWT_SECRET - Secret JWT à auditer (optionnel pour génération)
+ * ## Usage:
+ * ```bash
+ * npm run jwt:validate "secret"  # Valider un secret JWT
+ * npm run jwt:generate [length]  # Générer un secret sécurisé
+ * npm run jwt:audit              # Auditer le secret actuel
+ * npm run jwt:check              # Vérifier la configuration
+ * ```
+ * 
+ * ## Variables d'environnement:
+ * - `JWT_SECRET` - Secret JWT à auditer (optionnel pour génération)
+ * - `NODE_ENV` - Environnement d'exécution pour debug
  */
 
 import { NestFactory } from '@nestjs/core';
@@ -21,6 +30,17 @@ import { Logger } from '@nestjs/common';
 import { AppModule } from '../app.module';
 import { JwtSecretValidatorService } from '../auth/security/jwt-secret-validator.service';
 
+/**
+ * Fonction principale d'initialisation du CLI de sécurité JWT
+ * 
+ * Cette fonction initialise l'application NestJS, analyse les arguments
+ * de ligne de commande et exécute l'opération de sécurité demandée
+ * avec gestion d'erreurs et nettoyage des ressources.
+ * 
+ * @async
+ * @function bootstrap
+ * @throws {Error} En cas d'échec de validation ou configuration invalide
+ */
 async function bootstrap() {
   const logger = new Logger('JWTSecurityCLI');
   
@@ -71,7 +91,18 @@ async function bootstrap() {
 }
 
 /**
- * 🔍 Valide un secret JWT fourni
+ * Valide un secret JWT avec analyse cryptographique complète
+ * 
+ * Cette fonction effectue une validation détaillée d'un secret JWT
+ * incluant vérification de longueur, entropie, complexité et
+ * conformité aux standards de sécurité avec affichage formaté.
+ * 
+ * @async
+ * @function validateSecret
+ * @param {JwtSecretValidatorService} validator - Service de validation JWT
+ * @param {string} secret - Secret JWT à valider
+ * @param {Logger} logger - Logger pour affichage des messages
+ * @returns {Promise<void>}
  */
 async function validateSecret(
   validator: JwtSecretValidatorService, 
@@ -115,7 +146,18 @@ async function validateSecret(
 }
 
 /**
- * 🎲 Génère un nouveau secret sécurisé
+ * Génère un nouveau secret JWT cryptographiquement sécurisé
+ * 
+ * Cette fonction crée un secret JWT aléatoire sécurisé avec la longueur
+ * spécifiée, le valide automatiquement et fournit des exemples
+ * de configuration pour différents environnements de déploiement.
+ * 
+ * @async
+ * @function generateSecret
+ * @param {JwtSecretValidatorService} validator - Service de validation JWT
+ * @param {string} lengthStr - Longueur désirée du secret (string)
+ * @param {Logger} logger - Logger pour affichage des messages
+ * @returns {Promise<void>}
  */
 async function generateSecret(
   validator: JwtSecretValidatorService,
@@ -162,7 +204,17 @@ async function generateSecret(
 }
 
 /**
- * 🔍 Audite le secret JWT actuellement configuré
+ * Audite le secret JWT actuellement configuré dans l'environnement
+ * 
+ * Cette fonction analyse le secret JWT défini dans JWT_SECRET,
+ * évalue sa sécurité, identifie les vulnérabilités potentielles
+ * et fournit des recommandations d'amélioration.
+ * 
+ * @async
+ * @function auditCurrentSecret
+ * @param {JwtSecretValidatorService} validator - Service de validation JWT
+ * @param {Logger} logger - Logger pour affichage des messages
+ * @returns {Promise<void>}
  */
 async function auditCurrentSecret(
   validator: JwtSecretValidatorService,

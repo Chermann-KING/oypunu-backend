@@ -1,19 +1,29 @@
 #!/usr/bin/env node
 
 /**
- * 🚀 CLI MIGRATION SCRIPT
+ * @fileoverview CLI de migration de base de données pour O'Ypunu
  * 
- * Script en ligne de commande pour exécuter les migrations de base de données.
- * Peut être utilisé en développement ou en production pour appliquer les changements.
+ * Script en ligne de commande professionnel pour la gestion complète
+ * des migrations de base de données MongoDB. Inclut la création d'index,
+ * les rollbacks sécurisés, le suivi des statuts et l'exécution forcée
+ * avec gestion d'erreurs robuste et logging détaillé.
  * 
- * Usage:
- *   npm run migrate:up         - Exécuter toutes les migrations
- *   npm run migrate:indexes    - Exécuter seulement la migration des indexes
- *   npm run migrate:down       - Rollback toutes les migrations
- *   npm run migrate:status     - Vérifier le statut des migrations
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
  * 
- * Variables d'environnement requises:
- *   MONGODB_URI - URI de connexion MongoDB
+ * ## Usage:
+ * ```bash
+ * npm run migrate:up         # Exécuter toutes les migrations
+ * npm run migrate:indexes    # Exécuter seulement la migration des indexes
+ * npm run migrate:down       # Rollback toutes les migrations
+ * npm run migrate:status     # Vérifier le statut des migrations
+ * npm run migrate:force      # Forcer l'exécution des migrations
+ * ```
+ * 
+ * ## Variables d'environnement requises:
+ * - `MONGODB_URI` - URI de connexion MongoDB
+ * - `NODE_ENV` - Environnement d'exécution (development/production)
  */
 
 import { NestFactory } from '@nestjs/core';
@@ -21,6 +31,17 @@ import { Logger } from '@nestjs/common';
 import { AppModule } from '../app.module';
 import { DatabaseMigrationService } from '../database/database-migration.service';
 
+/**
+ * Fonction principale d'initialisation et d'exécution du CLI
+ * 
+ * Cette fonction initialise l'application NestJS en mode silencieux,
+ * analyse les arguments de ligne de commande et exécute la migration
+ * appropriée avec gestion d'erreurs complète.
+ * 
+ * @async
+ * @function bootstrap
+ * @throws {Error} En cas d'échec de migration ou configuration invalide
+ */
 async function bootstrap() {
   const logger = new Logger('MigrationCLI');
   

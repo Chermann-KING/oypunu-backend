@@ -1,13 +1,74 @@
+/**
+ * @fileoverview Configuration de production sécurisée et optimisée pour O'Ypunu
+ * 
+ * Cette configuration complète et durcie pour l'environnement de production
+ * inclut tous les paramètres de sécurité, performance, monitoring et
+ * fonctionnalités nécessaires pour une application enterprise-grade.
+ * Elle valide automatiquement les variables d'environnement critiques
+ * et applique les meilleures pratiques de sécurité.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { ConfigFactory } from '@nestjs/config';
 
 /**
- * 🏭 CONFIGURATION DE PRODUCTION SÉCURISÉE
+ * Factory de configuration de production pour O'Ypunu
  * 
- * Configuration durcie pour l'environnement de production :
- * - Validation stricte des variables d'environnement
- * - Paramètres de sécurité optimisés
- * - Logging et monitoring configurés
- * - Performance et stabilité maximisées
+ * Cette fonction génère une configuration complète et sécurisée pour
+ * l'environnement de production. Elle inclut :
+ * 
+ * ## Fonctionnalités de sécurité :
+ * - Validation automatique des variables d'environnement critiques
+ * - Validation de la robustesse des secrets JWT et encryption
+ * - Configuration CORS restrictive avec domaines autorisés
+ * - Headers de sécurité (HSTS, CSP, XSS Protection, etc.)
+ * - Rate limiting strict avec limites spécialisées par endpoint
+ * - Sessions sécurisées avec cookies HttpOnly/Secure/SameSite
+ * 
+ * ## Performance et stabilité :
+ * - Pool de connexions MongoDB optimisé (5-50 connexions)
+ * - Compression Brotli/Gzip avec seuils optimisés
+ * - Cache multi-niveau avec TTL configurable
+ * - Support cluster multi-worker automatique
+ * - SSL/TLS obligatoire avec validation complète
+ * 
+ * ## Monitoring et observabilité :
+ * - Logging structuré JSON pour ELK Stack
+ * - Intégration Sentry pour error tracking
+ * - Métriques Prometheus pour monitoring
+ * - Health checks automatisés
+ * - APM (Application Performance Monitoring)
+ * 
+ * ## Fonctionnalités métier :
+ * - OAuth multi-provider (Google, Facebook, Twitter)
+ * - Email transactionnel avec pool de connexions
+ * - Upload sécurisé via Cloudinary
+ * - WebSocket temps réel avec CORS
+ * - Audit trail avec rétention configurée
+ * - Backup automatisé avec chiffrement
+ * 
+ * @function productionConfig
+ * @returns {Object} Configuration complète de production
+ * @throws {Error} Si des variables d'environnement critiques manquent
+ * @throws {Error} Si les secrets ne respectent pas les critères de robustesse
+ * 
+ * @example
+ * ```typescript
+ * // Utilisation dans app.module.ts
+ * @Module({
+ *   imports: [
+ *     ConfigModule.forRoot({
+ *       load: [productionConfig],
+ *       validationSchema: configValidationSchema,
+ *       validationOptions: { allowUnknown: false, abortEarly: false }
+ *     })
+ *   ]
+ * })
+ * export class AppModule {}
+ * ```
  */
 export const productionConfig: ConfigFactory = () => {
   // Validation des variables d'environnement critiques
@@ -330,7 +391,32 @@ export const productionConfig: ConfigFactory = () => {
 };
 
 /**
- * 🔍 Valide la robustesse d'un secret
+ * Valide la robustesse et la sécurité d'un secret cryptographique
+ * 
+ * Cette fonction critique vérifie que les secrets utilisés pour JWT,
+ * chiffrement et autres opérations sensibles respectent les standards
+ * de sécurité requis pour un environnement de production.
+ * 
+ * ## Critères de validation :
+ * - Longueur minimum : 32 caractères
+ * - Complexité : majuscules, minuscules, chiffres, caractères spéciaux
+ * - Absence de mots faibles ou communs
+ * - Protection contre les secrets par défaut
+ * 
+ * @function validateSecretStrength
+ * @param {string} secret - Secret à valider
+ * @param {string} name - Nom du secret pour messages d'erreur
+ * @throws {Error} Si le secret ne respecte pas les critères minimum
+ * @returns {void}
+ * 
+ * @example
+ * ```typescript
+ * // Validation d'un secret JWT
+ * validateSecretStrength(process.env.JWT_SECRET!, 'JWT_SECRET');
+ * 
+ * // Validation d'une clé de chiffrement
+ * validateSecretStrength(process.env.ENCRYPTION_KEY!, 'ENCRYPTION_KEY');
+ * ```
  */
 function validateSecretStrength(secret: string, name: string): void {
   if (secret.length < 32) {
