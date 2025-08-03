@@ -1,3 +1,15 @@
+/**
+ * @fileoverview DTOs pour la révision et gestion des demandes de contribution O'Ypunu
+ * 
+ * Ce fichier définit les structures de données pour la révision administrative
+ * des demandes de contribution avec évaluation détaillée, actions en lot et
+ * filtres avancés pour une gestion efficace du workflow de modération.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   IsString,
   IsEnum,
@@ -18,6 +30,25 @@ import {
   ContributorRequestPriority,
 } from '../schemas/contributor-request.schema';
 
+/**
+ * DTO pour la révision complète d'une demande de contribution
+ * 
+ * Structure de données pour l'évaluation administrative détaillée des candidatures
+ * avec scoring, critères multiples et feedback constructif pour les candidats.
+ * 
+ * ## ⚖️ Décision administrative :
+ * - **Statut** : Approbation/rejet/révision supplémentaire
+ * - **Justification** : Notes détaillées pour traçabilité
+ * - **Scoring** : Évaluation quantitative 0-100
+ * 
+ * ## 📊 Évaluation multicritères :
+ * - **Compétences** : Assessment par domaine technique
+ * - **Critères qualitatifs** : Points d'évaluation textuels
+ * - **Flags spéciaux** : Priorité haute, révision spéciale
+ * 
+ * @class ReviewContributorRequestDto
+ * @version 1.0.0
+ */
 export class ReviewContributorRequestDto {
   @ApiProperty({
     description: 'Action à effectuer sur la demande',
@@ -99,6 +130,15 @@ export class ReviewContributorRequestDto {
   requiresSpecialReview?: boolean;
 }
 
+/**
+ * DTO pour la mise à jour de priorité des demandes
+ * 
+ * Structure simple pour modifier la priorité de traitement d'une demande
+ * avec justification obligatoire pour traçabilité des actions administratives.
+ * 
+ * @class UpdateContributorRequestPriorityDto
+ * @version 1.0.0
+ */
 export class UpdateContributorRequestPriorityDto {
   @ApiProperty({
     description: 'Nouvelle priorité de la demande',
@@ -119,6 +159,15 @@ export class UpdateContributorRequestPriorityDto {
   reason?: string;
 }
 
+/**
+ * DTO pour les actions en lot sur les demandes
+ * 
+ * Structure pour traiter plusieurs demandes simultanément avec la même action,
+ * optimisant l'efficacité administrative et la cohérence des décisions.
+ * 
+ * @class BulkActionDto  
+ * @version 1.0.0
+ */
 export class BulkActionDto {
   @ApiProperty({
     description: 'IDs des demandes à traiter',
@@ -146,6 +195,21 @@ export class BulkActionDto {
   notes?: string;
 }
 
+/**
+ * DTO pour le filtrage avancé des demandes de contribution
+ * 
+ * Structure complète de filtres pour la recherche et navigation optimisée
+ * dans les demandes avec critères multiples et options temporelles.
+ * 
+ * ## 🔍 Filtres disponibles :
+ * - **Statut et priorité** : Filtrage par état et urgence
+ * - **Recherche textuelle** : Recherche dans contenu des demandes
+ * - **Filtres administratifs** : Par reviewer, flags spéciaux
+ * - **Filtres temporels** : Âge des demandes, expiration
+ * 
+ * @class ContributorRequestFiltersDto
+ * @version 1.0.0
+ */
 export class ContributorRequestFiltersDto {
   @ApiPropertyOptional({
     description: 'Filtrer par statut',

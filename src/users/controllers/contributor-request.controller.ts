@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Contrôleur de gestion des demandes de contribution pour O'Ypunu
+ * 
+ * Ce contrôleur gère l'ensemble du workflow des demandes de contribution avec
+ * endpoints spécialisés pour utilisateurs, contributeurs et administrateurs,
+ * incluant révision, modération et actions en lot pour un processus optimisé.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Controller,
   Get,
@@ -37,14 +49,61 @@ import {
   ContributorRequestFiltersDto,
 } from '../dto/review-contributor-request.dto';
 
+/**
+ * Interface représentant l'utilisateur JWT extrait du token
+ * 
+ * @interface JwtUser
+ */
 interface JwtUser {
+  /** ID utilisateur (format variable selon la source) */
   userId?: string;
+  /** ID MongoDB de l'utilisateur */
   _id?: string;
+  /** Nom d'utilisateur unique */
   username: string;
+  /** Adresse email */
   email: string;
+  /** Rôle utilisateur dans la plateforme */
   role: UserRole;
 }
 
+/**
+ * Contrôleur de gestion des demandes de contribution O'Ypunu
+ * 
+ * Ce contrôleur orchestre le workflow complet des demandes de contribution :
+ * 
+ * ## 👥 Endpoints par rôle utilisateur :
+ * 
+ * ### 🔵 Utilisateurs standards :
+ * - **Créer demande** : POST / - Soumettre une nouvelle demande
+ * - **Mes demandes** : GET /my-requests - Consulter ses propres demandes
+ * 
+ * ### 🟡 Contributeurs :
+ * - **Vue rapide** : GET /pending/quick-view - Aperçu des demandes en attente
+ * - **Révision rapide** : PATCH /:id/quick-review - Recommander ou signaler
+ * 
+ * ### 🔴 Administrateurs :
+ * - **Gestion complète** : CRUD sur toutes les demandes
+ * - **Statistiques** : GET /statistics - Métriques détaillées
+ * - **Actions en lot** : POST /bulk-action - Traitement par batch
+ * - **Nettoyage** : DELETE /cleanup - Purge des demandes expirées
+ * 
+ * ## 🔄 Workflow de traitement :
+ * 1. **Soumission** : Utilisateur crée une demande avec motivation
+ * 2. **Pré-filtrage** : Validation automatique des données
+ * 3. **Recommandation** : Contributeurs peuvent recommander/signaler
+ * 4. **Révision admin** : Approbation/rejet avec commentaires
+ * 5. **Promotion rôle** : Attribution automatique si approuvé
+ * 
+ * ## 🔐 Sécurité et permissions :
+ * - **Authentification** : JWT obligatoire pour tous les endpoints
+ * - **Autorisation** : RolesGuard pour endpoints admin/contributeur
+ * - **Validation** : DTOs avec decorators class-validator
+ * - **Traçabilité** : Log complet des actions administratives
+ * 
+ * @class ContributorRequestController
+ * @version 1.0.0
+ */
 @ApiTags('contributor-requests')
 @Controller('contributor-requests')
 @UseGuards(JwtAuthGuard)
@@ -56,6 +115,20 @@ export class ContributorRequestController {
 
   // === ENDPOINTS POUR LES UTILISATEURS ===
 
+  /**
+   * Créer une nouvelle demande de contribution
+   * 
+   * Permet à un utilisateur authentifié de soumettre une demande pour devenir
+   * contributeur en fournissant sa motivation et ses expériences pertinentes.
+   * 
+   * @param req - Requête contenant l'utilisateur JWT authentifié
+   * @param createDto - Données de la demande (motivation, expérience, etc.)
+   * @returns Promise<ContributorRequest> La demande créée avec statut "pending"
+   * 
+   * @throws {Error} Si l'ID utilisateur n'est pas trouvé dans le token
+   * @throws {BadRequestException} Si les données sont invalides
+   * @throws {ConflictException} Si une demande est déjà en cours
+   */
   @Post()
   @ApiOperation({ summary: 'Créer une demande de contribution' })
   @ApiResponse({
@@ -81,6 +154,17 @@ export class ContributorRequestController {
     return this.contributorRequestService.createRequest(userId, createDto);
   }
 
+  /**
+   * Récupérer les demandes de contribution de l'utilisateur connecté
+   * 
+   * Permet à un utilisateur de consulter l'historique de ses propres demandes
+   * avec les statuts, commentaires de révision et dates importantes.
+   * 
+   * @param req - Requête contenant l'utilisateur JWT authentifié
+   * @returns Promise<ContributorRequest[]> Liste des demandes de l'utilisateur
+   * 
+   * @throws {Error} Si l'ID utilisateur n'est pas trouvé dans le token
+   */
   @Get('my-requests')
   @ApiOperation({ summary: 'Récupérer mes demandes de contribution' })
   @ApiResponse({
@@ -97,6 +181,21 @@ export class ContributorRequestController {
 
   // === ENDPOINTS POUR L'ADMINISTRATION ===
 
+  /**
+   * Récupérer la liste paginée des demandes de contribution (Admin)
+   * 
+   * Endpoint administrateur pour consulter et filtrer toutes les demandes
+   * avec pagination, recherche et filtres avancés pour une gestion efficace.
+   * 
+   * @param req - Requête contenant l'administrateur JWT authentifié
+   * @param page - Numéro de page (défaut: 1)
+   * @param limit - Nombre d'éléments par page (défaut: 20)
+   * @param filters - Filtres optionnels (statut, priorité, recherche, etc.)
+   * @returns Promise<PaginatedResult<ContributorRequest>> Résultats paginés
+   * 
+   * @example
+   * GET /contributor-requests?page=1&limit=10&status=pending&priority=high
+   */
   @Get()
   @Roles('admin', 'superadmin')
   @UseGuards(RolesGuard)

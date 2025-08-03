@@ -1,12 +1,69 @@
+/**
+ * @fileoverview Service de gestion des utilisateurs O'Ypunu
+ * 
+ * Ce service implémente toute la logique métier pour la gestion des utilisateurs :
+ * profils complets, authentification, gestion des favoris, préférences linguistiques
+ * et tracking d'activité pour l'expérience personnalisée.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Inject } from "@nestjs/common";
 import { User } from "../schemas/user.schema";
-import { DatabaseErrorHandler } from "../../common/utils/database-error-handler.util";
+import { DatabaseErrorHandler } from "../../common/errors"
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IActivityFeedRepository } from "../../repositories/interfaces/activity-feed.repository.interface";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
 
+/**
+ * Service de gestion des utilisateurs O'Ypunu
+ * 
+ * Implémente la logique métier complète pour la gestion des utilisateurs
+ * avec profils enrichis, gestion des préférences linguistiques, système
+ * de favoris et tracking d'activité pour personnalisation avancée.
+ * 
+ * ## 🎯 Fonctionnalités principales :
+ * 
+ * ### 👤 Gestion des profils utilisateur
+ * - **CRUD complet** : Création, lecture, mise à jour, suppression
+ * - **Authentification** : Recherche par email, nom d'utilisateur, ID
+ * - **Profils enrichis** : Informations personnelles et préférences
+ * - **Validation des données** : Contrôles de cohérence et sécurité
+ * 
+ * ### 🌍 Préférences linguistiques
+ * - **Langues natives** : Gestion de la langue maternelle
+ * - **Apprentissage** : Liste des langues en cours d'étude
+ * - **Personnalisation** : Adaptation de l'interface utilisateur
+ * 
+ * ### ⭐ Système de favoris
+ * - **Mots favoris** : Gestion de la liste personnalisée
+ * - **Ajout/suppression** : Opérations atomiques sécurisées
+ * - **Synchronisation** : Cohérence avec les données du dictionnaire
+ * 
+ * ### 📊 Tracking d'activité
+ * - **Historique complet** : Actions utilisateur pour analytics
+ * - **Métriques d'engagement** : Statistiques d'usage personnel
+ * - **Recommandations** : Base pour suggestions personnalisées
+ * 
+ * ## 🔄 Pattern Repository
+ * - **Abstraction des données** : Interface découplée de la DB
+ * - **Gestion d'erreurs** : Handling centralisé avec DatabaseErrorHandler
+ * - **Performance optimisée** : Requêtes optimisées et mise en cache
+ * 
+ * @class UsersService
+ * @version 1.0.0
+ */
 @Injectable()
 export class UsersService {
+  /**
+   * Constructeur avec injection des repositories
+   * 
+   * @param {IUserRepository} userRepository - Repository des utilisateurs
+   * @param {IActivityFeedRepository} activityFeedRepository - Repository d'activité
+   * @param {IWordRepository} wordRepository - Repository des mots
+   */
   constructor(
     @Inject("IUserRepository") private userRepository: IUserRepository,
     @Inject("IActivityFeedRepository")
@@ -14,6 +71,19 @@ export class UsersService {
     @Inject("IWordRepository") private wordRepository: IWordRepository
   ) {}
 
+  /**
+   * Recherche un utilisateur par son identifiant unique
+   * 
+   * @method findById
+   * @param {string} id - Identifiant unique de l'utilisateur
+   * @returns {Promise<User | null>} Utilisateur trouvé ou null si inexistant
+   * @throws {NotFoundException} Si utilisateur non trouvé
+   * @throws {DatabaseException} Si erreur de base de données
+   * 
+   * @example
+   * const user = await usersService.findById('60a1b2c3d4e5f6a7b8c9d0e1');
+   * if (user) { console.log(`Utilisateur: ${user.username}`); }
+   */
   async findById(id: string): Promise<User | null> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
@@ -24,6 +94,19 @@ export class UsersService {
     );
   }
 
+  /**
+   * Recherche un utilisateur avec ses préférences linguistiques populées
+   * 
+   * @method findByIdWithLanguages
+   * @param {string} id - Identifiant unique de l'utilisateur
+   * @returns {Promise<User | null>} Utilisateur avec langues populées ou null
+   * @throws {NotFoundException} Si utilisateur non trouvé
+   * @throws {DatabaseException} Si erreur de base de données
+   * 
+   * @example
+   * const user = await usersService.findByIdWithLanguages('60a1b2c3d4e5f6a7b8c9d0e1');
+   * console.log(`Langue native: ${user?.nativeLanguageId?.name}`);
+   */
   async findByIdWithLanguages(id: string): Promise<User | null> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
@@ -35,6 +118,21 @@ export class UsersService {
     );
   }
 
+  /**
+   * Recherche un utilisateur par son adresse email
+   * 
+   * Méthode principalement utilisée pour l'authentification et la
+   * vérification d'unicité lors de l'inscription.
+   * 
+   * @method findByEmail
+   * @param {string} email - Adresse email de l'utilisateur
+   * @returns {Promise<User | null>} Utilisateur trouvé ou null si inexistant
+   * @throws {DatabaseException} Si erreur de base de données
+   * 
+   * @example
+   * const user = await usersService.findByEmail('user@example.com');
+   * if (user && user.isEmailVerified) { // Authentification... }
+   */
   async findByEmail(email: string): Promise<User | null> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {

@@ -1,3 +1,15 @@
+/**
+ * @fileoverview DTO pour l'inscription des nouveaux utilisateurs O'Ypunu
+ * 
+ * Ce fichier définit la structure de données pour l'inscription avec validation
+ * complète des champs, sécurité des mots de passe et conformité RGPD
+ * pour assurer une création de compte sécurisée et conforme.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   IsEmail,
   IsNotEmpty,
@@ -11,6 +23,44 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { IsStrongPassword } from '../../auth/validators/password.validator';
 
+/**
+ * DTO pour l'inscription des nouveaux utilisateurs
+ * 
+ * Structure de données complète pour la création de compte avec validation
+ * stricte des champs et exigences de sécurité renforcées.
+ * 
+ * ## 🔐 Sécurité renforcée :
+ * - **Nom d'utilisateur** : Alphanumériques, tirets, underscores uniquement
+ * - **Email** : Format valide et unique dans le système
+ * - **Mot de passe** : 12+ caractères avec complexité obligatoire
+ * - **Langues** : Validation des codes ISO pour les préférences
+ * 
+ * ## ⚖️ Conformité légale :
+ * - **Conditions d'utilisation** : Acceptation obligatoire
+ * - **Politique de confidentialité** : Acceptation obligatoire
+ * - **RGPD** : Consentement explicite pour le traitement des données
+ * 
+ * ## 🌍 Support multilingue :
+ * - **Langue maternelle** : Code ISO ou ID de langue
+ * - **Langues d'apprentissage** : Tableau de codes/IDs
+ * - **Personnalisation** : Préférences linguistiques dès l'inscription
+ * 
+ * @class RegisterDto
+ * @version 1.0.0
+ * 
+ * @example
+ * ```typescript
+ * const registerData: RegisterDto = {
+ *   username: "john_doe",
+ *   email: "john@oypunu.com",
+ *   password: "MonMotDePasse123!",
+ *   nativeLanguage: "fr",
+ *   learningLanguages: ["en", "es"],
+ *   hasAcceptedTerms: true,
+ *   hasAcceptedPrivacyPolicy: true
+ * };
+ * ```
+ */
 export class RegisterDto {
   @ApiProperty({
     description: "Nom d'utilisateur unique",
