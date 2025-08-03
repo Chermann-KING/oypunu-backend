@@ -1,0 +1,846 @@
+{
+  "info": {
+    "name": "O'Ypunu API Collection",
+    "description": "Collection complète pour tester l'API REST de la plateforme O'Ypunu - Dictionnaire collaboratif des langues africaines.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "description": "URL de base de l'API"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "description": "JWT Access Token"
+    },
+    {
+      "key": "refresh_token", 
+      "value": "",
+      "description": "JWT Refresh Token"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "description": "ID de l'utilisateur connecté"
+    },
+    {
+      "key": "word_id",
+      "value": "",
+      "description": "ID d'un mot pour les tests"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Endpoints d'authentification et gestion des sessions",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has access_token', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('access_token');",
+                  "    pm.expect(responseJson).to.have.property('refresh_token');",
+                  "    pm.expect(responseJson).to.have.property('user');",
+                  "    ",
+                  "    // Save tokens for subsequent requests",
+                  "    pm.collectionVariables.set('access_token', responseJson.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', responseJson.refresh_token);",
+                  "    pm.collectionVariables.set('user_id', responseJson.user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test-{{$randomInt}}@example.com\",\n  \"username\": \"testuser{{$randomInt}}\",\n  \"password\": \"SecurePass123!\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"hasAcceptedTerms\": true,\n  \"hasAcceptedPrivacyPolicy\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Créer un nouveau compte utilisateur"
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has access_token', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('access_token');",
+                  "    pm.expect(responseJson).to.have.property('refresh_token');",
+                  "    ",
+                  "    // Save tokens",
+                  "    pm.collectionVariables.set('access_token', responseJson.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', responseJson.refresh_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@oypunu.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authentifier un utilisateur existant"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Rafraîchir le token d'accès"
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "Récupérer les informations du profil connecté"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type", 
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Déconnexion et révocation du refresh token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Gestion des utilisateurs et profils",
+      "item": [
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Récupérer le profil de l'utilisateur connecté"
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Passionné de langues africaines et développeur\",\n  \"location\": \"Douala, Cameroun\",\n  \"website\": \"https://github.com/myusername\",\n  \"isProfilePublic\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Mettre à jour le profil utilisateur"
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/search?search=admin&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["users", "search"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "admin"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Rechercher des utilisateurs"
+          }
+        },
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/profile/stats",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile", "stats"]
+            },
+            "description": "Statistiques de l'utilisateur connecté"
+          }
+        },
+        {
+          "name": "Get Online Contributors Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/analytics/online-contributors",
+              "host": ["{{base_url}}"],
+              "path": ["users", "analytics", "online-contributors"]
+            },
+            "description": "Nombre de contributeurs en ligne"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dictionary - Words",
+      "description": "Gestion des mots du dictionnaire",
+      "item": [
+        {
+          "name": "Get Words List",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words?page=1&limit=10&status=approved",
+              "host": ["{{base_url}}"],
+              "path": ["words"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "approved"
+                }
+              ]
+            },
+            "description": "Récupérer une liste paginée de mots"
+          }
+        },
+        {
+          "name": "Create Word",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has word data', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('_id');",
+                  "    pm.expect(responseJson).to.have.property('word');",
+                  "    ",
+                  "    // Save word ID for subsequent tests",
+                  "    pm.collectionVariables.set('word_id', responseJson._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"word\": \"mbolo\",\n  \"language\": \"douala\",\n  \"pronunciation\": \"[m.bo.lo]\",\n  \"etymology\": \"Mot traditionnel de salutation en douala\",\n  \"meanings\": [\n    {\n      \"definition\": \"Bonjour, salutation amicale utilisée le matin\",\n      \"partOfSpeech\": \"interjection\",\n      \"example\": \"Mbolo, comment tu vas aujourd'hui ?\",\n      \"register\": \"informal\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/words",
+              "host": ["{{base_url}}"],
+              "path": ["words"]
+            },
+            "description": "Créer un nouveau mot dans le dictionnaire"
+          }
+        },
+        {
+          "name": "Get Word by ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}"]
+            },
+            "description": "Récupérer les détails d'un mot par son ID"
+          }
+        },
+        {
+          "name": "Search Words",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/search?q=bonjour&language=douala&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["words", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "bonjour"
+                },
+                {
+                  "key": "language",
+                  "value": "douala"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Recherche avancée de mots"
+          }
+        },
+        {
+          "name": "Get Featured Words",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/featured?limit=6",
+              "host": ["{{base_url}}"],
+              "path": ["words", "featured"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "6"
+                }
+              ]
+            },
+            "description": "Récupérer les mots mis en avant"
+          }
+        },
+        {
+          "name": "Get Available Languages",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/available-languages",
+              "host": ["{{base_url}}"],
+              "path": ["words", "available-languages"]
+            },
+            "description": "Langues disponibles avec comptage des mots"
+          }
+        },
+        {
+          "name": "Update Word",
+          "request": {
+            "method": "PATCH", 
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pronunciation\": \"[m.bo.lo] (accent littoral)\",\n  \"etymology\": \"Mot traditionnel de salutation en douala, utilisé dans la région du Littoral\",\n  \"revisionNotes\": \"Ajout de précisions sur l'accent et la région d'usage\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}"]
+            },
+            "description": "Modifier un mot existant"
+          }
+        },
+        {
+          "name": "Add Word to Favorites",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}/favorite",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}", "favorite"]
+            },
+            "description": "Ajouter un mot aux favoris"
+          }
+        },
+        {
+          "name": "Remove Word from Favorites",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}/favorite",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}", "favorite"]
+            },
+            "description": "Retirer un mot des favoris"
+          }
+        },
+        {
+          "name": "Get User Favorite Words",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/favorites/user?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["words", "favorites", "user"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Récupérer les mots favoris de l'utilisateur"
+          }
+        },
+        {
+          "name": "Check if Word is Favorite",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}/isfavorite",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}", "isfavorite"]
+            },
+            "description": "Vérifier si un mot est en favori"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Languages",
+      "description": "Gestion des langues disponibles",
+      "item": [
+        {
+          "name": "Get All Languages",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/languages",
+              "host": ["{{base_url}}"],
+              "path": ["languages"]
+            },
+            "description": "Récupérer toutes les langues disponibles"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Endpoints d'administration (superadmin uniquement)",
+      "item": [
+        {
+          "name": "Get Pending Words",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/pending?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["words", "pending"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Récupérer les mots en attente de modération"
+          }
+        },
+        {
+          "name": "Update Word Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"reason\": \"Mot conforme aux standards de qualité\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}", "status"]
+            },
+            "description": "Approuver/Rejeter un mot (admin)"
+          }
+        },
+        {
+          "name": "Get Pending Revisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/revisions/pending?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["words", "revisions", "pending"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Révisions en attente (admin)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Métriques et statistiques (admin)",
+      "item": [
+        {
+          "name": "Get Words Statistics",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/words/analytics/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["words", "analytics", "statistics"]
+            },
+            "description": "Statistiques des mots en temps réel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "File Upload",
+      "description": "Upload de fichiers audio et images",
+      "item": [
+        {
+          "name": "Create Word with Audio",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "word",
+                  "value": "ndolo",
+                  "type": "text"
+                },
+                {
+                  "key": "language",
+                  "value": "douala",
+                  "type": "text"
+                },
+                {
+                  "key": "pronunciation",
+                  "value": "[n.do.lo]",
+                  "type": "text"
+                },
+                {
+                  "key": "meanings",
+                  "value": "[{\"definition\":\"Amour, affection profonde\",\"partOfSpeech\":\"noun\",\"example\":\"Mo ke ndolo na wé\",\"register\":\"informal\"}]",
+                  "type": "text"
+                },
+                {
+                  "key": "audioFile",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/words/with-audio",
+              "host": ["{{base_url}}"],
+              "path": ["words", "with-audio"]
+            },
+            "description": "Créer un mot avec fichier audio"
+          }
+        },
+        {
+          "name": "Upload Audio for Word",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "accent",
+                  "value": "douala-littoral",
+                  "type": "text"
+                },
+                {
+                  "key": "audioFile",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/words/{{word_id}}/audio",
+              "host": ["{{base_url}}"],
+              "path": ["words", "{{word_id}}", "audio"]
+            },
+            "description": "Ajouter un fichier audio à un mot existant"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "description": "Endpoints de monitoring et santé",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Vérifier la santé de l'API"
+          }
+        },
+        {
+          "name": "API Info",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Informations générales de l'API"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh token if expired",
+          "if (pm.collectionVariables.get('access_token') && pm.collectionVariables.get('refresh_token')) {",
+          "    const token = pm.collectionVariables.get('access_token');",
+          "    const payload = JSON.parse(atob(token.split('.')[1]));",
+          "    const currentTime = Math.floor(Date.now() / 1000);",
+          "    ",
+          "    // If token expires in less than 5 minutes, refresh it",
+          "    if (payload.exp - currentTime < 300) {",
+          "        pm.sendRequest({",
+          "            url: pm.collectionVariables.get('base_url') + '/auth/refresh',",
+          "            method: 'POST',",
+          "            header: { 'Content-Type': 'application/json' },",
+          "            body: {",
+          "                mode: 'raw',",
+          "                raw: JSON.stringify({",
+          "                    refresh_token: pm.collectionVariables.get('refresh_token')",
+          "                })",
+          "            }",
+          "        }, function (err, response) {",
+          "            if (!err && response.code === 200) {",
+          "                const data = response.json();",
+          "                pm.collectionVariables.set('access_token', data.access_token);",
+          "                pm.collectionVariables.set('refresh_token', data.refresh_token);",
+          "            }",
+          "        });",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global tests for all requests",
+          "pm.test('Response time is less than 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has correct content-type', function () {",
+          "    if (pm.response.code !== 204) {",
+          "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "    }",
+          "});",
+          "",
+          "// Log errors for debugging",
+          "if (pm.response.code >= 400) {",
+          "    console.log('Error Response:', pm.response.json());",
+          "}"
+        ]
+      }
+    }
+  ]
+}

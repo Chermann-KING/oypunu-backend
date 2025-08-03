@@ -1,0 +1,1807 @@
+openapi: 3.1.0
+info:
+  title: O'Ypunu Dictionary API
+  description: |
+    API REST complète pour la plateforme O'Ypunu - Dictionnaire collaboratif des langues africaines.
+    
+    Cette API permet de gérer les mots, utilisateurs, communautés, traductions et toutes les 
+    fonctionnalités sociales de la plateforme.
+    
+    ## Authentification
+    
+    L'API utilise JWT Bearer tokens pour l'authentification. La plupart des endpoints nécessitent
+    une authentification, sauf indication contraire.
+    
+    ## Pagination
+    
+    Les endpoints qui retournent des listes utilisent une pagination basée sur les paramètres :
+    - `page`: Numéro de la page (défaut: 1)
+    - `limit`: Nombre d'éléments par page (défaut: 10, max: 100)
+    
+    ## Rate Limiting
+    
+    L'API implémente du rate limiting pour protéger les ressources :
+    - Endpoints publics: 100 requêtes/minute
+    - Endpoints authentifiés: 1000 requêtes/minute
+    - Endpoints d'administration: 50 requêtes/minute
+    
+    ## Codes d'erreur
+    
+    L'API utilise les codes HTTP standards :
+    - `200`: Succès
+    - `201`: Ressource créée
+    - `400`: Requête invalide
+    - `401`: Non authentifié
+    - `403`: Permissions insuffisantes
+    - `404`: Ressource non trouvée
+    - `429`: Trop de requêtes
+    - `500`: Erreur serveur
+    
+  version: 1.0.0
+  contact:
+    name: Équipe O'Ypunu
+    email: dev@oypunu.com
+    url: https://oypunu.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://oypunu.com/terms
+
+servers:
+  - url: https://api.oypunu.com/v1
+    description: Production
+  - url: https://staging-api.oypunu.com/v1
+    description: Staging
+  - url: http://localhost:3000
+    description: Développement local
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: authentication
+    description: Authentification et gestion des sessions
+  - name: users
+    description: Gestion des utilisateurs et profils
+  - name: dictionary
+    description: Mots du dictionnaire et CRUD
+  - name: languages
+    description: Langues disponibles et métadonnées
+  - name: communities
+    description: Communautés linguistiques et sociales
+  - name: messaging
+    description: Messagerie temps réel
+  - name: analytics
+    description: Statistiques et métriques
+  - name: admin
+    description: Administration (superadmin uniquement)
+  - name: search
+    description: Recherche avancée
+  - name: social
+    description: Fonctionnalités sociales (votes, favoris)
+
+paths:
+  # ===================================
+  # AUTHENTIFICATION
+  # ===================================
+  
+  /auth/register:
+    post:
+      tags: [authentication]
+      summary: Inscription nouvel utilisateur
+      description: |
+        Créer un nouveau compte utilisateur. Un email de confirmation sera envoyé
+        pour vérifier l'adresse email.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDto'
+            examples:
+              standard:
+                summary: Inscription standard
+                value:
+                  email: "user@example.com"
+                  username: "newuser"
+                  password: "SecurePass123!"
+                  hasAcceptedTerms: true 
+                  hasAcceptedPrivacyPolicy: true
+      responses:
+        '201':
+          description: Utilisateur inscrit avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      security: []
+
+  /auth/login:
+    post:
+      tags: [authentication]
+      summary: Connexion utilisateur
+      description: Authentifier un utilisateur avec email/username et mot de passe
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+            examples:
+              with_email:
+                summary: Connexion avec email
+                value:
+                  email: "user@example.com"
+                  password: "SecurePass123!"
+              with_username:
+                summary: Connexion avec username
+                value:
+                  username: "myusername"
+                  password: "SecurePass123!"
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security: []
+
+  /auth/refresh:
+    post:
+      tags: [authentication]
+      summary: Rafraîchir le token d'accès
+      description: Utilise le refresh token pour obtenir un nouveau token d'accès
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+                  description: Token de rafraîchissement
+      responses:
+        '200':
+          description: Tokens rafraîchis avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security: []
+
+  /auth/logout:
+    post:
+      tags: [authentication]
+      summary: Déconnexion
+      description: Révoque le refresh token et déconnecte l'utilisateur
+      operationId: logoutUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Déconnexion réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Déconnexion réussie"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      security: []
+
+  /auth/verify-email/{token}:
+    get:
+      tags: [authentication]
+      summary: Vérifier email avec token
+      description: Vérifie et active le compte utilisateur via le token envoyé par email
+      operationId: verifyEmail
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token de vérification d'email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email vérifié avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email vérifié avec succès"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      security: []
+
+  # ===================================
+  # UTILISATEURS
+  # ===================================
+
+  /users/profile:
+    get:
+      tags: [users]
+      summary: Profil utilisateur connecté
+      description: Récupère les informations complètes du profil de l'utilisateur authentifié
+      operationId: getCurrentUserProfile
+      responses:
+        '200':
+          description: Profil récupéré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [users]
+      summary: Modifier profil utilisateur
+      description: Met à jour les informations du profil de l'utilisateur connecté
+      operationId: updateCurrentUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileDto'
+      responses:
+        '200':
+          description: Profil mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/search:
+    get:
+      tags: [users]
+      summary: Rechercher des utilisateurs
+      description: Recherche d'utilisateurs par nom d'utilisateur ou critères
+      operationId: searchUsers
+      parameters:
+        - name: search
+          in: query
+          required: true
+          description: Terme de recherche (min 2 caractères)
+          schema:
+            type: string
+            minLength: 2
+        - name: limit
+          in: query
+          description: Nombre maximum de résultats
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Utilisateurs trouvés
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicUserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/{username}:
+    get:
+      tags: [users]
+      summary: Profil public utilisateur
+      description: Récupère le profil public d'un utilisateur par son nom d'utilisateur
+      operationId: getUserByUsername
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Nom d'utilisateur
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Profil public récupéré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicUserProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+
+  # ===================================
+  # DICTIONNAIRE - MOTS
+  # ===================================
+
+  /words:
+    get:
+      tags: [dictionary]
+      summary: Liste des mots
+      description: |
+        Récupère une liste paginée de mots du dictionnaire.
+        Par défaut, seuls les mots approuvés sont retournés.
+      operationId: getWords
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          description: Statut des mots à récupérer
+          schema:
+            type: string
+            enum: [approved, pending, rejected]
+            default: approved
+        - name: language
+          in: query
+          description: Code de langue (ISO 639)
+          schema:
+            type: string
+            example: "fr"
+      responses:
+        '200':
+          description: Liste des mots récupérée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordsPaginatedResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      security: []
+
+    post:
+      tags: [dictionary]
+      summary: Créer un nouveau mot
+      description: |
+        Ajoute un nouveau mot au dictionnaire. Nécessite le rôle contributeur ou supérieur.
+        Le mot sera en statut "pending" en attente de modération.
+      operationId: createWord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWordDto'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateWordWithAudioDto'
+      responses:
+        '201':
+          description: Mot créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Word'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /words/search:
+    get:
+      tags: [dictionary]
+      summary: Recherche avancée de mots
+      description: |
+        Recherche de mots avec filtres avancés : terme, langue, catégorie, etc.
+        Supporte la recherche full-text et les filtres multiples.
+      operationId: searchWords
+      parameters:
+        - name: q  
+          in: query
+          description: Terme de recherche
+          schema:
+            type: string
+        - name: language
+          in: query
+          description: Code de langue
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: ID de catégorie
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Résultats de recherche
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordSearchResponse'
+      security: []
+
+  /words/featured:
+    get:
+      tags: [dictionary]
+      summary: Mots mis en avant
+      description: Récupère les mots mis en avant ou populaires
+      operationId: getFeaturedWords
+      parameters:
+        - name: limit
+          in: query
+          description: Nombre de mots à récupérer
+          schema:
+            type: integer
+            default: 6
+            maximum: 20
+      responses:
+        '200':
+          description: Mots mis en avant
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Word'
+      security: []
+
+  /words/{id}:
+    get:
+      tags: [dictionary]
+      summary: Détails d'un mot
+      description: |
+        Récupère les détails complets d'un mot par son ID.
+        Si l'utilisateur est authentifié, la vue sera trackée.
+      operationId: getWordById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du mot
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+      responses:
+        '200':
+          description: Détails du mot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordDetailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+
+    patch:
+      tags: [dictionary]
+      summary: Modifier un mot
+      description: |
+        Modifie un mot existant. Seul le créateur du mot ou un administrateur
+        peut effectuer cette action.
+      operationId: updateWord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du mot
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWordDto'
+      responses:
+        '200':
+          description: Mot modifié avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Word'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [dictionary]
+      summary: Supprimer un mot
+      description: |
+        Supprime un mot du dictionnaire. Seul le créateur ou un administrateur
+        peut supprimer un mot.
+      operationId: deleteWord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du mot
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mot supprimé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Mot supprimé avec succès"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /words/{id}/favorite:
+    post:
+      tags: [social]
+      summary: Ajouter aux favoris
+      description: Ajoute un mot à la liste des favoris de l'utilisateur
+      operationId: addWordToFavorites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du mot
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mot ajouté aux favoris
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Mot ajouté aux favoris"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [social]
+      summary: Retirer des favoris
+      description: Retire un mot de la liste des favoris de l'utilisateur
+      operationId: removeWordFromFavorites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du mot
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mot retiré des favoris
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Mot retiré des favoris"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===================================
+  # LANGUES
+  # ===================================
+
+  /languages:
+    get:
+      tags: [languages]
+      summary: Liste des langues disponibles
+      description: Récupère la liste de toutes les langues supportées par la plateforme
+      operationId: getLanguages
+      responses:
+        '200':
+          description: Langues récupérées avec succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Language'
+      security: []
+
+  # ===================================
+  # COMMUNAUTÉS
+  # ===================================
+
+  /communities:
+    get:
+      tags: [communities]
+      summary: Liste des communautés
+      description: Récupère une liste paginée de communautés publiques
+      operationId: getCommunities
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: language
+          in: query
+          description: Filtrer par langue
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Type de communauté
+          schema:
+            type: string
+            enum: [language, region, topic, level]
+      responses:
+        '200':
+          description: Liste des communautés
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunitiesPaginatedResponse'
+      security: []
+
+    post:
+      tags: [communities]
+      summary: Créer une communauté
+      description: Crée une nouvelle communauté linguistique
+      operationId: createCommunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommunityDto'
+      responses:
+        '201':
+          description: Communauté créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Community'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /communities/{id}:
+    get:
+      tags: [communities]
+      summary: Détails d'une communauté
+      description: Récupère les détails complets d'une communauté
+      operationId: getCommunityById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la communauté
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Détails de la communauté
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityDetailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+
+  /communities/{id}/join:
+    post:
+      tags: [communities]
+      summary: Rejoindre une communauté
+      description: Permet à un utilisateur de rejoindre une communauté
+      operationId: joinCommunity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la communauté
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Communauté rejointe avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Communauté rejointe avec succès"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===================================
+  # ANALYTICS
+  # ===================================
+
+  /analytics/dashboard:
+    get:
+      tags: [analytics]
+      summary: Dashboard analytics (Admin)
+      description: Récupère les métriques principales pour le dashboard administrateur
+      operationId: getAnalyticsDashboard
+      responses:
+        '200':
+          description: Métriques du dashboard
+          content:
+            application/json:
+              schema:   
+                $ref: '#/components/schemas/AnalyticsDashboard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/users:
+    get:
+      tags: [analytics]
+      summary: Analytics utilisateurs (Admin)
+      description: Métriques détaillées sur les utilisateurs
+      operationId: getUserAnalytics
+      parameters:
+        - name: period
+          in: query
+          description: Période d'analyse
+          schema:
+            type: string
+            enum: [day, week, month, year]
+            default: month
+      responses:
+        '200':
+          description: Analytics utilisateurs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtenu via /auth/login ou /auth/register.
+        Format: `Bearer <token>`
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Numéro de page (commence à 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Nombre d'éléments par page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "BadRequest"
+            message: "Données de requête invalides"
+            statusCode: 400
+
+    Unauthorized:
+      description: Non authentifié
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized"
+            message: "Token d'authentification requis"
+            statusCode: 401
+
+    Forbidden:
+      description: Permissions insuffisantes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Forbidden"
+            message: "Permissions insuffisantes pour cette action"
+            statusCode: 403
+
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NotFound"
+            message: "Ressource non trouvée"
+            statusCode: 404
+
+    Conflict:
+      description: Conflit (ressource existe déjà)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Conflict"
+            message: "Cette ressource existe déjà"
+            statusCode: 409
+
+    TooManyRequests:
+      description: Trop de requêtes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "TooManyRequests"
+            message: "Limite de taux dépassée. Réessayez plus tard."
+            statusCode: 429
+
+  schemas:
+    # ===================================
+    # SCHEMAS D'AUTHENTIFICATION
+    # ===================================
+    
+    RegisterDto:
+      type: object
+      required:
+        - email
+        - username
+        - password
+        - hasAcceptedTerms
+        - hasAcceptedPrivacyPolicy
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adresse email unique
+          example: "user@example.com"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: Nom d'utilisateur unique
+          example: "myusername"
+        password:
+          type: string
+          minLength: 8
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)'
+          description: Mot de passe (min 8 chars, maj, min, chiffre)
+          example: "SecurePass123!"
+        firstName:
+          type: string
+          maxLength: 50
+          description: Prénom (optionnel)
+          example: "Jean"
+        lastName:
+          type: string
+          maxLength: 50
+          description: Nom (optionnel)
+          example: "Dupont"
+        hasAcceptedTerms:
+          type: boolean
+          description: Acceptation des conditions d'utilisation
+          example: true
+        hasAcceptedPrivacyPolicy:
+          type: boolean
+          description: Acceptation de la politique de confidentialité
+          example: true
+
+    LoginDto:
+      type: object
+      required:
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email (requis si username absent)
+          example: "user@example.com"
+        username:
+          type: string
+          description: Username (requis si email absent)
+          example: "myusername"
+        password:
+          type: string
+          description: Mot de passe
+          example: "SecurePass123!"
+      oneOf:
+        - required: ["email", "password"]
+        - required: ["username", "password"]
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT token d'accès
+        refresh_token:
+          type: string
+          description: Token de rafraîchissement
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID unique de l'utilisateur
+        email:
+          type: string
+          format: email
+          description: Adresse email
+        username:
+          type: string
+          description: Nom d'utilisateur
+        role:
+          type: string
+          enum: [user, contributor, admin, superadmin]
+          description: Rôle de l'utilisateur
+
+    # ===================================
+    # SCHEMAS UTILISATEURS
+    # ===================================
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID unique de l'utilisateur
+        email:
+          type: string
+          format: email
+          description: Adresse email
+        username:
+          type: string
+          description: Nom d'utilisateur
+        isEmailVerified:
+          type: boolean
+          description: Email vérifié
+        role:
+          type: string
+          enum: [user, contributor, admin, superadmin]
+          description: Rôle de l'utilisateur
+        nativeLanguage:
+          type: string
+          description: Code langue maternelle
+        learningLanguages:
+          type: array
+          items:
+            type: string
+          description: Codes des langues apprises
+        profilePicture:
+          type: string
+          format: uri
+          description: URL photo de profil
+        bio:
+          type: string
+          description: Biographie courte
+        location:
+          type: string
+          description: Localisation
+        website:
+          type: string
+          format: uri
+          description: Site web
+        isProfilePublic:
+          type: boolean
+          description: Profil visible publiquement
+        lastActive:
+          type: string
+          format: date-time
+          description: Dernière activité
+
+    PublicUserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID unique de l'utilisateur
+        username:
+          type: string
+          description: Nom d'utilisateur
+        nativeLanguage:
+          type: string
+          description: Code langue maternelle
+        learningLanguages:
+          type: array
+          items:
+            type: string
+          description: Codes des langues apprises
+        profilePicture:
+          type: string
+          format: uri
+          description: URL photo de profil
+        bio:
+          type: string
+          description: Biographie courte
+        location:
+          type: string
+          description: Localisation
+        website:
+          type: string
+          format: uri
+          description: Site web
+        lastActive:
+          type: string
+          format: date-time
+          description: Dernière activité
+
+    UpdateProfileDto:
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        bio:
+          type: string
+          maxLength: 500
+        location:
+          type: string
+          maxLength: 100
+        website:
+          type: string
+          format: uri
+        isProfilePublic:
+          type: boolean
+        nativeLanguageId:
+          type: string
+          description: ID de la langue maternelle
+        learningLanguageIds:
+          type: array
+          items:
+            type: string
+          description: IDs des langues d'apprentissage
+
+    # ===================================
+    # SCHEMAS DICTIONNAIRE
+    # ===================================
+
+    CreateWordDto:
+      type: object
+      required:
+        - word
+        - meanings
+      properties:
+        word:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Le mot en lui-même
+          example: "mbolo"
+        languageId:
+          type: string
+          description: ID de la langue (optionnel si language fourni)
+        language:
+          type: string
+          description: Code de langue (optionnel si languageId fourni)
+          example: "douala"
+        pronunciation:
+          type: string
+          maxLength: 200
+          description: Phonétique/prononciation
+          example: "[m.bo.lo]"
+        etymology:
+          type: string
+          maxLength: 500
+          description: Étymologie du mot
+        categoryId:
+          type: string
+          description: ID de catégorie
+        meanings:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MeaningDto'
+          description: Significations du mot
+
+    CreateWordWithAudioDto:
+      type: object
+      required:
+        - word
+        - meanings
+      properties:
+        word:
+          type: string
+          description: Le mot
+        languageId:
+          type: string
+          description: ID de la langue
+        language:
+          type: string
+          description: Code de langue
+        pronunciation:
+          type: string
+          description: Phonétique
+        etymology:
+          type: string
+          description: Étymologie
+        categoryId:
+          type: string
+          description: ID de catégorie
+        meanings:
+          type: string
+          description: JSON des significations
+        audioFile:
+          type: string
+          format: binary
+          description: Fichier audio du mot
+
+    UpdateWordDto:
+      type: object
+      properties:
+        pronunciation:
+          type: string
+          maxLength: 200
+        etymology:
+          type: string
+          maxLength: 500
+        categoryId:
+          type: string
+        meanings:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeaningDto'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateTranslationDto'
+        revisionNotes:
+          type: string
+          description: Notes sur la révision
+        forceRevision:
+          type: boolean
+          description: Forcer la création d'une révision
+
+    MeaningDto:
+      type: object
+      required:
+        - definition
+        - partOfSpeech
+      properties:
+        definition:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Définition de la signification
+          example: "Bonjour, salutation amicale"
+        partOfSpeech:
+          type: string
+          enum: [noun, verb, adjective, adverb, pronoun, conjunction, preposition, interjection, other]
+          description: Partie du discours
+          example: "interjection"
+        example:
+          type: string
+          maxLength: 500
+          description: Exemple d'utilisation
+          example: "Mbolo, comment tu vas ?"
+        synonyms:
+          type: array
+          items:
+            type: string
+          description: Synonymes
+        antonyms:
+          type: array
+          items:
+            type: string
+          description: Antonymes
+        register:
+          type: string
+          enum: [formal, informal, colloquial, slang, archaic, literary]
+          description: Registre de langue
+
+    UpdateTranslationDto:
+      type: object
+      properties:
+        targetLanguageId:
+          type: string
+          description: ID langue cible
+        text:
+          type: string
+          description: Texte de la traduction
+
+    Word:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: ID unique du mot
+        word:
+          type: string
+          description: Le mot
+        language:
+          $ref: '#/components/schemas/Language'
+        pronunciation:
+          type: string
+          description: Phonétique
+        etymology:
+          type: string
+          description: Étymologie
+        meanings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Meaning'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Translation'
+        audioFiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudioFile'
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          description: Statut de modération
+        createdBy:
+          type: string
+          description: ID du créateur
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WordDetailed:
+      allOf:
+        - $ref: '#/components/schemas/Word'
+        - type: object
+          properties:
+            viewCount:
+              type: integer
+              description: Nombre de vues
+            favoriteCount:
+              type: integer
+              description: Nombre de favoris
+            revisionHistory:
+              type: array
+              items:
+                $ref: '#/components/schemas/RevisionHistory'
+
+    Meaning:
+      type: object
+      properties:
+        definition:
+          type: string
+          description: Définition
+        partOfSpeech:
+          type: string
+          description: Partie du discours
+        example:
+          type: string
+          description: Exemple d'usage
+        synonyms:
+          type: array
+          items:
+            type: string
+        antonyms:
+          type: array
+          items:
+            type: string
+        register:
+          type: string
+          description: Registre de langue
+
+    Translation:
+      type: object
+      properties:
+        targetLanguage:
+          $ref: '#/components/schemas/Language'
+        text:
+          type: string
+          description: Texte traduit
+        createdBy:
+          type: string
+          description: ID du traducteur
+        createdAt:
+          type: string
+          format: date-time
+
+    AudioFile:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL du fichier audio
+        accent:
+          type: string
+          description: Accent/dialecte
+        createdBy:
+          type: string
+          description: ID du contributeur
+        createdAt:
+          type: string
+          format: date-time
+
+    RevisionHistory:
+      type: object
+      properties:
+        _id:
+          type: string
+        changes:
+          type: object
+          description: Changements apportés
+        notes:
+          type: string
+          description: Notes de révision
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+
+    WordsPaginatedResponse:
+      type: object
+      properties:
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/Word'
+        total:
+          type: integer
+          description: Nombre total d'éléments
+        page:
+          type: integer
+          description: Page actuelle
+        limit:
+          type: integer
+          description: Éléments par page
+        totalPages:
+          type: integer
+          description: Nombre total de pages
+
+    WordSearchResponse:
+      type: object
+      properties:
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/Word'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+        filters:
+          type: object
+          description: Filtres appliqués
+
+    # ===================================
+    # SCHEMAS LANGUES
+    # ===================================
+
+    Language:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: ID unique de la langue
+        name:
+          type: string
+          description: Nom de la langue
+          example: "Douala"
+        nativeName:
+          type: string
+          description: Nom dans la langue native
+          example: "Duálá"
+        iso639_1:
+          type: string
+          description: Code ISO 639-1
+        iso639_2:
+          type: string
+          description: Code ISO 639-2
+        iso639_3:
+          type: string
+          description: Code ISO 639-3
+        family:
+          type: string
+          description: Famille linguistique
+        region:
+          type: string
+          description: Région géographique
+        speakers:
+          type: integer
+          description: Nombre de locuteurs
+        isActive:
+          type: boolean
+          description: Langue active sur la plateforme
+
+    # ===================================
+    # SCHEMAS COMMUNAUTÉS
+    # ===================================
+
+    CreateCommunityDto:
+      type: object
+      required:
+        - name
+        - description
+        - primaryLanguage
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Nom de la communauté
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Description courte
+        longDescription:
+          type: string
+          maxLength: 2000
+          description: Description détaillée
+        type:
+          type: string
+          enum: [language, region, topic, level]
+          description: Type de communauté
+        primaryLanguage:
+          type: string
+          description: ID de la langue principale
+        supportedLanguages:
+          type: array
+          items:
+            type: string
+          description: IDs des langues supportées
+        visibility:
+          type: string
+          enum: [public, private, invite-only]
+          default: public
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 10
+
+    Community:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        longDescription:
+          type: string
+        avatar:
+          type: string
+          format: uri
+        banner:
+          type: string
+          format: uri
+        type:
+          type: string
+          enum: [language, region, topic, level]
+        primaryLanguage:
+          $ref: '#/components/schemas/Language'
+        supportedLanguages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'  
+        visibility:
+          type: string
+          enum: [public, private, invite-only]
+        tags:
+          type: array
+          items:
+            type: string
+        stats:
+          $ref: '#/components/schemas/CommunityStats'
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CommunityDetailed:
+      allOf:
+        - $ref: '#/components/schemas/Community'
+        - type: object
+          properties:
+            rules:
+              type: array
+              items:
+                type: string
+            settings:
+              $ref: '#/components/schemas/CommunitySettings'
+            recentPosts:
+              type: array
+              items:
+                $ref: '#/components/schemas/CommunityPost'
+
+    CommunityStats:
+      type: object
+      properties:
+        memberCount:
+          type: integer
+        postCount:
+          type: integer
+        activeMembers:
+          type: integer
+        engagementRate:
+          type: number
+          format: float
+
+    CommunitySettings:
+      type: object  
+      properties:
+        welcomeMessage:
+          type: string
+        autoModeration:
+          type: boolean
+        allowExternalLinks:
+          type: boolean
+        requireApproval:
+          type: boolean
+
+    CommunityPost:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        votes:
+          $ref: '#/components/schemas/VoteStats'
+        commentCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    VoteStats:
+      type: object
+      properties:
+        upvotes:
+          type: integer
+        downvotes:
+          type: integer
+        netScore:
+          type: integer
+
+    CommunitiesPaginatedResponse:
+      type: object
+      properties:
+        communities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Community'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+
+    # ===================================
+    # SCHEMAS ANALYTICS
+    # ===================================
+
+    AnalyticsDashboard:
+      type: object
+      properties:
+        overview:
+          $ref: '#/components/schemas/OverviewMetrics'
+        users:
+          $ref: '#/components/schemas/UserMetrics'
+        content:
+          $ref: '#/components/schemas/ContentMetrics'
+        performance:
+          $ref: '#/components/schemas/PerformanceMetrics'
+        timestamp:
+          type: string
+          format: date-time
+
+    OverviewMetrics:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalWords:
+          type: integer
+        totalCommunities:
+          type: integer
+        dailyActiveUsers:
+          type: integer
+
+    UserMetrics:
+      type: object
+      properties:
+        dailyActiveUsers:
+          type: integer
+        weeklyActiveUsers:
+          type: integer
+        monthlyActiveUsers:
+          type: integer
+        newRegistrations:
+          type: integer
+        emailVerificationRate:
+          type: number
+          format: float
+
+    ContentMetrics:
+      type: object
+      properties:
+        totalWords:
+          type: integer
+        wordsCreatedToday:
+          type: integer
+        approvalRate:
+          type: number
+          format: float
+        averageQualityScore:
+          type: number
+          format: float
+
+    PerformanceMetrics:
+      type: object
+      properties:
+        averageResponseTime:
+          type: number
+          format: float
+        apiErrorRate:
+          type: number
+          format: float
+        requestsPerSecond:
+          type: number
+          format: float
+
+    UserAnalytics:
+      type: object
+      properties:
+        engagement:
+          $ref: '#/components/schemas/UserMetrics'
+        demographics:
+          $ref: '#/components/schemas/UserDemographics'
+        retention:
+          $ref: '#/components/schemas/RetentionMetrics'
+
+    UserDemographics:
+      type: object
+      properties:
+        usersByRole:
+          type: object
+          additionalProperties:
+            type: integer
+        usersByLanguage:
+          type: object
+          additionalProperties:
+            type: integer
+        usersByRegion:
+          type: object
+          additionalProperties:
+            type: integer
+
+    RetentionMetrics:
+      type: object
+      properties:
+        dayOneRetention:
+          type: number
+          format: float
+        daySevenRetention:
+          type: number
+          format: float
+        dayThirtyRetention:
+          type: number
+          format: float
+
+    # ===================================
+    # SCHEMAS GÉNÉRIQUES
+    # ===================================
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+      properties:
+        error:
+          type: string
+          description: Type d'erreur
+        message:
+          type: string
+          description: Message d'erreur détaillé
+        statusCode:
+          type: integer
+          description: Code de statut HTTP
+        details:
+          type: object
+          description: Détails supplémentaires sur l'erreur
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp de l'erreur
