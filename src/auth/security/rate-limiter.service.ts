@@ -1,20 +1,43 @@
+/**
+ * @fileoverview Service de limitation de débit et protection anti-attaques pour O'Ypunu
+ * 
+ * Ce service implémente une protection avancée contre les abus d'API et attaques
+ * par déni de service avec algorithmes adaptatifs, détection d'intrusions et
+ * gestion intelligente des blocages pour garantir la disponibilité de la plateforme.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
- * 🚦 SERVICE DE LIMITATION DE DÉBIT (RATE LIMITING)
+ * Service de limitation de débit avec protection anti-attaques
  * 
- * Protection contre :
- * - Attaques par force brute sur l'authentification
- * - Spam et abus d'API
- * - Déni de service (DoS)
- * - Scraping excessif
+ * Ce service implémente une protection multi-niveaux contre les abus :
  * 
- * Implémente plusieurs stratégies :
- * - Sliding window pour précision
- * - Exponential backoff pour récidives
- * - IP whitelisting/blacklisting
- * - Rate limiting progressif par utilisateur
+ * ## 🛡️ Protections mises en œuvre :
+ * - **Force brute** : Limitation stricte sur l'authentification
+ * - **Spam API** : Contrôle du débit de requêtes par endpoint
+ * - **DoS/DDoS** : Détection et blocage des attaques volumétriques
+ * - **Scraping** : Limitation du taux d'accès aux données
+ * 
+ * ## ⚡ Stratégies algorithmiques :
+ * - **Sliding window** : Mesure précise sur fenêtres glissantes
+ * - **Exponential backoff** : Pénalité croissante pour récidives
+ * - **IP filtering** : Whitelist/blacklist dynamique
+ * - **Pattern detection** : Détection automatique d'attaques
+ * 
+ * ## 📊 Catégories de limitation :
+ * - **auth** : Endpoints d'authentification (5/15min)
+ * - **api** : API générale (100/min)
+ * - **sensitive** : Endpoints sensibles (10/min)
+ * - **upload** : Upload de fichiers (5/min)
+ * 
+ * @class RateLimiterService
+ * @version 1.0.0
  */
 @Injectable()
 export class RateLimiterService {
@@ -54,6 +77,15 @@ export class RateLimiterService {
     },
   };
 
+  /**
+   * Constructeur du service de limitation de débit
+   * 
+   * Initialise les configurations, charge les listes d'IPs autorisées
+   * et démarre les tâches de maintenance automatique.
+   * 
+   * @constructor
+   * @param {ConfigService} configService - Service de configuration NestJS
+   */
   constructor(private configService: ConfigService) {
     // Charger les IPs en whitelist depuis la config
     const whitelistConfig = this.configService.get<string>('RATE_LIMIT_WHITELIST');
@@ -66,7 +98,18 @@ export class RateLimiterService {
   }
 
   /**
-   * 🚦 Vérifie si une requête est autorisée
+   * Vérifie si une requête est autorisée selon les limites configurées
+   * 
+   * Méthode principale de validation qui applique les algorithmes de limitation
+   * selon la catégorie d'endpoint, gère les listes blanches/noires et calcule
+   * les temps de blocage avec exponential backoff pour les récidivistes.
+   * 
+   * @async
+   * @method checkRateLimit
+   * @param {string} identifier - IP ou ID utilisateur à vérifier
+   * @param {keyof typeof this.configs} category - Catégorie de limitation ('auth', 'api', 'sensitive', 'upload')
+   * @param {boolean} isIPBased - Si true, utilise l'IP, sinon l'ID utilisateur
+   * @returns {Promise<RateLimitResult>} Résultat avec autorisation et métadonnées
    */
   async checkRateLimit(
     identifier: string,

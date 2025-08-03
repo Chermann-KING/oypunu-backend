@@ -1,3 +1,16 @@
+/**
+ * @fileoverview Intercepteur d'audit sécurisé pour O'Ypunu
+ * 
+ * Cet intercepteur capture automatiquement toutes les actions sensibles
+ * effectuées dans l'application pour créer une piste d'audit complète.
+ * Il enregistre les tentatives d'accès, modifications de données et
+ * événements de sécurité pour conformité et investigation.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   NestInterceptor,
@@ -9,12 +22,57 @@ import { Observable, tap, catchError, throwError } from 'rxjs';
 import { AuditService, AuditContext } from '../services/audit.service';
 import { AuditAction, AuditSeverity } from '../schemas/audit-log.schema';
 
+/**
+ * Intercepteur d'audit automatique pour traçabilité complète
+ * 
+ * Cet intercepteur NestJS capture automatiquement les actions utilisateur
+ * et événements système pour créer une piste d'audit détaillée. Il surveille
+ * les accès aux données sensibles, modifications de contenu et tentatives
+ * de sécurité pour conformité réglementaire et investigation forensique.
+ * 
+ * ## 🔍 Événements capturés :
+ * - **Authentification** : Connexions, déconnexions, échecs
+ * - **Autorisations** : Tentatives d'accès aux ressources protégées
+ * - **Modifications** : CRUD sur données sensibles (mots, utilisateurs)
+ * - **Administration** : Actions admin et changements de permissions
+ * - **Erreurs** : Exceptions de sécurité et tentatives d'intrusion
+ * 
+ * ## 📊 Métadonnées enregistrées :
+ * - **Contexte utilisateur** : ID, nom, rôle, IP, user-agent
+ * - **Contexte technique** : Endpoint, méthode, durée, payload
+ * - **Contexte temporel** : Horodatage précis, session ID
+ * - **Résultat** : Succès/échec, code de réponse, erreurs
+ * 
+ * @class AuditInterceptor
+ * @implements NestInterceptor
+ * @version 1.0.0
+ */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
 
+  /**
+   * Constructeur de l'intercepteur d'audit
+   * @param {AuditService} auditService - Service de gestion des logs d'audit
+   */
   constructor(private readonly auditService: AuditService) {}
 
+  /**
+   * Méthode principale d'interception des requêtes pour audit
+   * 
+   * Intercepte toutes les requêtes passant par l'application pour capturer
+   * les informations d'audit avant et après exécution. Gère la mesure
+   * de performance, extraction du contexte et logging des résultats.
+   * 
+   * @method intercept
+   * @param {ExecutionContext} context - Contexte d'exécution NestJS
+   * @param {CallHandler} next - Handler de la chaîne d'exécution
+   * @returns {Observable<any>} Observable de la réponse avec audit intégré
+   * 
+   * @example
+   * // Automatiquement appliqué via @UseInterceptors(AuditInterceptor)
+   * // ou globalement dans app.module.ts
+   */
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();

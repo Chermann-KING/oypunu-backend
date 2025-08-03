@@ -1,14 +1,59 @@
+/**
+ * @fileoverview Stratégie d'authentification Google OAuth 2.0 pour O'Ypunu
+ * 
+ * Cette stratégie implémente l'authentification sociale via Google OAuth 2.0
+ * avec validation des profils, gestion des erreurs et intégration sécurisée
+ * au système d'authentification O'Ypunu.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback, Profile } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../services/auth.service';
 
+/**
+ * Stratégie Google OAuth 2.0 pour authentification sociale
+ * 
+ * Cette stratégie Passport permet aux utilisateurs de s'authentifier
+ * via leur compte Google avec validation sécurisée des profils
+ * et intégration automatique au système utilisateur O'Ypunu.
+ * 
+ * ## 🔐 Sécurité OAuth :
+ * - Validation des scopes (email, profile)
+ * - Vérification des tokens d'accès Google
+ * - Validation des données de profil obligatoires
+ * - Gestion des erreurs de configuration
+ * 
+ * ## 📊 Données collectées :
+ * - Email principal (scope: email)
+ * - Nom et prénom (scope: profile)
+ * - Photo de profil (optionnelle)
+ * - ID unique Google (providerId)
+ * 
+ * @class GoogleStrategy
+ * @extends PassportStrategy
+ * @version 1.0.0
+ */
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   private readonly logger = new Logger(GoogleStrategy.name);
   private isConfigured: boolean = false;
 
+  /**
+   * Constructeur de la stratégie Google OAuth
+   * 
+   * Initialise la stratégie avec les credentials Google et configure
+   * les scopes et URLs de callback. Vérifie la validité de la configuration.
+   * 
+   * @constructor
+   * @param {ConfigService} configService - Service de configuration NestJS
+   * @param {AuthService} authService - Service d'authentification O'Ypunu
+   */
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
@@ -46,6 +91,22 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     this.logger.log('✅ Google OAuth Strategy configurée et active');
   }
 
+  /**
+   * Valide et traite un profil utilisateur Google OAuth
+   * 
+   * Cette méthode est appelée automatiquement par Passport après une
+   * authentification Google réussie. Elle valide les données du profil,
+   * les normalise et les transmet au service d'authentification O'Ypunu.
+   * 
+   * @async
+   * @method validate
+   * @param {any} req - Objet de requête Express
+   * @param {string} accessToken - Token d'accès Google OAuth
+   * @param {string} refreshToken - Token de rafraîchissement Google
+   * @param {Profile} profile - Profil utilisateur Google
+   * @param {VerifyCallback} done - Callback Passport de validation
+   * @returns {Promise<any>} Utilisateur validé ou erreur
+   */
   async validate(
     req: any,
     accessToken: string,

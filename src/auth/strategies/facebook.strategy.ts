@@ -1,9 +1,50 @@
+/**
+ * @fileoverview Stratégie d'authentification Facebook OAuth pour O'Ypunu
+ * 
+ * Cette stratégie implémente l'authentification sociale via Facebook OAuth
+ * avec gestion des profils incomplets, validation sécurisée et intégration
+ * robuste au système d'authentification O'Ypunu.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy } from 'passport-facebook';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../services/auth.service';
 
+/**
+ * Stratégie Facebook OAuth pour authentification sociale
+ * 
+ * Cette stratégie Passport permet aux utilisateurs de s'authentifier
+ * via leur compte Facebook avec gestion des cas particuliers
+ * (emails manquants, profils incomplets) et intégration sécurisée.
+ * 
+ * ## 🔐 Sécurité Facebook OAuth :
+ * - Validation des scopes (email)
+ * - Gestion des profils sans email
+ * - Vérification des tokens d'accès
+ * - Fallback pour données manquantes
+ * 
+ * ## 📊 Données collectées :
+ * - Email (si disponible, sinon email factice)
+ * - Nom d'affichage (displayName)
+ * - Photo de profil (optionnelle)
+ * - ID unique Facebook (providerId)
+ * 
+ * ## ⚠️ Particularités Facebook :
+ * - Certains comptes n'ont pas d'email public
+ * - Génération d'email factice si nécessaire
+ * - Parsing du nom d'affichage en prénom/nom
+ * - Gestion gracieuse des erreurs de configuration
+ * 
+ * @class FacebookStrategy
+ * @extends PassportStrategy
+ * @version 1.0.0
+ */
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
   private readonly logger = new Logger(FacebookStrategy.name);

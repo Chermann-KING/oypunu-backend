@@ -1,4 +1,10 @@
-// Mise à jour de auth.service.ts avec les méthodes d'authentification sociale
+/**
+ * @fileoverview Service d'authentification - Gestion complète des utilisateurs
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import {
   Injectable,
   BadRequestException,
@@ -18,7 +24,10 @@ import { ActivityService } from "../../common/services/activity.service";
 import { RefreshTokenService, TokenMetadata } from "./refresh-token.service";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 
-// Type pour l'utilisateur social
+/**
+ * Interface pour l'utilisateur provenant d'un provider social
+ * @interface SocialUser
+ */
 interface SocialUser {
   provider: string;
   providerId: string;
@@ -29,10 +38,27 @@ interface SocialUser {
   profilePicture: string | null;
 }
 
+/**
+ * Service principal d'authentification pour O'Ypunu
+ *
+ * Gère l'inscription, connexion, vérification email, réinitialisation de mot de passe,
+ * authentification sociale (Google, Facebook), gestion des tokens JWT et refresh tokens.
+ *
+ * @class AuthService
+ */
 @Injectable()
 export class AuthService {
   private readonly _logger = new Logger(AuthService.name);
 
+  /**
+   * Constructeur du service d'authentification
+   * @param {IUserRepository} userRepository - Repository pour opérations utilisateur
+   * @param {JwtService} _jwtService - Service JWT pour génération et validation tokens
+   * @param {ConfigService} configService - Service de configuration
+   * @param {MailService} _mailService - Service d'envoi d'emails
+   * @param {ActivityService} activityService - Service de logging d'activités
+   * @param {RefreshTokenService} refreshTokenService - Service de gestion refresh tokens
+   */
   constructor(
     @Inject("IUserRepository") private userRepository: IUserRepository,
     private _jwtService: JwtService,
@@ -42,6 +68,26 @@ export class AuthService {
     private refreshTokenService: RefreshTokenService
   ) {}
 
+  /**
+   * Inscrit un nouvel utilisateur avec validation complète
+   *
+   * @async
+   * @function register
+   * @param {RegisterDto} registerDto - Données d'inscription utilisateur
+   * @param {object} requestInfo - Informations de la requête (IP, User-Agent)
+   * @param {string} requestInfo.ip - Adresse IP du client
+   * @param {string} requestInfo.userAgent - User-Agent du navigateur
+   * @returns {Promise<{message: string}>} Message de confirmation d'inscription
+   * @throws {BadRequestException} Si email/username existe ou conditions non acceptées
+   * @example
+   * const result = await authService.register({
+   *   email: 'user@example.com',
+   *   username: 'newuser',
+   *   password: 'SecurePass123!',
+   *   hasAcceptedTerms: true,
+   *   hasAcceptedPrivacyPolicy: true
+   * }, { ip: '192.168.1.1', userAgent: 'Mozilla/5.0...' });
+   */
   async register(
     registerDto: RegisterDto,
     requestInfo?: { ip: string; userAgent: string }
@@ -145,6 +191,17 @@ export class AuthService {
     };
   }
 
+  /**
+   * Vérifie l'adresse email d'un utilisateur via token
+   *
+   * @async
+   * @function verifyEmail
+   * @param {string} token - Token de vérification email
+   * @returns {Promise<{message: string}>} Message de confirmation de vérification
+   * @throws {BadRequestException} Si le token est invalide ou expiré
+   * @example
+   * const result = await authService.verifyEmail('uuid-token-here');
+   */
   async verifyEmail(token: string): Promise<{ message: string }> {
     const user = await this.userRepository.findByEmailVerificationToken(token);
 
@@ -165,6 +222,17 @@ export class AuthService {
     };
   }
 
+  /**
+   * Renvoie un nouvel email de vérification
+   *
+   * @async
+   * @function resendVerificationEmail
+   * @param {string} email - Email de l'utilisateur
+   * @returns {Promise<{ message: string }>} Message de confirmation
+   * @throws {BadRequestException} Si l'utilisateur n'est pas trouvé
+   * @example
+   * const result = await authService.resendVerificationEmail('user@example.com');
+   */
   async resendVerificationEmail(email: string): Promise<{ message: string }> {
     const user = await this.userRepository.findByEmail(email);
 
@@ -206,6 +274,21 @@ export class AuthService {
     };
   }
 
+  /**
+   * Authentifie un utilisateur et génère les tokens d'accès
+   *
+   * @async
+   * @function login
+   * @param {LoginDto} loginDto - Données de connexion (email/password)
+   * @param {TokenMetadata} metadata - Métadonnées optionnelles pour le token
+   * @returns {Promise<{tokens: {access_token: string, refresh_token: string}, user: any}>} Tokens et données utilisateur
+   * @throws {UnauthorizedException} Si email/password incorrect ou email non vérifié
+   * @example
+   * const result = await authService.login({
+   *   email: 'user@example.com',
+   *   password: 'userpassword'
+   * });
+   */
   async login(
     loginDto: LoginDto,
     metadata?: TokenMetadata
@@ -291,6 +374,17 @@ export class AuthService {
     };
   }
 
+  /**
+   * Demande de réinitialisation du mot de passe
+   *
+   * @async
+   * @function forgotPassword
+   * @param {string} email - Email de l'utilisateur
+   * @returns {Promise<{ message: string }>} Message de confirmation
+   * @throws {BadRequestException} Si aucun compte n'est associé à cet email
+   * @example
+   * const result = await authService.forgotPassword('user@example.com');
+   */
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.userRepository.findByEmail(email);
 
@@ -330,6 +424,18 @@ export class AuthService {
     };
   }
 
+  /**
+   * Réinitialisation du mot de passe
+   *
+   * @async
+   * @function resetPassword
+   * @param {string} token - Token de réinitialisation
+   * @param {string} newPassword - Nouveau mot de passe
+   * @returns {Promise<{ message: string }>} Message de confirmation
+   * @throws {BadRequestException} Si le token est invalide ou expiré
+   * @example
+   * const result = await authService.resetPassword('reset-token-here', 'new-password');
+   */
   async resetPassword(
     token: string,
     newPassword: string
@@ -353,6 +459,17 @@ export class AuthService {
     return { message: "Mot de passe réinitialisé avec succès" };
   }
 
+  /**
+   * Valide un utilisateur pour les requêtes authentifiées JWT
+   *
+   * @async
+   * @function validateUser
+   * @param {string} userId - ID de l'utilisateur à valider
+   * @returns {Promise<User>} Données utilisateur validées
+   * @throws {UnauthorizedException} Si l'utilisateur n'existe pas
+   * @example
+   * const user = await authService.validateUser('60f7b3b3b3b3b3b3b3b3b3b3');
+   */
   async validateUser(userId: string): Promise<User> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -371,7 +488,16 @@ export class AuthService {
   }
 
   /**
-   * 🔄 Rafraîchit les tokens d'accès
+   * Rafraîchit les tokens d'accès via refresh token
+   *
+   * @async
+   * @function refreshTokens
+   * @param {string} refreshToken - Token de rafraîchissement
+   * @param {TokenMetadata} metadata - Métadonnées optionnelles pour le nouveau token
+   * @returns {Promise<{tokens: {access_token: string, refresh_token: string}}>} Nouveaux tokens
+   * @throws {UnauthorizedException} Si le refresh token est invalide
+   * @example
+   * const newTokens = await authService.refreshTokens('refresh-token-here');
    */
   async refreshTokens(
     refreshToken: string,
@@ -396,7 +522,14 @@ export class AuthService {
   }
 
   /**
-   * 🚪 Déconnexion sécurisée avec révocation du refresh token
+   * Déconnexion sécurisée avec révocation du refresh token
+   *
+   * @async
+   * @function logout
+   * @param {string} refreshToken - Token de rafraîchissement à révoquer
+   * @returns {Promise<{message: string}>} Message de confirmation de déconnexion
+   * @example
+   * const result = await authService.logout('refresh-token-here');
    */
   async logout(refreshToken: string): Promise<{ message: string }> {
     try {
@@ -415,7 +548,15 @@ export class AuthService {
   }
 
   /**
-   * 🔒 Déconnexion globale - révoque tous les tokens de l'utilisateur
+   * Déconnexion globale - révoque tous les tokens de l'utilisateur
+   *
+   * @async
+   * @function logoutAllDevices
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<{message: string}>} Message de confirmation
+   * @throws {BadRequestException} Si erreur lors de la déconnexion globale
+   * @example
+   * const result = await authService.logoutAllDevices('60f7b3b3b3b3b3b3b3b3b3b3');
    */
   async logoutAllDevices(userId: string): Promise<{ message: string }> {
     try {
@@ -434,10 +575,28 @@ export class AuthService {
     }
   }
 
-  /** Méthodes d'authentification sociale */
+  // ========================
+  // MÉTHODES AUTHENTIFICATION SOCIALE
+  // ========================
 
   /**
    * Valide l'authentification sociale et crée/met à jour l'utilisateur
+   *
+   * @async
+   * @function validateSocialLogin
+   * @param {SocialUser} socialUser - Données utilisateur du provider social
+   * @returns {Promise<{tokens: {access_token: string, refresh_token: string}, user: any}>} Tokens et données utilisateur
+   * @throws {UnauthorizedException} Si erreur lors de la validation
+   * @example
+   * const result = await authService.validateSocialLogin({
+   *   provider: 'google',
+   *   providerId: '123456789',
+   *   email: 'user@gmail.com',
+   *   firstName: 'John',
+   *   lastName: 'Doe',
+   *   username: 'johndoe',
+   *   profilePicture: 'https://...'
+   * });
    */
   async validateSocialLogin(socialUser: SocialUser) {
     // Recherche d'un utilisateur existant avec le même email ou la même combinaison provider/providerId
@@ -550,8 +709,19 @@ export class AuthService {
   }
 
   /**
-   * Génère un token STANDARD pour l'authentification sociale
-   * PHASE 1 - STANDARDISATION: Utilise le même système que login/register
+   * Génère un token d'authentification sociale standardisé
+   *
+   * @async
+   * @function generateSocialAuthToken
+   * @param {object} userData - Données utilisateur
+   * @param {object} userData.user - Objet utilisateur
+   * @param {string} userData.user.id - ID de l'utilisateur
+   * @returns {Promise<string>} Token d'accès JWT
+   * @throws {UnauthorizedException} Si l'utilisateur n'existe pas
+   * @example
+   * const token = await authService.generateSocialAuthToken({
+   *   user: { id: '60f7b3b3b3b3b3b3b3b3b3b3' }
+   * });
    */
   async generateSocialAuthToken(userData: {
     user: { id: string };
@@ -582,8 +752,15 @@ export class AuthService {
   }
 
   /**
-   * Valide un token d'authentification sociale et retourne les données utilisateur
-   * PHASE 1 - STANDARDISATION: Utilise le système JWT standard au lieu du Map temporaire
+   * Valide un token d'authentification sociale et génère une session complète
+   *
+   * @async
+   * @function validateSocialAuthToken
+   * @param {string} token - Token d'authentification sociale à valider
+   * @returns {Promise<{tokens: {access_token: string, refresh_token: string}, user: any}>} Session complète avec tokens et données utilisateur
+   * @throws {UnauthorizedException} Si le token est invalide ou expiré
+   * @example
+   * const session = await authService.validateSocialAuthToken('jwt-token-here');
    */
   async validateSocialAuthToken(token: string): Promise<{
     tokens: { access_token: string; refresh_token: string };

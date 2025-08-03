@@ -1,26 +1,88 @@
+/**
+ * @fileoverview Service d'évaluation et de génération de mots de passe sécurisés pour O'Ypunu
+ * 
+ * Ce service fournit des outils complets d'analyse de la force des mots de passe,
+ * de génération automatique de mots de passe sécurisés et de recommandations
+ * d'amélioration pour garantir la sécurité des comptes utilisateur.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable } from '@nestjs/common';
 import { PasswordStrengthEvaluator } from '../validators/password.validator';
 
+/**
+ * Interface du résultat d'évaluation de mot de passe
+ * 
+ * @interface PasswordStrengthResult
+ */
 export interface PasswordStrengthResult {
+  /** Score de force (0-100) */
   score: number;
+  /** Niveau de sécurité */
   level: 'very-weak' | 'weak' | 'fair' | 'good' | 'strong' | 'very-strong';
+  /** Recommandations d'amélioration */
   feedback: string[];
+  /** Validité selon les critères O'Ypunu */
   isValid: boolean;
+  /** Détail des exigences respectées */
   requirements: {
+    /** Minimum 12 caractères */
     minLength: boolean;
+    /** Contient majuscules */
     hasUpperCase: boolean;
+    /** Contient minuscules */
     hasLowerCase: boolean;
+    /** Contient chiffres */
     hasNumbers: boolean;
+    /** Contient caractères spéciaux */
     hasSpecialChars: boolean;
+    /** Pas de motifs courants */
     noCommonPatterns: boolean;
+    /** Pas de répétitions */
     noRepeatedChars: boolean;
   };
 }
 
+/**
+ * Service d'évaluation et de génération de mots de passe sécurisés
+ * 
+ * Ce service fournit une suite complète d'outils pour la gestion des mots de passe :
+ * 
+ * ## 🔍 Évaluation intelligente :
+ * - **Scoring avancé** : Algorithme de notation sur 100 points
+ * - **Analyse granulaire** : Vérification de chaque critère de sécurité
+ * - **Recommandations** : Suggestions personnalisées d'amélioration
+ * - **Validation stricte** : Conformité aux standards O'Ypunu
+ * 
+ * ## 🎲 Génération automatique :
+ * - **Mots de passe forts** : Respectant tous les critères
+ * - **Longueur configurable** : De 12 à N caractères
+ * - **Diversité garantie** : Au moins un caractère de chaque type
+ * - **Entropie maximale** : Mélange aléatoire sécurisé
+ * 
+ * ## 📊 Critères de sécurité :
+ * - Minimum 12 caractères
+ * - Majuscules, minuscules, chiffres, spéciaux
+ * - Absence de motifs prévisibles
+ * - Pas de répétitions excessives
+ * 
+ * @class PasswordStrengthService
+ * @version 1.0.0
+ */
 @Injectable()
 export class PasswordStrengthService {
   /**
    * Évalue la force d'un mot de passe et retourne un rapport détaillé
+   * 
+   * Analyse complète d'un mot de passe incluant le scoring, la validation
+   * des critères de sécurité et les recommandations d'amélioration.
+   * 
+   * @method evaluatePassword
+   * @param {string} password - Mot de passe à évaluer
+   * @returns {PasswordStrengthResult} Rapport détaillé d'évaluation
    */
   evaluatePassword(password: string): PasswordStrengthResult {
     const evaluation = PasswordStrengthEvaluator.evaluate(password);

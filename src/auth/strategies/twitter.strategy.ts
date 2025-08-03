@@ -1,14 +1,67 @@
+/**
+ * @fileoverview Stratégie d'authentification Twitter OAuth pour O'Ypunu
+ * 
+ * Cette stratégie implémente l'authentification sociale via Twitter OAuth 1.0a
+ * avec gestion des profils incomplets, configuration dynamique sécurisée et
+ * intégration robuste au système d'authentification O'Ypunu.
+ * 
+ * @author Équipe O'Ypunu
+ * @version 1.0.0
+ * @since 2025-01-01
+ */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, Profile } from 'passport-twitter';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../services/auth.service';
 
+/**
+ * Stratégie Twitter OAuth 1.0a pour authentification sociale
+ * 
+ * Cette stratégie Passport permet aux utilisateurs de s'authentifier
+ * via leur compte Twitter avec gestion des particularités OAuth 1.0a
+ * et fallback pour les données manquantes.
+ * 
+ * ## 🔐 Sécurité Twitter OAuth :
+ * - Configuration OAuth 1.0a (Consumer Key/Secret)
+ * - Demande d'email explicite (includeEmail: true)
+ * - Gestion des profils sans email
+ * - Validation des credentials au démarrage
+ * 
+ * ## 📊 Données collectées :
+ * - Email (si autorisé par l'utilisateur)
+ * - Username Twitter (@handle)
+ * - Nom d'affichage (displayName)
+ * - Photo de profil (optionnelle)
+ * - ID unique Twitter (providerId)
+ * 
+ * ## ⚠️ Particularités Twitter :
+ * - OAuth 1.0a (plus complexe que OAuth 2.0)
+ * - Email optionnel selon permissions utilisateur
+ * - Génération d'email factice si nécessaire
+ * - Configuration dynamique des credentials
+ * 
+ * @class TwitterStrategy
+ * @extends PassportStrategy
+ * @version 1.0.0
+ */
 @Injectable()
 export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
   private readonly logger = new Logger(TwitterStrategy.name);
   private isConfigured: boolean = false;
 
+  /**
+   * Constructeur de la stratégie Twitter OAuth
+   * 
+   * Initialise la stratégie avec configuration dynamique des credentials
+   * Twitter et gestion gracieuse des configurations manquantes.
+   * Utilise une approche défensive pour éviter les erreurs au démarrage.
+   * 
+   * @constructor
+   * @param {ConfigService} configService - Service de configuration NestJS
+   * @param {AuthService} authService - Service d'authentification O'Ypunu
+   */
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
@@ -52,6 +105,21 @@ export class TwitterStrategy extends PassportStrategy(Strategy, 'twitter') {
     this.logger.log('✅ Twitter OAuth Strategy configurée et active');
   }
 
+  /**
+   * Valide et traite un profil utilisateur Twitter OAuth
+   * 
+   * Cette méthode est appelée automatiquement par Passport après une
+   * authentification Twitter réussie. Elle normalise les données du profil
+   * et gère les particularités Twitter (email optionnel, username unique).
+   * 
+   * @async
+   * @method validate
+   * @param {string} token - Token d'accès OAuth 1.0a
+   * @param {string} tokenSecret - Secret du token OAuth 1.0a
+   * @param {Profile} profile - Profil utilisateur Twitter
+   * @param {Function} done - Callback Passport de validation
+   * @returns {Promise<void>} Utilisateur validé ou erreur
+   */
   async validate(
     token: string,
     tokenSecret: string,
