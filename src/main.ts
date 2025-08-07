@@ -49,92 +49,84 @@ async function bootstrap() {
     app.use(securityMiddleware.use.bind(securityMiddleware));
   }
 
-  // 🔧 CORS Configuration
-  const frontendUrl = configService.get('FRONTEND_URL');
-  const allowedOrigins = [
-    'http://localhost:4200', // Développement Angular
-    'http://localhost:3000', // Développement React/Next
-    'http://localhost:5173', // Développement Vite
-    'https://localhost:4200', // HTTPS local
-    'https://localhost:3000', // HTTPS local
-    /http:\/\/localhost:\d+/, // Tous les ports localhost pour le développement
-  ];
+  // 🔧 CORS Configuration - Utilise production.config.ts si disponible
+  const securityConfig = configService.get('security');
+  const corsConfig = securityConfig?.cors;
 
-  // Ajouter l'URL de production si elle existe
-  if (frontendUrl && frontendUrl.trim() !== '') {
-    allowedOrigins.push(frontendUrl);
-  }
-
-  // Ajouter des patterns Vercel courants
-  allowedOrigins.push('https://*.vercel.app');
-
-  console.log('🌐 CORS - Origines autorisées:', allowedOrigins);
-
-  // En développement, autoriser toutes les origines localhost
-  const isDevelopment = configService.get('NODE_ENV') !== 'production';
-
-  if (isDevelopment) {
+  if (corsConfig) {
+    // Utiliser la configuration CORS de production.config.ts
+    console.log('🌐 CORS - Configuration sécurisée de production.config.ts');
+    console.log('🌐 CORS - Origines autorisées:', corsConfig.origin);
+    
     app.enableCors({
-      origin: true, // Autoriser toutes les origines en développement
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'Accept',
-        'Origin',
-        'X-Requested-With',
-        'Access-Control-Request-Method',
-        'Access-Control-Request-Headers',
-      ],
-      credentials: true,
-    });
-    console.log('🔧 CORS: Mode développement - Toutes les origines autorisées');
-  } else {
-    app.enableCors({
-      origin: (origin, callback) => {
-        // Autoriser les requêtes sans origin (Postman, apps mobiles, etc.)
-        if (!origin) return callback(null, true);
-
-        // Vérifier si l'origin est dans la liste autorisée
-        const isAllowed = allowedOrigins.some((allowedOrigin) => {
-          if (typeof allowedOrigin === 'string') {
-            if (allowedOrigin.includes('*')) {
-              // Gestion des wildcards pour Vercel
-              const pattern = allowedOrigin.replace('*', '.*');
-              const regex = new RegExp(`^${pattern}$`);
-              return regex.test(origin);
-            }
-            return allowedOrigin === origin;
-          } else if (allowedOrigin instanceof RegExp) {
-            // Gestion des expressions régulières
-            return allowedOrigin.test(origin);
-          }
-          return false;
-        });
-
-        if (isAllowed) {
-          console.log(`✅ CORS: Origin autorisée - ${origin}`);
-          callback(null, true);
-        } else {
-          console.log(`❌ CORS: Origin rejetée - ${origin}`);
-          console.log(`📝 CORS: Origins autorisées:`, allowedOrigins);
-          callback(new Error(`Origin ${origin} non autorisée par CORS`));
-        }
-      },
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'Accept',
-        'Origin',
-        'X-Requested-With',
-        'Access-Control-Request-Method',
-        'Access-Control-Request-Headers',
-      ],
-      credentials: true,
+      origin: corsConfig.origin,
+      methods: corsConfig.methods,
+      allowedHeaders: corsConfig.allowedHeaders,
+      credentials: corsConfig.credentials,
+      maxAge: corsConfig.maxAge,
       preflightContinue: false,
       optionsSuccessStatus: 204,
     });
+  } else {
+    // Fallback vers configuration manuelle pour développement
+    const frontendUrl = configService.get('FRONTEND_URL');
+    const isDevelopment = configService.get('NODE_ENV') !== 'production';
+    
+    console.log('⚠️ CORS - Utilisation de la configuration fallback');
+    console.log('⚠️ CORS - Recommandé: utiliser production.config.ts pour la sécurité');
+
+    const allowedOrigins = [
+      'http://localhost:4200', // Développement Angular
+      'http://localhost:3000', // Développement React/Next
+      'http://localhost:5173', // Développement Vite
+      'https://localhost:4200', // HTTPS local
+      'https://localhost:3000', // HTTPS local
+      /http:\/\/localhost:\d+/, // Tous les ports localhost pour le développement
+    ];
+
+    // Ajouter l'URL de production si elle existe
+    if (frontendUrl && frontendUrl.trim() !== '') {
+      allowedOrigins.push(frontendUrl);
+    }
+
+    // Ajouter des patterns Vercel courants
+    allowedOrigins.push('https://*.vercel.app');
+
+    if (isDevelopment) {
+      app.enableCors({
+        origin: true, // Autoriser toutes les origines en développement
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'Accept',
+          'Origin',
+          'X-Requested-With',
+          'Access-Control-Request-Method',
+          'Access-Control-Request-Headers',
+        ],
+        credentials: true,
+      });
+      console.log('🔧 CORS: Mode développement - Toutes les origines autorisées');
+    } else {
+      app.enableCors({
+        origin: allowedOrigins,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'Accept',
+          'Origin',
+          'X-Requested-With',
+          'Access-Control-Request-Method',
+          'Access-Control-Request-Headers',
+        ],
+        credentials: true,
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
+      });
+      console.log('🌐 CORS: Production - Origines restreintes:', allowedOrigins);
+    }
   }
 
   // Préfixe global pour l'API
@@ -174,6 +166,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   const appUrl = configService.get('APP_URL') || `http://localhost:${port}`;
+  const frontendUrl = configService.get('FRONTEND_URL');
 
   console.log(`\n🚀 =================================`);
   console.log(`🌟 OYpunu Backend - Démarrage réussi !`);

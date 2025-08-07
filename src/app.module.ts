@@ -14,6 +14,7 @@ import { Module, MiddlewareConsumer, NestModule } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
+import { productionConfig } from "./config/production.config";
 // import { RedisModule } from '@nestjs-modules/ioredis';
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -95,6 +96,9 @@ import { ActivityTrackingMiddleware } from "./common/middleware/activity-trackin
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [productionConfig],
+      cache: true,
+      expandVariables: true,
     }),
     EventEmitterModule.forRoot({
       wildcard: false,
@@ -108,15 +112,18 @@ import { ActivityTrackingMiddleware } from "./common/middleware/activity-trackin
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const uri = await Promise.resolve(
-          configService.get<string>("MONGODB_URI")
-        );
-        if (!uri) {
+        const databaseConfig = configService.get('database');
+        
+        if (!databaseConfig?.uri) {
           throw new Error(
-            "MONGODB_URI n'est pas définie dans les variables d'environnement"
+            "Configuration database manquante ou MONGODB_URI non définie"
           );
         }
-        return { uri };
+        
+        return {
+          uri: databaseConfig.uri,
+          ...databaseConfig.options, // Utilise la config de production (pooling, SSL, etc.)
+        };
       },
       inject: [ConfigService],
     }),

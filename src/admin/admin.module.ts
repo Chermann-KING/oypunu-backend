@@ -16,8 +16,10 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AdminController } from "./controllers/admin.controller";
 import { DatabaseMigrationController } from "./controllers/database-migration.controller";
 import { JwtSecurityController } from "./controllers/jwt-security.controller";
+import { AdminPermissionsController } from "./controllers/admin-permissions.controller";
 import { AdminService } from "./services/admin.service";
 import { AnalyticsService } from "./services/analytics.service";
+import { AdminPermissionsService } from "./services/admin-permissions.service";
 import { DatabaseModule } from "../database/database.module";
 import { UsersModule } from "../users/users.module";
 import { DictionaryModule } from "../dictionary/dictionary.module";
@@ -101,10 +103,12 @@ import {
     AdminController,              // API principale d'administration
     DatabaseMigrationController, // Gestion des migrations DB
     JwtSecurityController,        // Sécurité et rotation JWT
+    AdminPermissionsController,   // Gestion des permissions contextuelles
   ],
   providers: [
-    AdminService,     // Logique métier d'administration
-    AnalyticsService, // Analytics et rapports avancés
+    AdminService,          // Logique métier d'administration
+    AnalyticsService,      // Analytics et rapports avancés
+    AdminPermissionsService, // Service de gestion des permissions
   ],
   exports: [
     AdminService,     // Service disponible pour d'autres modules
