@@ -166,6 +166,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   const appUrl = configService.get('APP_URL') || `http://localhost:${port}`;
+  const frontendUrl = configService.get('FRONTEND_URL');
 
   console.log(`\n🚀 =================================`);
   console.log(`🌟 OYpunu Backend - Démarrage réussi !`);
