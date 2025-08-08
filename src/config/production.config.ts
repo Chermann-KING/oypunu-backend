@@ -121,15 +121,10 @@ export const productionConfig: ConfigFactory = () => {
         maxIdleTimeMS: 30000,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
-        bufferMaxEntries: 0,
-        bufferCommands: false,
-        // Compression pour économiser la bande passante
         compressors: ["zstd", "zlib"],
-        // SSL/TLS obligatoire en production
-        ssl: true,
-        sslValidate: true,
+        tls: true,
         retryWrites: true,
-        w: "majority",
+        writeConcern: { w: "majority" },
         readPreference: "primaryPreferred",
       },
     },
@@ -245,7 +240,7 @@ export const productionConfig: ConfigFactory = () => {
       secure: process.env.MAIL_PORT === "465",
       auth: {
         user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        pass: process.env.MAIL_PASSWORD,
       },
       from: process.env.MAIL_FROM || `"O'Ypunu" <${process.env.MAIL_USER}>`,
       tls: {
