@@ -414,4 +414,55 @@ export class CategoryRepository implements ICategoryRepository {
       categoryId
     );
   }
+
+  // ========== MÉTHODES POUR WORKFLOW D'APPROBATION ==========
+
+  async findByNameAndLanguage(name: string, languageId?: string): Promise<Category | null> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        const filter: any = { 
+          name: new RegExp(`^${name}$`, 'i') 
+        };
+
+        // Recherche par languageId ou language (compatibilité)
+        if (languageId) {
+          if (Types.ObjectId.isValid(languageId)) {
+            filter.languageId = new Types.ObjectId(languageId);
+          } else {
+            filter.language = languageId; // Fallback pour les codes comme 'fr'
+          }
+        }
+
+        return this.categoryModel.findOne(filter).exec();
+      },
+      'Category',
+      `${name}:${languageId}`
+    );
+  }
+
+  async findByStatus(systemStatus: string): Promise<Category[]> {
+    return DatabaseErrorHandler.handleSearchOperation(
+      async () => {
+        return this.categoryModel
+          .find({ systemStatus })
+          .populate('proposedBy', 'firstName lastName email')
+          .populate('moderatedBy', 'firstName lastName email')
+          .populate('languageId', 'name nativeName')
+          .sort({ createdAt: -1 })
+          .exec();
+      },
+      'Category'
+    );
+  }
+
+  // Mise à jour de la méthode create pour supporter les nouvelles données
+  async createWithProposal(categoryData: any): Promise<Category> {
+    return DatabaseErrorHandler.handleCreateOperation(
+      async () => {
+        const category = new this.categoryModel(categoryData);
+        return category.save();
+      },
+      'Category'
+    );
+  }
 }
