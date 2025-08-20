@@ -10,7 +10,7 @@
  * @since 2025-01-01
  */
 
-import { Module, MiddlewareConsumer, NestModule } from "@nestjs/common";
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -211,7 +211,8 @@ export class AppModule implements NestModule {
         "/auth/login",
         "/auth/register",
         "/users/analytics/online-contributors",
-        "/users/allusers"
+        "/users/allusers",
+        { path: "/admin/*", method: RequestMethod.ALL }
       )
       .forRoutes("*"); // Appliquer aux routes qui peuvent être authentifiées
   }

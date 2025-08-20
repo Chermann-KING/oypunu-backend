@@ -13,6 +13,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Schema as MongooseSchema } from "mongoose";
 import { Language } from "../../languages/schemas/language.schema";
+import { User } from "../../users/schemas/user.schema";
 
 /**
  * Type document Mongoose pour les catégories
@@ -81,6 +82,52 @@ export class Category {
    */
   @Prop({ default: 0 })
   order?: number;
+
+  /**
+   * Statut système de la catégorie (workflow d'approbation)
+   * @type {string}
+   * @enum {string} 'pending' | 'active' | 'rejected'
+   * @default 'active'
+   */
+  @Prop({ 
+    type: String, 
+    enum: ['pending', 'active', 'rejected'], 
+    default: 'active',
+    index: true 
+  })
+  systemStatus?: string;
+
+  /**
+   * Utilisateur qui a proposé la catégorie
+   * @type {User}
+   * @optional
+   */
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+  proposedBy?: User;
+
+  /**
+   * Utilisateur qui a approuvé/rejeté la catégorie
+   * @type {User}
+   * @optional
+   */
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+  moderatedBy?: User;
+
+  /**
+   * Date d'approbation/rejet
+   * @type {Date}
+   * @optional
+   */
+  @Prop()
+  moderatedAt?: Date;
+
+  /**
+   * Notes d'approbation/rejet
+   * @type {string}
+   * @optional
+   */
+  @Prop()
+  moderationNotes?: string;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

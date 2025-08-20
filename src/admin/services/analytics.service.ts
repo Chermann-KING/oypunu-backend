@@ -384,10 +384,13 @@ export class AnalyticsService {
    * @memberof AnalyticsService
    */
   async getContentAnalytics(): Promise<ContentAnalytics> {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thisMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    console.log('🔄 [AnalyticsService] getContentAnalytics - Début');
+    
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thisMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Total des mots
     const totalWords = await this.wordModel.countDocuments();
@@ -444,6 +447,10 @@ export class AnalyticsService {
       topContributors,
       contentGrowthChart,
     };
+    } catch (error) {
+      console.error('❌ [AnalyticsService] Erreur lors du calcul des analytics content:', error);
+      throw new Error('Erreur lors de la récupération des analytics de contenu');
+    }
   }
 
   /**

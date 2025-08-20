@@ -26,6 +26,16 @@ export interface ICategoryRepository {
   findByName(name: string): Promise<Category | null>;
   
   /**
+   * Récupérer une catégorie par nom et langue
+   */
+  findByName(name: string, languageId?: string): Promise<Category | null>;
+  
+  /**
+   * Récupérer les catégories par statut système
+   */
+  findByStatus(systemStatus: string): Promise<Category[]>;
+  
+  /**
    * Mettre à jour une catégorie
    */
   update(id: string, updateData: Partial<Category>): Promise<Category | null>;
@@ -148,4 +158,21 @@ export interface ICategoryRepository {
    * Réorganiser l'ordre des catégories
    */
   reorder(categoryId: string, newOrder: number): Promise<boolean>;
+
+  // ========== WORKFLOW D'APPROBATION ==========
+
+  /**
+   * Récupérer une catégorie par nom et langue (pour le workflow)
+   */
+  findByNameAndLanguage(name: string, languageId?: string): Promise<Category | null>;
+
+  /**
+   * Créer une catégorie avec proposition (workflow)
+   */
+  createWithProposal(categoryData: any): Promise<Category>;
+
+  /**
+   * Récupérer les catégories par statut système
+   */
+  findByStatus(systemStatus: string): Promise<Category[]>;
 }
