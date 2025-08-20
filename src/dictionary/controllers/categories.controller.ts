@@ -10,6 +10,7 @@ import {
   Query,
   SetMetadata,
   CanActivate,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,15 +23,21 @@ import {
 import { CategoriesService } from '../services/categories.service';
 import { CreateCategoryDto } from '../dto/create-category.dto';
 import { UpdateCategoryDto } from '../dto/update-category.dto';
+import { ProposeCategoryDto, ModerateCategoryDto } from '../dto/propose-category.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Category } from '../schemas/category.schema';
+import { User } from '../../users/schemas/user.schema';
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 // Assertion de type
 const typedRolesGuard = RolesGuard as unknown as CanActivate;
+
+interface RequestWithUser {
+  user: User;
+}
 
 @ApiTags('categories')
 @Controller('categories')
@@ -70,6 +77,16 @@ export class CategoriesController {
   })
   findAll(@Query('language') language?: string) {
     return this.categoriesService.findAll(language);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Récupérer les statistiques des catégories' })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistiques récupérées avec succès',
+  })
+  async getCategoryStats(): Promise<any> {
+    return this.categoriesService.getCategoryStats();
   }
 
   @Get(':id')
@@ -134,5 +151,73 @@ export class CategoriesController {
   @Roles('admin')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
+  }
+
+  // ===== ENDPOINTS UTILISATEURS AUTHENTIFIÉS =====
+
+  @Post('propose')
+  @UseGuards(JwtAuthGuard, typedRolesGuard)
+  @Roles('contributor', 'admin', 'superadmin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Proposer une nouvelle catégorie (contributeur+)' })
+  @ApiResponse({
+    status: 201,
+    description: 'Catégorie proposée avec succès',
+    type: Category,
+  })
+  @ApiResponse({ status: 400, description: 'Données invalides' })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({
+    status: 403,
+    description: 'Permissions insuffisantes (contributeur requis)',
+  })
+  async proposeCategory(
+    @Body() proposeCategoryDto: ProposeCategoryDto,
+    @Request() req: RequestWithUser,
+  ): Promise<Category> {
+    return this.categoriesService.proposeCategory(proposeCategoryDto, req.user);
+  }
+
+  // ===== ENDPOINTS ADMINISTRATEURS =====
+
+  @Get('admin/pending')
+  @UseGuards(JwtAuthGuard, typedRolesGuard)
+  @Roles('admin', 'superadmin')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Récupérer les catégories en attente d'approbation (admin)",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Catégories en attente récupérées avec succès',
+    type: [Category],
+  })
+  @ApiResponse({ status: 403, description: 'Permissions insuffisantes' })
+  async getPendingCategories(@Request() req: RequestWithUser): Promise<Category[]> {
+    return this.categoriesService.getPendingCategories(req.user);
+  }
+
+  @Post(':id/moderate')
+  @UseGuards(JwtAuthGuard, typedRolesGuard)
+  @Roles('admin', 'superadmin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Modérer une catégorie proposée (admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Catégorie modérée avec succès',
+    type: Category,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Catégorie non éligible à la modération",
+  })
+  @ApiResponse({ status: 403, description: 'Permissions insuffisantes' })
+  @ApiResponse({ status: 404, description: 'Catégorie non trouvée' })
+  async moderateCategory(
+    @Param('id') id: string,
+    @Body() moderateDto: ModerateCategoryDto,
+    @Request() req: RequestWithUser,
+  ): Promise<Category> {
+    return this.categoriesService.moderateCategory(id, moderateDto, req.user);
   }
 }
