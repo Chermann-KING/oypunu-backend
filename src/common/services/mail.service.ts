@@ -1386,7 +1386,8 @@ export class MailService {
     }
 
     const frontendUrl = this._configService.get<string>('FRONTEND_URL');
-    const adminUrl = `${frontendUrl}/admin/contributor-requests`;
+    // URL mise à jour pour ouvrir directement la demande dans l'interface de modération unifiée
+    const adminUrl = `${frontendUrl}/admin/moderation?type=contributor_request&id=${data.requestId}`;
 
     const priorityColors = {
       low: '#6b7280',
@@ -1662,7 +1663,8 @@ export class MailService {
     }
 
     const frontendUrl = this._configService.get<string>('FRONTEND_URL');
-    const adminUrl = `${frontendUrl}/admin/contributor-requests`;
+    // URL mise à jour pour ouvrir la liste des demandes dans l'interface de modération unifiée
+    const adminUrl = `${frontendUrl}/admin/moderation?type=contributor_request`;
 
     const emailTemplate = `
     <!DOCTYPE html>
@@ -1818,7 +1820,8 @@ export class MailService {
     }
 
     const frontendUrl = this._configService.get<string>('FRONTEND_URL');
-    const adminUrl = `${frontendUrl}/admin/contributor-requests`;
+    // URL mise à jour pour ouvrir directement la demande dans l'interface de modération unifiée
+    const adminUrl = `${frontendUrl}/admin/moderation?type=contributor_request&id=${data.requestId}`;
 
     const emailTemplate = `
     <!DOCTYPE html>
