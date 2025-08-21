@@ -105,7 +105,22 @@ export class MessagingEnhancedService {
 
         const participants =
           await this.conversationRepository.getParticipants(conversationId);
+        
+        // 🔍 Debug logging
+        console.log('🔍 [DEBUG] Access check for conversation:', {
+          conversationId,
+          userId,
+          participants,
+          isParticipant: participants.includes(userId)
+        });
+        
         if (!participants.includes(userId)) {
+          console.error('❌ [ERROR] Access denied:', {
+            conversationId,
+            userId,
+            participants,
+            message: "User is not in participants list"
+          });
           throw new BadRequestException("Access denied to this conversation");
         }
 
@@ -140,7 +155,22 @@ export class MessagingEnhancedService {
         // Vérifier l'accès à la conversation
         const participants =
           await this.conversationRepository.getParticipants(conversationId);
+        
+        // 🔍 Debug logging
+        console.log('🔍 [DEBUG] Access check for conversation:', {
+          conversationId,
+          userId,
+          participants,
+          isParticipant: participants.includes(userId)
+        });
+        
         if (!participants.includes(userId)) {
+          console.error('❌ [ERROR] Access denied:', {
+            conversationId,
+            userId,
+            participants,
+            message: "User is not in participants list"
+          });
           throw new BadRequestException("Access denied to this conversation");
         }
 
@@ -830,7 +860,22 @@ export class MessagingEnhancedService {
 
         const participants =
           await this.conversationRepository.getParticipants(conversationId);
+        
+        // 🔍 Debug logging
+        console.log('🔍 [DEBUG] Access check for conversation:', {
+          conversationId,
+          userId,
+          participants,
+          isParticipant: participants.includes(userId)
+        });
+        
         if (!participants.includes(userId)) {
+          console.error('❌ [ERROR] Access denied:', {
+            conversationId,
+            userId,
+            participants,
+            message: "User is not in participants list"
+          });
           throw new BadRequestException("Access denied to this conversation");
         }
 
