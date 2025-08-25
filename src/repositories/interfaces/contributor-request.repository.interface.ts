@@ -1,11 +1,15 @@
-import { ContributorRequest, ContributorRequestStatus, ContributorRequestPriority } from '../../users/schemas/contributor-request.schema';
+import {
+  ContributorRequest,
+  ContributorRequestStatus,
+  ContributorRequestPriority,
+} from "../../users/schemas/contributor-request.schema";
 
 /**
  * ✋ INTERFACE REPOSITORY CONTRIBUTOR REQUEST
- * 
+ *
  * Contrat abstrait pour la gestion des demandes de contributeur.
  * Définit toutes les opérations possibles sur les demandes de contribution.
- * 
+ *
  * Fonctionnalités couvertes :
  * - CRUD de base
  * - Gestion des statuts et workflow
@@ -16,7 +20,7 @@ import { ContributorRequest, ContributorRequestStatus, ContributorRequestPriorit
  */
 export interface IContributorRequestRepository {
   // ========== CRUD DE BASE ==========
-  
+
   /**
    * Créer une nouvelle demande de contributeur
    */
@@ -28,6 +32,11 @@ export interface IContributorRequestRepository {
     experience?: string;
     languages?: string;
     commitment: boolean;
+    commitmentAt?: Date;
+    termsAcceptedVersion?: string;
+    privacyPolicyAcceptedVersion?: string;
+    consentIP?: string;
+    consentUserAgent?: string;
     userWordsCount?: number;
     userCommunityPostsCount?: number;
     userJoinDate?: Date;
@@ -46,7 +55,10 @@ export interface IContributorRequestRepository {
   /**
    * Mettre à jour une demande
    */
-  update(id: string, updateData: Partial<ContributorRequest>): Promise<ContributorRequest | null>;
+  update(
+    id: string,
+    updateData: Partial<ContributorRequest>
+  ): Promise<ContributorRequest | null>;
 
   /**
    * Supprimer une demande
@@ -66,8 +78,8 @@ export interface IContributorRequestRepository {
     isHighPriority?: boolean;
     requiresSpecialReview?: boolean;
     isRecommended?: boolean;
-    sortBy?: 'createdAt' | 'priority' | 'evaluationScore' | 'reviewedAt';
-    sortOrder?: 'asc' | 'desc';
+    sortBy?: "createdAt" | "priority" | "evaluationScore" | "reviewedAt";
+    sortOrder?: "asc" | "desc";
   }): Promise<{
     requests: ContributorRequest[];
     total: number;
@@ -78,12 +90,15 @@ export interface IContributorRequestRepository {
   /**
    * Recherche textuelle dans les demandes
    */
-  search(query: string, options?: {
-    status?: ContributorRequestStatus;
-    priority?: ContributorRequestPriority;
-    limit?: number;
-    offset?: number;
-  }): Promise<{
+  search(
+    query: string,
+    options?: {
+      status?: ContributorRequestStatus;
+      priority?: ContributorRequestPriority;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<{
     requests: ContributorRequest[];
     total: number;
   }>;
@@ -101,12 +116,15 @@ export interface IContributorRequestRepository {
   /**
    * Trouver les demandes par statut
    */
-  findByStatus(status: ContributorRequestStatus, options?: {
-    page?: number;
-    limit?: number;
-    sortBy?: 'createdAt' | 'priority';
-    sortOrder?: 'asc' | 'desc';
-  }): Promise<{
+  findByStatus(
+    status: ContributorRequestStatus,
+    options?: {
+      page?: number;
+      limit?: number;
+      sortBy?: "createdAt" | "priority";
+      sortOrder?: "asc" | "desc";
+    }
+  ): Promise<{
     requests: ContributorRequest[];
     total: number;
   }>;
@@ -114,19 +132,25 @@ export interface IContributorRequestRepository {
   /**
    * Trouver les demandes par priorité
    */
-  findByPriority(priority: ContributorRequestPriority, options?: {
-    status?: ContributorRequestStatus;
-    limit?: number;
-  }): Promise<ContributorRequest[]>;
+  findByPriority(
+    priority: ContributorRequestPriority,
+    options?: {
+      status?: ContributorRequestStatus;
+      limit?: number;
+    }
+  ): Promise<ContributorRequest[]>;
 
   /**
    * Trouver les demandes assignées à un reviewer
    */
-  findByReviewer(reviewerId: string, options?: {
-    status?: ContributorRequestStatus;
-    page?: number;
-    limit?: number;
-  }): Promise<{
+  findByReviewer(
+    reviewerId: string,
+    options?: {
+      status?: ContributorRequestStatus;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{
     requests: ContributorRequest[];
     total: number;
   }>;
@@ -137,7 +161,7 @@ export interface IContributorRequestRepository {
    * Changer le statut d'une demande
    */
   updateStatus(
-    id: string, 
+    id: string,
     newStatus: ContributorRequestStatus,
     reviewerId: string,
     reviewNotes?: string,
@@ -147,43 +171,66 @@ export interface IContributorRequestRepository {
   /**
    * Approuver une demande
    */
-  approve(id: string, reviewerId: string, reviewNotes?: string): Promise<ContributorRequest | null>;
+  approve(
+    id: string,
+    reviewerId: string,
+    reviewNotes?: string
+  ): Promise<ContributorRequest | null>;
 
   /**
    * Rejeter une demande
    */
-  reject(id: string, reviewerId: string, rejectionReason: string, reviewNotes?: string): Promise<ContributorRequest | null>;
+  reject(
+    id: string,
+    reviewerId: string,
+    rejectionReason: string,
+    reviewNotes?: string
+  ): Promise<ContributorRequest | null>;
 
   /**
    * Mettre en révision
    */
-  putUnderReview(id: string, reviewerId: string, reviewNotes?: string): Promise<ContributorRequest | null>;
+  putUnderReview(
+    id: string,
+    reviewerId: string,
+    reviewNotes?: string
+  ): Promise<ContributorRequest | null>;
 
   // ========== ÉVALUATION ET SCORING ==========
 
   /**
    * Mettre à jour le score d'évaluation
    */
-  updateEvaluationScore(id: string, score: number, criteria?: string[]): Promise<ContributorRequest | null>;
+  updateEvaluationScore(
+    id: string,
+    score: number,
+    criteria?: string[]
+  ): Promise<ContributorRequest | null>;
 
   /**
    * Mettre à jour l'évaluation des compétences
    */
-  updateSkillsAssessment(id: string, skills: Record<string, number>): Promise<ContributorRequest | null>;
+  updateSkillsAssessment(
+    id: string,
+    skills: Record<string, number>
+  ): Promise<ContributorRequest | null>;
 
   /**
    * Marquer comme recommandé
    */
   markAsRecommended(
-    id: string, 
-    recommendedBy: string, 
+    id: string,
+    recommendedBy: string,
     recommendationNotes?: string
   ): Promise<ContributorRequest | null>;
 
   /**
    * Marquer comme haute priorité
    */
-  markAsHighPriority(id: string, requiresSpecialReview?: boolean): Promise<ContributorRequest | null>;
+  markAsHighPriority(
+    id: string,
+    requiresSpecialReview?: boolean
+  ): Promise<ContributorRequest | null>;
 
   // ========== GESTION DU LOG D'ACTIVITÉ ==========
 
@@ -202,14 +249,16 @@ export interface IContributorRequestRepository {
   /**
    * Obtenir le log d'activité d'une demande
    */
-  getActivityLog(id: string): Promise<Array<{
-    action: string;
-    performedBy: string;
-    performedAt: Date;
-    notes?: string;
-    oldStatus?: ContributorRequestStatus;
-    newStatus?: ContributorRequestStatus;
-  }>>;
+  getActivityLog(id: string): Promise<
+    Array<{
+      action: string;
+      performedBy: string;
+      performedAt: Date;
+      notes?: string;
+      oldStatus?: ContributorRequestStatus;
+      newStatus?: ContributorRequestStatus;
+    }>
+  >;
 
   // ========== GESTION DES NOTIFICATIONS ==========
 
@@ -256,7 +305,10 @@ export interface IContributorRequestRepository {
   /**
    * Obtenir les statistiques par période
    */
-  getStatsByPeriod(startDate: Date, endDate: Date): Promise<{
+  getStatsByPeriod(
+    startDate: Date,
+    endDate: Date
+  ): Promise<{
     submitted: number;
     approved: number;
     rejected: number;
@@ -282,7 +334,10 @@ export interface IContributorRequestRepository {
   /**
    * Obtenir les demandes par tranche de score
    */
-  findByScoreRange(minScore: number, maxScore: number): Promise<ContributorRequest[]>;
+  findByScoreRange(
+    minScore: number,
+    maxScore: number
+  ): Promise<ContributorRequest[]>;
 
   // ========== OPÉRATIONS EN MASSE ==========
 
@@ -290,7 +345,7 @@ export interface IContributorRequestRepository {
    * Mettre à jour plusieurs demandes
    */
   bulkUpdateStatus(
-    ids: string[], 
+    ids: string[],
     newStatus: ContributorRequestStatus,
     reviewerId: string,
     reviewNotes?: string

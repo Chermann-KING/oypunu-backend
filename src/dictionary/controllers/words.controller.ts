@@ -71,10 +71,10 @@ const typedRolesGuard = RolesGuard as unknown as CanActivate;
 
 /**
  * Contrôleur REST pour la gestion des mots du dictionnaire O'Ypunu
- * 
+ *
  * Expose les endpoints pour les opérations CRUD sur les mots, recherche avancée,
  * gestion des traductions, upload audio et administration des contenus.
- * 
+ *
  * @class WordsController
  */
 @ApiTags("dictionary")
@@ -88,7 +88,7 @@ export class WordsController {
 
   /**
    * Crée un nouveau mot dans le dictionnaire
-   * 
+   *
    * @async
    * @function create
    * @param {CreateWordDto} createWordDto - Données du mot à créer
@@ -429,9 +429,15 @@ export class WordsController {
   findAll(
     @Query("page") page = 1,
     @Query("limit") limit = 10,
-    @Query("status") status = "approved"
+    @Query("status") status = "approved",
+    @Query("language") language?: string
   ) {
-    return this.wordsService.findAll(+page, +limit, status);
+    return this.wordsService.findAll(
+      +page,
+      +limit,
+      status,
+      language?.trim() || undefined
+    );
   }
 
   @Get("search")

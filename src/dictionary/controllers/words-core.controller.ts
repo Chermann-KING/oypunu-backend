@@ -150,7 +150,8 @@ export class WordsCoreController {
     const result = await this.wordsService.findAll(
       validatedPage,
       validatedLimit,
-      status?.trim() || "approved"
+      status?.trim() || "approved",
+      language?.trim() || undefined
     );
 
     console.log(`Récupération de ${result.total} mots (page ${validatedPage})`);
