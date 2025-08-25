@@ -1,10 +1,10 @@
 /**
  * @fileoverview Service de gestion des demandes de contribution O'Ypunu
- * 
+ *
  * Ce service implémente le workflow complet des demandes de contribution avec
  * gestion des statuts, modération administrative, système de priorités et
  * notifications automatiques pour un processus d'approbation efficace.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
@@ -37,6 +37,7 @@ import {
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { LEGAL_VERSIONS } from "../../common/constants/legal.constants";
 
 export interface ContributorRequestListResponse {
   requests: ContributorRequest[];
@@ -73,9 +74,9 @@ export interface ContributorRequestStats {
 @Injectable()
 export class ContributorRequestService {
   constructor(
-    @Inject('IContributorRequestRepository')
+    @Inject("IContributorRequestRepository")
     private contributorRequestRepository: IContributorRequestRepository,
-    @Inject('IUserRepository')
+    @Inject("IUserRepository")
     private userRepository: IUserRepository,
     @InjectModel(ContributorRequest.name)
     private contributorRequestModel: Model<ContributorRequest>,
@@ -101,7 +102,8 @@ export class ContributorRequestService {
   // Créer une demande de contribution
   async createRequest(
     userId: string,
-    createDto: CreateContributorRequestDto
+    createDto: CreateContributorRequestDto,
+    requestInfo?: { ip?: string; userAgent?: string }
   ): Promise<ContributorRequest> {
     // Vérifier si l'utilisateur existe
     const user = await this.userRepository.findById(userId);
@@ -117,7 +119,8 @@ export class ContributorRequestService {
     }
 
     // Vérifier s'il n'y a pas déjà une demande en cours
-    const existingRequest = await this.contributorRequestRepository.findActiveByUser(userId);
+    const existingRequest =
+      await this.contributorRequestRepository.findActiveByUser(userId);
 
     if (existingRequest) {
       throw new ConflictException(
@@ -128,12 +131,23 @@ export class ContributorRequestService {
     // Collecter les informations du profil utilisateur
     const userStats = await this.getUserStats(userId);
 
+    // Enforcer l'engagement (sécurité légale)
+    if (!createDto.commitment) {
+      throw new BadRequestException("L'engagement aux règles est obligatoire");
+    }
+
     // Créer la demande
     const savedRequest = await this.contributorRequestRepository.create({
       userId,
       username: user.username,
       email: user.email,
       ...createDto,
+      // Horodatage et versions légales (versions actuelles simples; à centraliser si besoin)
+      commitmentAt: new Date(),
+      termsAcceptedVersion: LEGAL_VERSIONS.terms,
+      privacyPolicyAcceptedVersion: LEGAL_VERSIONS.privacy,
+      consentIP: requestInfo?.ip || "unknown",
+      consentUserAgent: requestInfo?.userAgent || "unknown",
       userWordsCount: userStats.wordsCount,
       userCommunityPostsCount: userStats.postsCount,
       userJoinDate: (user as any).createdAt,
@@ -243,14 +257,14 @@ export class ContributorRequestService {
     const requests = await this.contributorRequestModel
       .find(query)
       .populate("userId", "username email profilePicture lastActive")
-      .populate("reviewedBy", "username email")  
+      .populate("reviewedBy", "username email")
       .populate("recommendedBy", "username email")
       .skip(skip)
       .limit(limit)
-      .sort({ 
-        priority: -1, 
+      .sort({
+        priority: -1,
         createdAt: -1,
-        updatedAt: -1 
+        updatedAt: -1,
       })
       .exec();
 

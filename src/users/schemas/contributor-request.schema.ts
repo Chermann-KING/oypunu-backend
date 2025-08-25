@@ -1,18 +1,18 @@
 /**
  * @fileoverview Schéma Mongoose pour les demandes de contribution O'Ypunu
- * 
+ *
  * Ce schéma définit le modèle des demandes de statut contributeur avec workflow
  * complet de modération, système de priorités, tracking temporel et intégration
  * aux notifications pour un processus d'approbation transparent.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
  */
 
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-import { User } from './user.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
+import { User } from "./user.schema";
 
 /**
  * Type document Mongoose pour les demandes de contribution
@@ -22,44 +22,44 @@ export type ContributorRequestDocument = ContributorRequest & Document;
 
 /**
  * Énumération des statuts de demande de contribution
- * 
+ *
  * @enum {string} ContributorRequestStatus
  * @readonly
  */
 export enum ContributorRequestStatus {
   /** Demande en attente de révision */
-  PENDING = 'pending',
+  PENDING = "pending",
   /** Demande approuvée, utilisateur promu */
-  APPROVED = 'approved',
+  APPROVED = "approved",
   /** Demande rejetée avec justification */
-  REJECTED = 'rejected',
+  REJECTED = "rejected",
   /** Demande en cours d'examen détaillé */
-  UNDER_REVIEW = 'under_review',
+  UNDER_REVIEW = "under_review",
 }
 
 /**
  * Énumération des priorités de traitement des demandes
- * 
+ *
  * @enum {string} ContributorRequestPriority
  * @readonly
  */
 export enum ContributorRequestPriority {
   /** Priorité basse - traitement standard */
-  LOW = 'low',
+  LOW = "low",
   /** Priorité moyenne - traitement normal */
-  MEDIUM = 'medium',
+  MEDIUM = "medium",
   /** Priorité haute - traitement accéléré */
-  HIGH = 'high',
+  HIGH = "high",
   /** Priorité urgente - traitement immédiat */
-  URGENT = 'urgent',
+  URGENT = "urgent",
 }
 
 @Schema({
   timestamps: true,
-  collection: 'contributor_requests',
+  collection: "contributor_requests",
 })
 export class ContributorRequest {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: "User", required: true })
   userId: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
@@ -79,19 +79,35 @@ export class ContributorRequest {
   @Prop({
     maxlength: 500,
     trim: true,
-    default: '',
+    default: "",
   })
   experience: string;
 
   @Prop({
     maxlength: 200,
     trim: true,
-    default: '',
+    default: "",
   })
   languages: string;
 
   @Prop({ required: true, default: true })
   commitment: boolean;
+
+  // Horodatage et traçabilité légale du consentement
+  @Prop()
+  commitmentAt?: Date;
+
+  @Prop({ maxlength: 20, trim: true })
+  termsAcceptedVersion?: string;
+
+  @Prop({ maxlength: 20, trim: true })
+  privacyPolicyAcceptedVersion?: string;
+
+  @Prop({ maxlength: 100, trim: true })
+  consentIP?: string;
+
+  @Prop({ maxlength: 300, trim: true })
+  consentUserAgent?: string;
 
   @Prop({
     type: String,
@@ -109,7 +125,7 @@ export class ContributorRequest {
   })
   priority: ContributorRequestPriority;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({ type: Types.ObjectId, ref: "User" })
   reviewedBy?: Types.ObjectId;
 
   @Prop()
@@ -134,7 +150,7 @@ export class ContributorRequest {
   @Prop([
     {
       action: { type: String, required: true },
-      performedBy: { type: Types.ObjectId, ref: 'User', required: true },
+      performedBy: { type: Types.ObjectId, ref: "User", required: true },
       performedAt: { type: Date, default: Date.now },
       notes: { type: String, maxlength: 300 },
       oldStatus: { type: String, enum: ContributorRequestStatus },
@@ -186,7 +202,7 @@ export class ContributorRequest {
   @Prop({ default: false })
   isRecommended: boolean;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({ type: Types.ObjectId, ref: "User" })
   recommendedBy?: Types.ObjectId;
 
   @Prop({
@@ -246,15 +262,15 @@ ContributorRequestSchema.index({
 
 // Index de recherche textuelle
 ContributorRequestSchema.index({
-  username: 'text',
-  email: 'text',
-  motivation: 'text',
-  experience: 'text',
-  languages: 'text',
+  username: "text",
+  email: "text",
+  motivation: "text",
+  experience: "text",
+  languages: "text",
 });
 
 // Middleware pour définir l'expiration automatique (30 jours)
-ContributorRequestSchema.pre('save', function (next) {
+ContributorRequestSchema.pre("save", function (next) {
   if (this.isNew && !this.expiresAt) {
     this.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 jours
   }
@@ -267,7 +283,7 @@ ContributorRequestSchema.methods.addActivityLog = function (
   performedBy: Types.ObjectId,
   notes?: string,
   oldStatus?: ContributorRequestStatus,
-  newStatus?: ContributorRequestStatus,
+  newStatus?: ContributorRequestStatus
 ) {
   this.activityLog.push({
     action,
@@ -284,18 +300,18 @@ ContributorRequestSchema.methods.getDaysOld = function (): number {
   const now = new Date();
   const created = new Date(this.createdAt);
   return Math.floor(
-    (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24),
+    (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
   );
 };
 
 // Méthode pour vérifier si la demande va expirer bientôt
 ContributorRequestSchema.methods.isExpiringSoon = function (
-  days: number = 7,
+  days: number = 7
 ): boolean {
   if (!this.expiresAt) return false;
   const now = new Date();
   const daysUntilExpiry = Math.floor(
-    (this.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+    (this.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   );
   return daysUntilExpiry <= days && daysUntilExpiry > 0;
 };

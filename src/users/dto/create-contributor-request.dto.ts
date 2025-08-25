@@ -1,10 +1,10 @@
 /**
  * @fileoverview DTO pour la création de demandes de contribution O'Ypunu
- * 
+ *
  * Ce fichier définit la structure de données pour soumettre une demande
  * de statut contributeur avec validation complète des informations requises,
  * liens professionnels et engagement communautaire pour évaluation.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
@@ -21,39 +21,44 @@ import {
   MinLength,
   IsNotEmpty,
   Matches,
+  Equals,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { USER_LIMITS, VALIDATION_LIMITS, VALIDATION_MESSAGES } from "../../common/constants/validation-limits.constants";
+import {
+  USER_LIMITS,
+  VALIDATION_LIMITS,
+  VALIDATION_MESSAGES,
+} from "../../common/constants/validation-limits.constants";
 
 /**
  * DTO pour la création d'une demande de contribution
- * 
+ *
  * Structure de données complète pour soumettre une candidature au statut
  * de contributeur avec informations personnelles, expérience et engagement.
- * 
+ *
  * ## 📝 Informations obligatoires :
  * - **Motivation** : Explication détaillée des raisons de candidature
  * - **Engagement** : Acceptation des règles de la communauté
- * 
+ *
  * ## 📊 Informations optionnelles :
  * - **Expérience** : Background linguistique et professionnel
  * - **Langues maîtrisées** : Compétences linguistiques
  * - **Profils professionnels** : LinkedIn, GitHub, portfolio
- * 
+ *
  * ## 🔒 Validation stricte :
  * - **Longueurs** : Limites min/max respectées pour tous les champs
  * - **URLs** : Validation des formats et domaines autorisés
  * - **Engagement** : Confirmation obligatoire des règles
  * - **Patterns** : Regex pour LinkedIn et GitHub spécifiques
- * 
+ *
  * ## 🌍 Contexte O'Ypunu :
  * - **Patrimoine linguistique** : Focus sur les langues africaines
  * - **Qualité** : Sélection rigoureuse des contributeurs
  * - **Communauté** : Respect des valeurs et objectifs partagés
- * 
+ *
  * @class CreateContributorRequestDto
  * @version 1.0.0
- * 
+ *
  * @example
  * ```typescript
  * const request: CreateContributorRequestDto = {
@@ -78,10 +83,16 @@ export class CreateContributorRequestDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(USER_LIMITS.CONTRIBUTION_REASON.MIN, {
-    message: VALIDATION_MESSAGES.TOO_SHORT("La motivation", USER_LIMITS.CONTRIBUTION_REASON.MIN),
+    message: VALIDATION_MESSAGES.TOO_SHORT(
+      "La motivation",
+      USER_LIMITS.CONTRIBUTION_REASON.MIN
+    ),
   })
   @MaxLength(USER_LIMITS.CONTRIBUTION_REASON.MAX, {
-    message: VALIDATION_MESSAGES.TOO_LONG("La motivation", USER_LIMITS.CONTRIBUTION_REASON.MAX),
+    message: VALIDATION_MESSAGES.TOO_LONG(
+      "La motivation",
+      USER_LIMITS.CONTRIBUTION_REASON.MAX
+    ),
   })
   motivation: string;
 
@@ -94,7 +105,10 @@ export class CreateContributorRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(VALIDATION_LIMITS.MEDIUM_TEXT.MAX, {
-    message: VALIDATION_MESSAGES.TOO_LONG("L'expérience", VALIDATION_LIMITS.MEDIUM_TEXT.MAX),
+    message: VALIDATION_MESSAGES.TOO_LONG(
+      "L'expérience",
+      VALIDATION_LIMITS.MEDIUM_TEXT.MAX
+    ),
   })
   experience?: string;
 
@@ -107,7 +121,10 @@ export class CreateContributorRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(VALIDATION_LIMITS.SHORT_TEXT.MAX, {
-    message: VALIDATION_MESSAGES.TOO_LONG("Les langues", VALIDATION_LIMITS.SHORT_TEXT.MAX),
+    message: VALIDATION_MESSAGES.TOO_LONG(
+      "Les langues",
+      VALIDATION_LIMITS.SHORT_TEXT.MAX
+    ),
   })
   languages?: string;
 
@@ -117,6 +134,7 @@ export class CreateContributorRequestDto {
     example: true,
   })
   @IsBoolean()
+  @Equals(true, { message: "L'engagement est obligatoire" })
   commitment: boolean;
 
   @ApiPropertyOptional({
@@ -127,7 +145,10 @@ export class CreateContributorRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(VALIDATION_LIMITS.URL.MAX, {
-    message: VALIDATION_MESSAGES.TOO_LONG("Le lien LinkedIn", VALIDATION_LIMITS.URL.MAX),
+    message: VALIDATION_MESSAGES.TOO_LONG(
+      "Le lien LinkedIn",
+      VALIDATION_LIMITS.URL.MAX
+    ),
   })
   @Matches(/^https?:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?$/, {
     message: "Le lien LinkedIn doit être valide",
@@ -142,7 +163,10 @@ export class CreateContributorRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(VALIDATION_LIMITS.URL.MAX, {
-    message: VALIDATION_MESSAGES.TOO_LONG("Le lien GitHub", VALIDATION_LIMITS.URL.MAX),
+    message: VALIDATION_MESSAGES.TOO_LONG(
+      "Le lien GitHub",
+      VALIDATION_LIMITS.URL.MAX
+    ),
   })
   @Matches(/^https?:\/\/(www\.)?github\.com\/[\w-]+\/?$/, {
     message: "Le lien GitHub doit être valide",
@@ -157,7 +181,10 @@ export class CreateContributorRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(VALIDATION_LIMITS.URL.MAX, {
-    message: VALIDATION_MESSAGES.TOO_LONG("Le portfolio", VALIDATION_LIMITS.URL.MAX),
+    message: VALIDATION_MESSAGES.TOO_LONG(
+      "Le portfolio",
+      VALIDATION_LIMITS.URL.MAX
+    ),
   })
   @IsUrl({}, { message: "Le portfolio doit être une URL valide" })
   portfolio?: string;
