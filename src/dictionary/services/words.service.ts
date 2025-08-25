@@ -37,17 +37,17 @@ import { IWordViewRepository } from "../../repositories/interfaces/word-view.rep
 
 /**
  * Service principal de gestion des mots du dictionnaire O'Ypunu
- * 
+ *
  * Agit comme orchestrateur en déléguant les opérations spécialisées vers des services dédiés.
  * Gère les opérations CRUD, permissions, révisions, traductions, audio et analytiques.
- * 
+ *
  * @class WordsService
  */
 @Injectable()
 export class WordsService {
   /**
    * Constructeur du service de gestion des mots
-   * 
+   *
    * @param {CategoriesService} categoriesService - Service de gestion des catégories
    * @param {UsersService} usersService - Service de gestion des utilisateurs
    * @param {AudioService} audioService - Service de gestion audio (legacy)
@@ -99,7 +99,7 @@ export class WordsService {
 
   /**
    * Crée un nouveau mot dans le dictionnaire
-   * 
+   *
    * @async
    * @function create
    * @param {CreateWordDto} createWordDto - Données du mot à créer
@@ -154,11 +154,11 @@ export class WordsService {
 
   /**
    * Récupère une liste paginée de mots avec filtrage par statut
-   * 
+   *
    * @async
    * @function findAll
    * @param {number} page - Numéro de page (défaut: 1)
-   * @param {number} limit - Nombre d'éléments par page (défaut: 10)  
+   * @param {number} limit - Nombre d'éléments par page (défaut: 10)
    * @param {string} status - Statut des mots à récupérer (défaut: "approved")
    * @returns {Promise<{words: Word[], total: number, page: number, limit: number, totalPages: number}>} Liste paginée de mots
    * @example
@@ -168,7 +168,9 @@ export class WordsService {
   async findAll(
     page = 1,
     limit = 10,
-    status = "approved"
+    status = "approved",
+    language?: string,
+    categoryId?: string
   ): Promise<{
     words: Word[];
     total: number;
@@ -177,12 +179,18 @@ export class WordsService {
     totalPages: number;
   }> {
     console.log("🎭 WordsService.findAll - Délégation vers WordCoreService");
-    return this.wordCoreService.findAll(page, limit, status);
+    return this.wordCoreService.findAll(
+      page,
+      limit,
+      status,
+      language,
+      categoryId
+    );
   }
 
   /**
    * Récupère un mot spécifique par son ID
-   * 
+   *
    * @async
    * @function findOne
    * @param {string} id - ID unique du mot
@@ -570,7 +578,10 @@ export class WordsService {
       },
       limitations: {
         maxRevisionsPerDay: 10,
-        currentRevisions: await this.revisionHistoryRepository.countTodayRevisions(user?._id || 'unknown'),
+        currentRevisions:
+          await this.revisionHistoryRepository.countTodayRevisions(
+            user?._id || "unknown"
+          ),
         cooldownRemaining: 0,
       },
     };
@@ -770,7 +781,7 @@ export class WordsService {
 
   /**
    * Effectue une recherche avancée de mots avec filtres multiples
-   * 
+   *
    * @async
    * @function search
    * @param {SearchWordsDto} searchDto - Critères de recherche
