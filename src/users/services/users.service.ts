@@ -16,6 +16,7 @@ import { DatabaseErrorHandler } from "../../common/errors"
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IActivityFeedRepository } from "../../repositories/interfaces/activity-feed.repository.interface";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
+import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-word.repository.interface";
 
 /**
  * Service de gestion des utilisateurs O'Ypunu
@@ -68,7 +69,8 @@ export class UsersService {
     @Inject("IUserRepository") private userRepository: IUserRepository,
     @Inject("IActivityFeedRepository")
     private activityFeedRepository: IActivityFeedRepository,
-    @Inject("IWordRepository") private wordRepository: IWordRepository
+    @Inject("IWordRepository") private wordRepository: IWordRepository,
+    @Inject("IFavoriteWordRepository") private favoriteWordRepository: IFavoriteWordRepository
   ) {}
 
   /**
@@ -241,9 +243,7 @@ export class UsersService {
       const personalStats = await this.getUserPersonalStats(userId);
 
       // Compter les vrais favoris de l'utilisateur
-      // Note: FavoriteWord functionality should be moved to repository pattern too
-      // For now, using direct model access until FavoriteWordRepository is implemented
-      const actualFavoritesCount = 0; // Placeholder - needs FavoriteWordRepository
+      const actualFavoritesCount = await this.favoriteWordRepository.countUserFavorites(userId);
 
       return {
         totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
