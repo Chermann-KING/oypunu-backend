@@ -257,4 +257,10 @@ export interface IFavoriteWordRepository {
    * Alias pour isFavorite (pour compatibilité)
    */
   isFavorited(userId: string, wordId: string): Promise<boolean>;
+
+  /**
+   * Trouver les favoris d'un utilisateur pour une liste de mots spécifiques
+   * Utilisé pour populer le statut de favori dans les listes de mots
+   */
+  findByUserAndWords(userId: string, wordIds: string[]): Promise<FavoriteWord[]>;
 }

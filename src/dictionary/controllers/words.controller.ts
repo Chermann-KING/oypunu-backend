@@ -403,6 +403,7 @@ export class WordsController {
   }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Récupérer une liste de mots" })
   @ApiResponse({
     status: 200,
@@ -435,17 +436,22 @@ export class WordsController {
     @Query("page") page = 1,
     @Query("limit") limit = 10,
     @Query("status") status = "approved",
-    @Query("language") language?: string
+    @Query("language") language?: string,
+    @Request() req?: RequestWithUser
   ) {
+    const userId = req?.user?._id ? String(req.user._id) : undefined;
     return this.wordsService.findAll(
       +page,
       +limit,
       status,
-      language?.trim() || undefined
+      language?.trim() || undefined,
+      undefined,
+      userId
     );
   }
 
   @Get("search")
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Rechercher des mots avec filtres" })
   @ApiResponse({
     status: 200,
@@ -456,7 +462,8 @@ export class WordsController {
     @Query() searchDto: SearchWordsDto,
     @Request() req?: RequestWithUser
   ) {
-    const results = await this.wordsService.search(searchDto);
+    const userId = req?.user?._id ? String(req.user._id) : undefined;
+    const results = await this.wordsService.search(searchDto, userId);
 
     // Traquer les vues pour les mots dans les résultats de recherche si utilisateur authentifié
     if (req?.user?._id && results?.words?.length > 0) {
@@ -499,6 +506,7 @@ export class WordsController {
   }
 
   @Get("featured")
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Récupérer les mots mis en avant" })
   @ApiResponse({
     status: 200,
@@ -512,8 +520,9 @@ export class WordsController {
     description: "Nombre de mots à récupérer",
     example: 6,
   })
-  getFeaturedWords(@Query("limit") limit = 6) {
-    return this.wordsService.getFeaturedWords(+limit);
+  getFeaturedWords(@Query("limit") limit = 6, @Request() req?: RequestWithUser) {
+    const userId = req?.user?._id ? String(req.user._id) : undefined;
+    return this.wordsService.getFeaturedWords(+limit, userId);
   }
 
   @Get("pending")
