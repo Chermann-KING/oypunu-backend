@@ -170,7 +170,8 @@ export class WordsService {
     limit = 10,
     status = "approved",
     language?: string,
-    categoryId?: string
+    categoryId?: string,
+    userId?: string
   ): Promise<{
     words: Word[];
     total: number;
@@ -184,7 +185,8 @@ export class WordsService {
       limit,
       status,
       language,
-      categoryId
+      categoryId,
+      userId
     );
   }
 
@@ -794,25 +796,25 @@ export class WordsService {
    *   limit: 10
    * });
    */
-  async search(searchDto: SearchWordsDto): Promise<{
+  async search(searchDto: SearchWordsDto, userId?: string): Promise<{
     words: Word[];
     total: number;
     page: number;
     limit: number;
   }> {
     console.log("🎭 WordsService.search - Délégation vers WordCoreService");
-    return this.wordCoreService.search(searchDto);
+    return this.wordCoreService.search(searchDto, userId);
   }
 
   /**
    * Récupère les mots vedettes
    * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
    */
-  async getFeaturedWords(limit = 3): Promise<Word[]> {
+  async getFeaturedWords(limit = 3, userId?: string): Promise<Word[]> {
     console.log(
       "🎭 WordsService.getFeaturedWords - Délégation vers WordCoreService"
     );
-    return this.wordCoreService.getFeaturedWords(limit);
+    return this.wordCoreService.getFeaturedWords(limit, userId);
   }
 
   /**

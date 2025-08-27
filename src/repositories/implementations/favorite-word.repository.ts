@@ -816,4 +816,20 @@ export class FavoriteWordRepository implements IFavoriteWordRepository {
   async isFavorited(userId: string, wordId: string): Promise<boolean> {
     return this.isFavorite(userId, wordId);
   }
+
+  /**
+   * Trouver les favoris d'un utilisateur pour une liste de mots spécifiques
+   */
+  async findByUserAndWords(userId: string, wordIds: string[]): Promise<FavoriteWord[]> {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        return await this.favoriteWordModel.find({
+          userId,
+          wordId: { $in: wordIds }
+        }).exec();
+      },
+      'FavoriteWord',
+      `user-${userId}`
+    );
+  }
 }

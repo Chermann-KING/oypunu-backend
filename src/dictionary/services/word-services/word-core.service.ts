@@ -28,6 +28,7 @@ import { IWordRepository } from "../../../repositories/interfaces/word.repositor
 import { IUserRepository } from "../../../repositories/interfaces/user.repository.interface";
 import { ILanguageRepository } from "../../../repositories/interfaces/language.repository.interface";
 import { IWordViewRepository } from "../../../repositories/interfaces/word-view.repository.interface";
+import { IFavoriteWordRepository } from "../../../repositories/interfaces/favorite-word.repository.interface";
 
 interface WordFilter {
   status: string;
@@ -67,6 +68,8 @@ export class WordCoreService {
     private languageRepository: ILanguageRepository,
     @Inject("IWordViewRepository")
     private wordViewRepository: IWordViewRepository,
+    @Inject("IFavoriteWordRepository")
+    private favoriteWordRepository: IFavoriteWordRepository,
     private categoriesService: CategoriesService,
     private usersService: UsersService,
     private activityService: ActivityService
@@ -190,7 +193,8 @@ export class WordCoreService {
     limit = 10,
     status = "approved",
     language?: string,
-    categoryId?: string
+    categoryId?: string,
+    userId?: string
   ): Promise<{
     words: Word[];
     total: number;
@@ -206,6 +210,11 @@ export class WordCoreService {
         language,
         categoryId,
       });
+
+      // Populer les favoris si un utilisateur est fourni
+      if (userId && result.words.length > 0) {
+        result.words = await this.populateFavorites(result.words, userId);
+      }
 
       // PHASE 2-1: Calcul de totalPages intégré dans le service core
       return {
@@ -404,7 +413,7 @@ export class WordCoreService {
    * Recherche des mots avec filtres
    * Ligne 602-667 dans WordsService original
    */
-  async search(searchDto: SearchWordsDto): Promise<{
+  async search(searchDto: SearchWordsDto, userId?: string): Promise<{
     words: Word[];
     total: number;
     page: number;
@@ -412,7 +421,14 @@ export class WordCoreService {
   }> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        return this.wordRepository.search(searchDto);
+        const result = await this.wordRepository.search(searchDto);
+        
+        // Populer les favoris si un utilisateur est fourni
+        if (userId && result.words.length > 0) {
+          result.words = await this.populateFavorites(result.words, userId);
+        }
+        
+        return result;
       },
       "WordCore",
       `search-${searchDto.query}`
@@ -423,10 +439,17 @@ export class WordCoreService {
    * Récupère les mots vedettes
    * Ligne 668-702 dans WordsService original
    */
-  async getFeaturedWords(limit = 3): Promise<Word[]> {
+  async getFeaturedWords(limit = 3, userId?: string): Promise<Word[]> {
     return DatabaseErrorHandler.handleFindOperation(
       async () => {
-        return this.wordRepository.findFeatured(limit);
+        const words = await this.wordRepository.findFeatured(limit);
+        
+        // Populer les favoris si un utilisateur est fourni
+        if (userId && words.length > 0) {
+          return this.populateFavorites(words, userId);
+        }
+        
+        return words;
       },
       "WordCore",
       "featured"
@@ -480,5 +503,51 @@ export class WordCoreService {
       wordId,
       adminId
     );
+  }
+
+  /**
+   * Popule les informations de favoris pour une liste de mots
+   * Ajoute le champ isFavorite à chaque mot en fonction de l'utilisateur
+   * 
+   * @private
+   * @async
+   * @param {Word[]} words - Liste des mots à traiter
+   * @param {string} userId - ID de l'utilisateur pour vérifier les favoris
+   * @returns {Promise<Word[]>} Liste des mots avec les informations de favoris
+   */
+  private async populateFavorites(words: Word[], userId: string): Promise<Word[]> {
+    if (!words.length || !userId) {
+      return words;
+    }
+
+    try {
+      // Extraire les IDs des mots
+      const wordIds = words.map(word => {
+        const wordRaw = word as unknown as { _id: any, id?: string };
+        return String(wordRaw._id || wordRaw.id);
+      });
+
+      // Récupérer tous les favoris de l'utilisateur pour ces mots
+      const userFavorites = await this.favoriteWordRepository.findByUserAndWords(userId, wordIds);
+      const favoriteWordIds = new Set(userFavorites.map(fav => String(fav.wordId)));
+
+      // Marquer les mots comme favoris
+      return words.map(word => {
+        const wordRaw = word as unknown as { _id: any, id?: string };
+        const wordId = String(wordRaw._id || wordRaw.id);
+        
+        // Ajouter la propriété isFavorite
+        (word as any).isFavorite = favoriteWordIds.has(wordId);
+        
+        return word;
+      });
+    } catch (error) {
+      console.error('Erreur lors de la population des favoris:', error);
+      // En cas d'erreur, retourner les mots sans modification
+      return words.map(word => {
+        (word as any).isFavorite = false;
+        return word;
+      });
+    }
   }
 }
