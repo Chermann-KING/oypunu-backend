@@ -174,13 +174,18 @@ export class WordsController {
         throw new BadRequestException('Le champ "word" est requis');
       }
 
-      if (!createWordDto.language || createWordDto.language.trim() === "") {
-        throw new BadRequestException('Le champ "language" est requis');
+      if (!createWordDto.languageId && (!createWordDto.language || createWordDto.language.trim() === "")) {
+        throw new BadRequestException('Le champ "languageId" ou "language" est requis');
       }
 
       // Forcer les types string pour FormData
       createWordDto.word = String(createWordDto.word).trim();
-      createWordDto.language = String(createWordDto.language).trim();
+      if (createWordDto.language) {
+        createWordDto.language = String(createWordDto.language).trim();
+      }
+      if (createWordDto.languageId) {
+        createWordDto.languageId = String(createWordDto.languageId).trim();
+      }
 
       if (createWordDto.pronunciation) {
         createWordDto.pronunciation = String(createWordDto.pronunciation);

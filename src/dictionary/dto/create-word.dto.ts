@@ -325,7 +325,6 @@ export class CreateWordDto {
   })
   @ValidateIf((o) => !o.language)
   @IsString()
-  @IsNotEmpty()
   @IsMongoId()
   languageId?: string;
 
@@ -337,7 +336,6 @@ export class CreateWordDto {
   })
   @ValidateIf((o) => !o.languageId)
   @IsString()
-  @IsNotEmpty()
   @Matches(/^[a-z]{2}$/, {
     message: 'Le code de langue doit être au format ISO 639-1 (ex: fr, en, es)',
   })
