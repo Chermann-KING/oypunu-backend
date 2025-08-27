@@ -6,7 +6,7 @@ import { CreateWordDto } from "../../dictionary/dto/create-word.dto";
 import { UpdateWordDto } from "../../dictionary/dto/update-word.dto";
 import { SearchWordsDto } from "../../dictionary/dto/search-words.dto";
 import { IWordRepository } from "../interfaces/word.repository.interface";
-import { DatabaseErrorHandler } from "../../common/errors"
+import { DatabaseErrorHandler } from "../../common/errors";
 
 /**
  * 📚 REPOSITORY WORD - IMPLÉMENTATION MONGOOSE
@@ -48,7 +48,11 @@ export class WordRepository implements IWordRepository {
     if (!Types.ObjectId.isValid(id)) {
       return null;
     }
-    return this.wordModel.findById(id).exec();
+    return this.wordModel
+      .findById(id)
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email")
+      .exec();
   }
 
   async findAll(options: {
@@ -84,8 +88,8 @@ export class WordRepository implements IWordRepository {
     const [words, total] = await Promise.all([
       this.wordModel
         .find(filter)
-        .populate('categoryId', 'name description') // Optimisation N+1: charger category
-        .populate('createdBy', 'username email') // Optimisation N+1: charger user
+        .populate("categoryId", "name description") // Optimisation N+1: charger category
+        .populate("createdBy", "username email") // Optimisation N+1: charger user
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
@@ -113,6 +117,8 @@ export class WordRepository implements IWordRepository {
 
     return this.wordModel
       .findByIdAndUpdate(id, updatedData, { new: true })
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email")
       .exec();
   }
 
@@ -135,13 +141,15 @@ export class WordRepository implements IWordRepository {
         }
 
         // Rechercher dans les traductions embedded
-        const word = await this.wordModel.findOne({
-          'translations._id': new Types.ObjectId(translationId)
-        }).exec();
+        const word = await this.wordModel
+          .findOne({
+            "translations._id": new Types.ObjectId(translationId),
+          })
+          .exec();
 
         return word;
       },
-      'Word',
+      "Word",
       `translation-${translationId}`
     );
   }
@@ -199,6 +207,8 @@ export class WordRepository implements IWordRepository {
     const [words, total] = await Promise.all([
       this.wordModel
         .find(filter)
+        .populate("categoryId", "name description")
+        .populate("createdBy", "username email")
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
@@ -238,8 +248,8 @@ export class WordRepository implements IWordRepository {
   ): Promise<Word[]> {
     let query = this.wordModel
       .find({ status })
-      .populate('categoryId', 'name description')
-      .populate('createdBy', 'username email');
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email");
 
     if (options?.offset) {
       query = query.skip(options.offset);
@@ -258,8 +268,8 @@ export class WordRepository implements IWordRepository {
         isFeatured: true,
         status: "approved",
       })
-      .populate('categoryId', 'name description')
-      .populate('createdBy', 'username email')
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email")
       .limit(limit)
       .sort({ featuredAt: -1, viewCount: -1 })
       .exec();
@@ -488,7 +498,10 @@ export class WordRepository implements IWordRepository {
       offset?: number;
     }
   ): Promise<Word[]> {
-    const query = this.wordModel.find({ createdBy: creatorId });
+    const query = this.wordModel
+      .find({ createdBy: creatorId })
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email");
 
     if (options?.status) {
       query.where("status", options.status);
@@ -605,7 +618,10 @@ export class WordRepository implements IWordRepository {
       filter.status = options.status;
     }
 
-    let query = this.wordModel.find(filter);
+    let query = this.wordModel
+      .find(filter)
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email");
 
     if (options?.offset) {
       query = query.skip(options.offset);
@@ -622,7 +638,10 @@ export class WordRepository implements IWordRepository {
     categoryId: string,
     options?: { limit?: number; offset?: number }
   ): Promise<Word[]> {
-    let query = this.wordModel.find({ categoryId });
+    let query = this.wordModel
+      .find({ categoryId })
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email");
 
     if (options?.offset) {
       query = query.skip(options.offset);
@@ -656,6 +675,8 @@ export class WordRepository implements IWordRepository {
 
     return this.wordModel
       .findByIdAndUpdate(id, updateData, { new: true })
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email")
       .exec();
   }
 
@@ -744,7 +765,10 @@ export class WordRepository implements IWordRepository {
       filter.language = { $in: options.languages };
     }
 
-    let mongoQuery = this.wordModel.find(filter);
+    let mongoQuery = this.wordModel
+      .find(filter)
+      .populate("categoryId", "name description")
+      .populate("createdBy", "username email");
 
     if (options?.offset) {
       mongoQuery = mongoQuery.skip(options.offset);
@@ -784,6 +808,8 @@ export class WordRepository implements IWordRepository {
         }
         return this.wordModel
           .findById(wordId)
+          .populate("categoryId", "name description")
+          .populate("createdBy", "username email")
           .populate("translations.createdBy", "username")
           .populate("translations.validatedBy", "username")
           .exec();
@@ -822,7 +848,12 @@ export class WordRepository implements IWordRepository {
           }
         }
 
-        return this.wordModel.find(query).limit(limit).exec();
+        return this.wordModel
+          .find(query)
+          .populate("categoryId", "name description")
+          .populate("createdBy", "username email")
+          .limit(limit)
+          .exec();
       },
       "Word",
       `category-${categoryId}-lang-${language}`
@@ -848,7 +879,7 @@ export class WordRepository implements IWordRepository {
 
         return word.translations?.length || 0;
       },
-      'Word',
+      "Word",
       wordId
     );
   }
@@ -864,13 +895,15 @@ export class WordRepository implements IWordRepository {
         }
 
         // Compter combien de mots référencent ce mot dans leurs traductions
-        const count = await this.wordModel.countDocuments({
-          'translations.wordId': wordId
-        }).exec();
+        const count = await this.wordModel
+          .countDocuments({
+            "translations.wordId": wordId,
+          })
+          .exec();
 
         return count;
       },
-      'Word',
+      "Word",
       wordId
     );
   }
@@ -898,7 +931,7 @@ export class WordRepository implements IWordRepository {
           } else {
             query.$or = [
               { audioFiles: { $exists: false } },
-              { audioFiles: {} }
+              { audioFiles: {} },
             ];
           }
         }
@@ -913,11 +946,11 @@ export class WordRepository implements IWordRepository {
 
         return await this.wordModel.countDocuments(query).exec();
       },
-      'Word',
-      'count-filtered'
+      "Word",
+      "count-filtered"
     );
   }
-  
+
   /**
    * 🔒 Échappe les caractères spéciaux regex pour prévenir les attaques ReDoS
    *
