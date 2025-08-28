@@ -104,6 +104,16 @@ export class WordCoreService {
       console.log("📋 Données reçues:", JSON.stringify(createWordDto, null, 2));
       console.log("👤 Utilisateur:", user);
 
+      // 🔍 DEBUG: Log détaillé pour pronunciation dans word-core.service
+      console.log("🎯 DEBUG pronunciation - word-core.service reçu:", {
+        pronunciationValue: createWordDto.pronunciation,
+        pronunciationType: typeof createWordDto.pronunciation,
+        pronunciationLength: createWordDto.pronunciation?.length || 0,
+        pronunciationIsUndefined: createWordDto.pronunciation === undefined,
+        pronunciationIsNull: createWordDto.pronunciation === null,
+        pronunciationTrimmed: createWordDto.pronunciation?.trim() || "EMPTY",
+      });
+
       // Vérifier si l'utilisateur a soit _id soit userId
       if (!user?._id && !user?.userId) {
         throw new BadRequestException("Utilisateur invalide");

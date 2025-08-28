@@ -52,7 +52,7 @@ export class WordAudioService {
           throw new BadRequestException('ID de mot invalide');
         }
 
-        const word = await this.wordModel.findById(wordId);
+        const word = await this.wordModel.findById(wordId).populate('createdBy', '_id username');
         if (!word) {
           throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
         }

@@ -1,11 +1,11 @@
 /**
  * @fileoverview Service de tracking d'activité utilisateur pour O'Ypunu
- * 
+ *
  * Ce service centralise le suivi et l'enregistrement de toutes les activités
  * utilisateur sur la plateforme. Il enrichit automatiquement les données
  * avec des informations contextuelles (langues, régions, métadonnées)
  * et émet des événements pour les notifications temps réel.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
@@ -22,7 +22,7 @@ import { ILanguageRepository } from "../../repositories/interfaces/language.repo
 
 /**
  * Interface pour la création d'une nouvelle activité
- * 
+ *
  * @interface CreateActivityData
  */
 export interface CreateActivityData {
@@ -71,11 +71,11 @@ export interface CreateActivityData {
 
 /**
  * Mapping des codes de langues africaines vers informations contextuelles
- * 
+ *
  * Cette constante fournit des informations enrichies pour les langues
  * africaines principales, permettant l'affichage de drapeaux, régions
  * et noms natifs dans l'interface utilisateur.
- * 
+ *
  * @constant {Record<string, Object>} AFRICAN_LANGUAGES_MAP
  */
 const AFRICAN_LANGUAGES_MAP: Record<
@@ -114,10 +114,10 @@ const AFRICAN_LANGUAGES_MAP: Record<
 
 /**
  * Mapping des langues mondiales principales
- * 
+ *
  * Cette constante complète AFRICAN_LANGUAGES_MAP avec les langues
  * internationales courantes pour support global de la plateforme.
- * 
+ *
  * @constant {Record<string, Object>} WORLD_LANGUAGES_MAP
  */
 const WORLD_LANGUAGES_MAP: Record<
@@ -139,31 +139,31 @@ const WORLD_LANGUAGES_MAP: Record<
 
 /**
  * Service de tracking d'activité utilisateur pour O'Ypunu
- * 
+ *
  * Ce service est le cœur du système de suivi d'activité de la plateforme.
  * Il enregistre, enrichit et diffuse toutes les actions utilisateur avec
  * des métadonnées contextuelles pour les analytics et notifications.
- * 
+ *
  * ## Fonctionnalités principales :
- * 
+ *
  * ### 📊 Tracking d'activité
  * - Enregistrement de toutes les actions utilisateur
  * - Enrichissement automatique avec données contextuelles
  * - Support multi-langues avec drapeaux et régions
  * - Métadonnées spécifiques par type d'activité
- * 
+ *
  * ### 🔄 Événements temps réel
  * - Émission d'événements pour WebSocket
  * - Notifications push automatiques
  * - Synchronisation multi-instance
  * - Cache intelligent pour performances
- * 
+ *
  * ### 🌍 Contextualisation
  * - Mapping automatique des langues africaines
  * - Résolution des drapeaux et régions
  * - Enrichissement des métadonnées linguistiques
  * - Support international étendu
- * 
+ *
  * @class ActivityService
  * @version 1.0.0
  */
@@ -171,7 +171,7 @@ const WORLD_LANGUAGES_MAP: Record<
 export class ActivityService {
   /**
    * Constructeur du service d'activité
-   * 
+   *
    * @constructor
    * @param {IActivityFeedRepository} activityFeedRepository - Repository pour persistance
    * @param {ILanguageRepository} languageRepository - Repository des langues
@@ -187,17 +187,17 @@ export class ActivityService {
 
   /**
    * Crée une nouvelle activité utilisateur avec enrichissement automatique
-   * 
+   *
    * Cette méthode enregistre une nouvelle activité, l'enrichit avec des
    * informations contextuelles (langues, régions, métadonnées) et émet
    * un événement pour les notifications temps réel.
-   * 
+   *
    * @async
    * @method createActivity
    * @param {CreateActivityData} data - Données de l'activité à créer
    * @returns {Promise<ActivityFeed>} Activité créée avec enrichissements
    * @throws {Error} En cas d'échec de création ou d'enrichissement
-   * 
+   *
    * @example
    * ```typescript
    * const activity = await activityService.createActivity({
@@ -575,16 +575,39 @@ export class ActivityService {
     targetId: string;
     metadata?: Record<string, any>;
   }): Promise<ActivityFeed> {
-    // Obtenir le username depuis le userId
-    // Pour l'instant, on utilise une valeur par défaut car l'interface originale ne fournit pas le username
-    // Récupérer le username depuis UserService si possible
+    // Normaliser userId en string (supporte ObjectId, objets {_id}, etc.)
+    const normalizeUserId = (value: unknown): string => {
+      try {
+        if (!value) return "";
+        if (typeof value === "string") return value;
+        if (typeof value === "object") {
+          const obj: any = value as any;
+          if (typeof obj.toHexString === "function") return obj.toHexString();
+          if (obj._id) {
+            const v = obj._id;
+            if (typeof v === "string") return v;
+            if (v && typeof v.toHexString === "function")
+              return v.toHexString();
+            return String(v);
+          }
+          if (obj.id) return String(obj.id);
+          return String(obj);
+        }
+        return String(value);
+      } catch {
+        return "";
+      }
+    };
+
+    const userIdStr = normalizeUserId(data.userId);
+
+    // Obtenir un username par défaut basé sur l'ID normalisé
     let username = "Unknown User";
     try {
-      // Note: Injection du UserService serait nécessaire pour récupérer le username
-      // Pour l'instant, on utilise une valeur par défaut
-      username = `User-${data.userId.slice(-6)}`;
+      const suffix = userIdStr ? userIdStr.slice(-6) : "";
+      username = suffix ? `User-${suffix}` : "Unknown User";
     } catch (error) {
-      console.warn('Could not fetch username for activity logging:', error);
+      console.warn("Could not fetch username for activity logging:", error);
     }
 
     // Mapper les types vers les enums ActivityType et EntityType
@@ -592,7 +615,7 @@ export class ActivityService {
     const mappedEntityType = this.mapEntityType(data.targetType);
 
     return this.createActivity({
-      userId: data.userId,
+      userId: userIdStr,
       username,
       activityType: mappedActivityType,
       entityType: mappedEntityType,
@@ -614,14 +637,14 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'word_updated',
-      targetType: 'word',
+      activityType: "word_updated",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         changes,
         timestamp: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -636,14 +659,14 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'word_deleted',
-      targetType: 'word',
+      activityType: "word_deleted",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         wordTitle,
         deletedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -658,14 +681,14 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'audio_added',
-      targetType: 'word',
+      activityType: "audio_added",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         audioUrl,
         addedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -680,14 +703,14 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'audio_deleted',
-      targetType: 'word',
+      activityType: "audio_deleted",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         audioUrl,
         deletedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -697,47 +720,46 @@ export class ActivityService {
   async logAudioBulkUpdated(
     userId: string,
     wordId: string,
-    operation: 'added' | 'deleted' | 'updated',
+    operation: "added" | "deleted" | "updated",
     count: number,
     metadata?: Record<string, any>
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'audio_bulk_updated',
-      targetType: 'word',
+      activityType: "audio_bulk_updated",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         operation,
         count,
         bulkUpdatedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
-
 
   /**
    * Enregistrer une action de vote
    */
   async logVoteAction(
     userId: string,
-    targetType: 'word' | 'translation' | 'comment',
+    targetType: "word" | "translation" | "comment",
     targetId: string,
-    voteType: 'like' | 'dislike' | 'helpful' | 'accurate',
-    action: 'created' | 'updated' | 'removed',
+    voteType: "like" | "dislike" | "helpful" | "accurate",
+    action: "created" | "updated" | "removed",
     metadata?: Record<string, any>
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'vote_action',
+      activityType: "vote_action",
       targetType,
       targetId,
       metadata: {
         voteType,
         action,
         votedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -751,13 +773,13 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'word_favorited',
-      targetType: 'word',
+      activityType: "word_favorited",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         favoritedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -771,13 +793,13 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'word_unfavorited',
-      targetType: 'word',
+      activityType: "word_unfavorited",
+      targetType: "word",
       targetId: wordId,
       metadata: {
         unfavoritedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -792,14 +814,14 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'achievement_unlocked',
-      targetType: 'achievement',
+      activityType: "achievement_unlocked",
+      targetType: "achievement",
       targetId: achievementId,
       metadata: {
         achievementName,
         unlockedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -814,15 +836,15 @@ export class ActivityService {
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId,
-      activityType: 'xp_gained',
-      targetType: 'user',
+      activityType: "xp_gained",
+      targetType: "user",
       targetId: userId,
       metadata: {
         action,
         xpGained,
         gainedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
@@ -831,23 +853,23 @@ export class ActivityService {
    */
   async logModerationAction(
     moderatorId: string,
-    targetType: 'word' | 'user' | 'comment',
+    targetType: "word" | "user" | "comment",
     targetId: string,
-    action: 'approved' | 'rejected' | 'banned' | 'warned',
+    action: "approved" | "rejected" | "banned" | "warned",
     reason?: string,
     metadata?: Record<string, any>
   ): Promise<ActivityFeed> {
     return this.recordActivity({
       userId: moderatorId,
-      activityType: 'moderation_action',
+      activityType: "moderation_action",
       targetType,
       targetId,
       metadata: {
         action,
         reason,
         moderatedAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 
