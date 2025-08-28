@@ -32,7 +32,17 @@ export class WordRepository implements IWordRepository {
     userId: string,
     status: string = "pending"
   ): Promise<Word> {
-    const word = new this.wordModel({
+    // 🔍 DEBUG: Log détaillé pour pronunciation dans repository
+    console.log("🎯 DEBUG pronunciation - word.repository avant sauvegarde:", {
+      pronunciationValue: wordData.pronunciation,
+      pronunciationType: typeof wordData.pronunciation,
+      pronunciationLength: wordData.pronunciation?.length || 0,
+      pronunciationIsUndefined: wordData.pronunciation === undefined,
+      pronunciationIsNull: wordData.pronunciation === null,
+      pronunciationTrimmed: wordData.pronunciation?.trim() || "EMPTY",
+    });
+
+    const wordDataForSave = {
       ...wordData,
       createdBy: new Types.ObjectId(userId),
       status,
@@ -40,8 +50,25 @@ export class WordRepository implements IWordRepository {
       updatedAt: new Date(),
       translationCount: wordData.translations?.length || 0,
       version: 1,
+    };
+
+    // 🔍 DEBUG: Log l'objet final avant sauvegarde
+    console.log("🎯 DEBUG pronunciation - objet final avant sauvegarde:", {
+      pronunciationInFinalObject: wordDataForSave.pronunciation,
+      allKeys: Object.keys(wordDataForSave),
+      hasPronounciation: "pronunciation" in wordDataForSave,
     });
-    return word.save();
+
+    const word = new this.wordModel(wordDataForSave);
+    const savedWord = await word.save();
+    
+    // 🔍 DEBUG: Log après sauvegarde
+    console.log("🎯 DEBUG pronunciation - après sauvegarde:", {
+      savedPronunciation: (savedWord as any).pronunciation,
+      savedWordId: (savedWord as any)._id,
+    });
+
+    return savedWord;
   }
 
   async findById(id: string): Promise<Word | null> {

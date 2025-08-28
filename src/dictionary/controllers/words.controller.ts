@@ -240,6 +240,14 @@ export class WordsController {
         audioFile: createWordDto.audioFile ? "PRESENT_IN_DTO" : "ABSENT_IN_DTO",
       });
 
+      // 🔍 DEBUG: Log détaillé pour pronunciation
+      console.log("🎯 DEBUG pronunciation - DTO reçu:", {
+        pronunciationValue: createWordDto.pronunciation,
+        pronunciationType: typeof createWordDto.pronunciation,
+        pronunciationLength: createWordDto.pronunciation?.length || 0,
+        pronunciationTrimmed: createWordDto.pronunciation?.trim() || "EMPTY",
+      });
+
       console.log("🎙️ Audio file parameter:", {
         isPresent: !!audioFile,
         originalname: audioFile?.originalname || "N/A",
@@ -284,12 +292,22 @@ export class WordsController {
         throw new BadRequestException("meanings doit être un tableau");
       }
 
+      // 🔍 DEBUG: Avant construction standardDto
+      const pronunciationTrimmed = createWordDto.pronunciation?.trim();
+      console.log("🎯 DEBUG pronunciation - transformation:", {
+        originalValue: createWordDto.pronunciation,
+        afterTrim: pronunciationTrimmed,
+        afterTrimOrUndefined: pronunciationTrimmed || undefined,
+        isEmpty: pronunciationTrimmed === "",
+        isUndefined: pronunciationTrimmed === undefined,
+      });
+
       // Construction du DTO standard
       const standardDto: CreateWordDto = {
         word: createWordDto.word?.trim(),
         languageId: createWordDto.languageId?.trim() || undefined,
         language: createWordDto.language?.trim() || undefined,
-        pronunciation: createWordDto.pronunciation?.trim() || undefined,
+        pronunciation: pronunciationTrimmed || undefined,
         etymology: createWordDto.etymology?.trim() || undefined,
         categoryId: createWordDto.categoryId?.trim() || undefined,
         meanings: parsedMeanings,
@@ -315,6 +333,16 @@ export class WordsController {
         languageId: standardDto.languageId,
         language: standardDto.language,
         meaningsCount: standardDto.meanings.length,
+      });
+
+      // 🔍 DEBUG: Log détaillé pour pronunciation dans standardDto
+      console.log("🎯 DEBUG pronunciation - standardDto final:", {
+        pronunciationValue: standardDto.pronunciation,
+        pronunciationType: typeof standardDto.pronunciation,
+        pronunciationLength: standardDto.pronunciation?.length || 0,
+        pronunciationIsUndefined: standardDto.pronunciation === undefined,
+        pronunciationIsNull: standardDto.pronunciation === null,
+        pronunciationTrimmed: standardDto.pronunciation?.trim() || "EMPTY",
       });
 
       // Créer le mot

@@ -55,8 +55,8 @@ export class WordPermissionService implements IWordPermissionService {
       throw new ForbiddenException('Utilisateur non authentifié');
     }
 
-    // Vérifier si l'utilisateur est actif
-    if (!user.isActive) {
+    // Vérifier si l'utilisateur est explicitement inactif (undefined = actif par défaut)
+    if (user.isActive === false) {
       throw new ForbiddenException('Compte utilisateur inactif');
     }
 
@@ -331,8 +331,28 @@ export class WordPermissionService implements IWordPermissionService {
    * Vérifie si un utilisateur peut ajouter des fichiers audio
    */
   async canUserAddAudio(word: Word, user: User): Promise<boolean> {
+    console.log('🔍 === DEBUG canUserAddAudio ===');
+    console.log('User:', {
+      _id: user._id,
+      isActive: user.isActive,
+      role: user.role
+    });
+    console.log('Word:', {
+      _id: (word as any)._id,
+      status: word.status,
+      createdBy: (word as any).createdBy,
+      createdByType: typeof (word as any).createdBy
+    });
+
     // Tous les utilisateurs authentifiés peuvent ajouter de l'audio
-    if (!user._id || !user.isActive) {
+    if (!user._id) {
+      console.log('❌ User not authenticated');
+      return false;
+    }
+
+    // Vérifier si l'utilisateur est explicitement inactif (undefined = actif par défaut)
+    if (user.isActive === false) {
+      console.log('❌ User explicitly inactive');
       return false;
     }
 
@@ -341,8 +361,34 @@ export class WordPermissionService implements IWordPermissionService {
     //   return false;
     // }
 
-    // Seuls les mots approuvés peuvent recevoir de l'audio
-    return word.status === 'approved';
+    // Les mots approuvés peuvent toujours recevoir de l'audio
+    if (word.status === 'approved') {
+      console.log('✅ Word is approved - allowing audio');
+      return true;
+    }
+
+    // Les mots en attente peuvent recevoir de l'audio de leur créateur
+    if (word.status === 'pending') {
+      const wordRaw = word as unknown as { createdBy: { _id?: any } | string };
+      const createdById = typeof wordRaw.createdBy === 'object' 
+        ? String(wordRaw.createdBy._id) 
+        : String(wordRaw.createdBy);
+      const userId = String(user._id);
+      
+      console.log('🔍 Pending word ownership check:', {
+        createdById,
+        userId,
+        isOwner: createdById === userId
+      });
+      
+      const result = createdById === userId;
+      console.log(result ? '✅ User is owner - allowing audio' : '❌ User is not owner - denying audio');
+      return result;
+    }
+
+    // Les mots rejetés ne peuvent pas recevoir d'audio
+    console.log('❌ Word status is rejected or unknown - denying audio');
+    return false;
   }
 
   /**
