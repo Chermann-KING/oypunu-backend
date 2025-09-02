@@ -173,7 +173,12 @@ export class CommunitiesService {
     console.log("Resolved User ID:", userId);
 
     const community = await this.communityRepository.create({
-      ...createCommunityDto,
+      name: createCommunityDto.name,
+      description: createCommunityDto.description,
+      language: createCommunityDto.language,
+      tags: createCommunityDto.tags,
+      isPrivate: createCommunityDto.isPrivate,
+      coverImage: createCommunityDto.coverImage,
       createdBy: userId,
     });
 

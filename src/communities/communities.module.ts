@@ -18,6 +18,7 @@ import { CommunityMember, CommunityMemberSchema } from './schemas/community-memb
 import { CommunityPost, CommunityPostSchema } from './schemas/community-post.schema';
 import { PostComment, PostCommentSchema } from './schemas/post-comment.schema';
 import { Vote, VoteSchema } from './schemas/vote.schema';
+import { Language, LanguageSchema } from '../languages/schemas/language.schema';
 import { CommunitiesController } from './controllers/communities.controller';
 import { CommunityPostsController } from './controllers/community-posts.controller';
 import { CommunitiesService } from './services/communities.service';
@@ -76,6 +77,7 @@ import { RepositoriesModule } from '../repositories/repositories.module';
       { name: CommunityPost.name, schema: CommunityPostSchema },     // Publications
       { name: PostComment.name, schema: PostCommentSchema },        // Commentaires
       { name: Vote.name, schema: VoteSchema },                      // Système de votes
+      { name: Language.name, schema: LanguageSchema },             // Langues pour population
     ]),
     RepositoriesModule, // Accès aux repositories pour persistance
     UsersModule,        // Intégration avec le système utilisateur

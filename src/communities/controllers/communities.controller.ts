@@ -113,7 +113,7 @@ export class CommunitiesController {
     @Request() req: { user: JwtUser },
   ) {
     const userId = this._getUserId(req.user);
-    return this._communitiesService.update(id, updateData, userId);
+    return this._communitiesService.update(id, updateData as any, userId);
   }
 
   @Delete(':id')
