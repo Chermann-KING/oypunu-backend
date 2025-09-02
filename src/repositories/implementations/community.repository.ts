@@ -38,7 +38,7 @@ export class CommunityRepository implements ICommunityRepository {
 
   async create(communityData: {
     name: string;
-    language: string;
+    language: string; // ObjectId string de la langue
     description?: string;
     createdBy: string;
     tags?: string[];
@@ -47,12 +47,22 @@ export class CommunityRepository implements ICommunityRepository {
   }): Promise<Community> {
     return DatabaseErrorHandler.handleCreateOperation(async () => {
       const newCommunity = new this.communityModel({
-        ...communityData,
-        memberCount: 1, // Le créateur est automatiquement membre
+        name: communityData.name,
+        language: new Types.ObjectId(communityData.language),
+        description: communityData.description,
+        createdBy: new Types.ObjectId(communityData.createdBy),
         tags: communityData.tags || [],
         isPrivate: communityData.isPrivate || false,
+        coverImage: communityData.coverImage,
+        memberCount: 1, // Le créateur est automatiquement membre
       });
-      return newCommunity.save();
+      const savedCommunity = await newCommunity.save();
+      // Retourner avec population pour avoir les données complètes
+      return this.communityModel
+        .findById(savedCommunity._id)
+        .populate("createdBy", "username email")
+        .populate("language", "name nativeName iso639_1 iso639_2 iso639_3")
+        .exec();
     }, "Community");
   }
 
@@ -65,6 +75,7 @@ export class CommunityRepository implements ICommunityRepository {
         return this.communityModel
           .findById(id)
           .populate("createdBy", "username email")
+          .populate("language", "name nativeName iso639_1 iso639_2 iso639_3")
           .exec();
       },
       "Community",
@@ -84,6 +95,7 @@ export class CommunityRepository implements ICommunityRepository {
         return this.communityModel
           .findByIdAndUpdate(id, updateData, { new: true })
           .populate("createdBy", "username email")
+          .populate("language", "name nativeName iso639_1 iso639_2 iso639_3")
           .exec();
       },
       "Community",
@@ -287,6 +299,7 @@ export class CommunityRepository implements ICommunityRepository {
         this.communityModel
           .find(filter)
           .populate("createdBy", "username email")
+          .populate("language", "name nativeName iso639_1 iso639_2 iso639_3")
           .sort(sort)
           .skip(skip)
           .limit(limit)

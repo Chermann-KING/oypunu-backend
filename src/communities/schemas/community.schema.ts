@@ -1,19 +1,20 @@
 /**
  * @fileoverview Schéma Mongoose pour les communautés O'Ypunu
- * 
+ *
  * Ce schéma définit la structure des communautés avec support complet
  * pour la recherche textuelle, filtrage par langue et tags, et gestion
  * des permissions publiques/privées. Il inclut des index optimisés
  * pour les performances de recherche et découverte.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
  */
 
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { User } from '../../users/schemas/user.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Schema as MongooseSchema } from "mongoose";
+import { User } from "../../users/schemas/user.schema";
+import { Language } from "../../languages/schemas/language.schema";
 
 /**
  * Type document Mongoose pour les communautés
@@ -23,12 +24,12 @@ export type CommunityDocument = Community & Document;
 
 /**
  * Schéma de communauté O'Ypunu
- * 
+ *
  * Représente une communauté linguistique avec toutes ses métadonnées,
  * configuration de visibilité et informations de gestion. Les communautés
  * sont le cœur social de la plateforme pour organiser les discussions
  * par langue et thématique.
- * 
+ *
  * @class Community
  * @version 1.0.0
  */
@@ -43,12 +44,16 @@ export class Community {
   name: string;
 
   /**
-   * Code de langue principale de la communauté (requis)
-   * @type {string}
-   * @example "yipunu", "fr", "en"
+   * Référence vers la langue principale de la communauté (requis)
+   * @type {ObjectId}
+   * @example ObjectId("686d7786c1ce2d689bada0ed")
    */
-  @Prop({ required: true })
-  language: string;
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: "Language",
+    required: true,
+  })
+  language: MongooseSchema.Types.ObjectId;
 
   /**
    * Description détaillée de la communauté
@@ -70,7 +75,7 @@ export class Community {
    * Référence vers l'utilisateur créateur (admin initial)
    * @type {User}
    */
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: "User", required: true })
   createdBy: User;
 
   /**
@@ -107,13 +112,13 @@ export const CommunitySchema = SchemaFactory.createForClass(Community);
 
 /**
  * Index optimisés pour les performances de recherche et découverte
- * 
+ *
  * - Index textuel combiné sur nom et description pour recherche full-text
  * - Index simple sur langue pour filtrage par code linguistique
- * - Index sur tags pour recherche thématique rapide  
+ * - Index sur tags pour recherche thématique rapide
  * - Index sur visibilité pour filtrage public/privé efficace
  */
-CommunitySchema.index({ name: 'text', description: 'text' });
+CommunitySchema.index({ name: "text", description: "text" });
 CommunitySchema.index({ language: 1 });
 CommunitySchema.index({ tags: 1 });
 CommunitySchema.index({ isPrivate: 1 });

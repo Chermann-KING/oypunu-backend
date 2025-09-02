@@ -55,17 +55,14 @@ export class CreateCommunityDto {
   name: string;
 
   /**
-   * Code ISO de la langue principale de la communauté
+   * ID de la langue principale de la communauté
    * 
-   * @property {string} language - Code langue ISO 639-1
-   * @example "fr"
+   * @property {string} language - ObjectId de la langue en base
+   * @example "686d7786c1ce2d689bada0ed"
    */
   @ApiProperty({ 
-    description: 'Code ISO de la langue principale (ISO 639-1)',
-    example: 'fr',
-    pattern: '^[a-z]{2}$',
-    minLength: 2,
-    maxLength: 2
+    description: 'ID de la langue principale (ObjectId vers collection Language)',
+    example: '686d7786c1ce2d689bada0ed'
   })
   @IsString()
   @IsNotEmpty()
