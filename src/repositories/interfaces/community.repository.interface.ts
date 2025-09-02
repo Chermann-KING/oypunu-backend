@@ -21,7 +21,7 @@ export interface ICommunityRepository {
    */
   create(communityData: {
     name: string;
-    language: string;
+    language: string; // ObjectId string de la langue
     description?: string;
     createdBy: string;
     tags?: string[];
