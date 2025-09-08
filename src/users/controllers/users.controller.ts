@@ -1,10 +1,10 @@
 /**
  * @fileoverview Contrôleur de gestion des utilisateurs pour O'Ypunu
- * 
+ *
  * Ce contrôleur gère l'ensemble des opérations liées aux utilisateurs incluant
  * les profils, statistiques, recherche et analytics avec endpoints publics
  * et privés pour une gestion complète de la communauté O'Ypunu.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
@@ -36,7 +36,7 @@ import { UpdateProfileDto } from "../dto/update-profile.dto";
 
 /**
  * Interface de réponse pour le profil utilisateur complet (privé)
- * 
+ *
  * @interface UserResponse
  */
 interface UserResponse {
@@ -70,7 +70,7 @@ interface UserResponse {
 
 /**
  * Interface de réponse pour le profil utilisateur public
- * 
+ *
  * @interface PublicUserResponse
  */
 interface PublicUserResponse {
@@ -96,7 +96,7 @@ interface PublicUserResponse {
 
 /**
  * Interface des statistiques utilisateur
- * 
+ *
  * @interface UserStatsResponse
  */
 interface UserStatsResponse {
@@ -112,33 +112,33 @@ interface UserStatsResponse {
 
 /**
  * Contrôleur de gestion des utilisateurs O'Ypunu
- * 
+ *
  * Ce contrôleur centralise toutes les opérations liées aux utilisateurs :
- * 
+ *
  * ## 👤 Endpoints de profil :
  * - **Profil privé** : GET /profile - Données complètes utilisateur connecté
  * - **Profil public** : GET /:username - Données publiques par username
  * - **Mise à jour** : PATCH /profile - Modification profil utilisateur
- * 
+ *
  * ## 📊 Endpoints de statistiques :
  * - **Stats personnelles** : GET /profile/stats - Métriques individuelles
  * - **Contributions récentes** : GET /profile/recent-contributions
  * - **Consultations récentes** : GET /profile/recent-consultations
  * - **Analytics** : GET /analytics/online-contributors - Métriques globales
- * 
+ *
  * ## 🔍 Endpoints de recherche :
  * - **Recherche utilisateurs** : GET /search - Recherche par nom/critères
- * 
+ *
  * ## 🛠️ Endpoints de debug :
  * - **Tous utilisateurs** : GET /allusers - Vue d'ensemble utilisateurs
  * - **Activation** : GET /activate-user - Utilitaires d'activation
  * - **Status debug** : GET /debug/all-users-status - Diagnostics détaillés
- * 
+ *
  * ## 🔐 Sécurité :
  * - **Authentification** : JWT requis pour endpoints privés
  * - **Données sensibles** : Email/info privées protégées
  * - **Profils publics** : Filtrage automatique des données sensibles
- * 
+ *
  * @class UsersController
  * @version 1.0.0
  */
@@ -149,12 +149,12 @@ export class UsersController {
 
   /**
    * [DEBUG] Récupérer la liste de tous les utilisateurs avec statuts
-   * 
+   *
    * Endpoint de debug pour visualiser l'état de tous les utilisateurs
    * avec calcul des statuts d'activité et de contribution en temps réel.
-   * 
+   *
    * @returns Promise<any[]> Liste enrichie des utilisateurs avec statuts
-   * 
+   *
    * @example
    * GET /users/allusers
    * Response: [{ username: "john", role: "user", isContributor: true, ... }]
@@ -200,15 +200,15 @@ export class UsersController {
 
   /**
    * Récupérer le profil complet de l'utilisateur connecté
-   * 
+   *
    * Retourne toutes les informations du profil utilisateur incluant
    * les données sensibles (email) et les préférences de langues.
-   * 
+   *
    * @param req - Requête contenant l'utilisateur JWT authentifié
    * @returns Promise<UserResponse> Profil complet avec données privées
-   * 
+   *
    * @throws {NotFoundException} Si l'utilisateur n'est pas trouvé
-   * 
+   *
    * @example
    * GET /users/profile
    * Authorization: Bearer <token>
@@ -329,8 +329,6 @@ export class UsersController {
   async getUserStats(
     @Req() req: { user: { _id: string } }
   ): Promise<UserStatsResponse> {
-    console.log("getUserStats - req.user:", req.user);
-    console.log("getUserStats - userId:", req.user._id);
     return this._usersService.getUserStats(req.user._id);
   }
 
@@ -378,13 +376,6 @@ export class UsersController {
     @Req() req: { user: { _id: string } },
     @Query("limit") limit: string = "5"
   ) {
-    console.log(
-      "🎯 API call getUserRecentConsultations pour:",
-      req.user._id,
-      "limit:",
-      limit
-    );
-
     const consultations = await this._usersService.getUserRecentConsultations(
       req.user._id,
       parseInt(limit)
@@ -395,8 +386,6 @@ export class UsersController {
       count: consultations.length,
       timestamp: new Date().toISOString(),
     };
-
-    console.log("📤 Réponse API consultations:", response);
 
     return response;
   }
@@ -413,31 +402,25 @@ export class UsersController {
   @ApiBearerAuth()
   async searchUsers(
     @Query("search") searchQuery: string,
-    @Req() req: { user: { _id: string } }
+    @Req() req: { user: { _id: string }; query: any }
   ): Promise<PublicUserResponse[]> {
-    console.log("[UsersController] Requête de recherche reçue");
-    console.log("[UsersController] Requête utilisateur:", req.user);
-    console.log("[UsersController] Paramètre de recherche:", searchQuery);
-
     if (!searchQuery || searchQuery.trim().length < 2) {
-      console.log("[UsersController] Requête trop courte, retour tableau vide");
       return [];
     }
 
-    console.log("[UsersController] Appel du service de recherche...");
     const users = await this._usersService.searchUsers(
       searchQuery,
       req.user._id
     );
 
-    console.log(
-      "[UsersController] Utilisateurs trouvés par le service:",
-      users.length
-    );
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     const result = users.map((user) => ({
       id: user._id.toString(),
       username: user.username,
+      avatar: user.profilePicture,
+      isOnline:
+        user.isActive && user.lastActive && user.lastActive >= fiveMinutesAgo,
       nativeLanguage:
         user.nativeLanguageId?.iso639_1 ||
         user.nativeLanguageId?.iso639_2 ||
@@ -454,11 +437,6 @@ export class UsersController {
       lastActive: user.lastActive,
     }));
 
-    console.log(
-      "[UsersController] Résultat transformé:",
-      result.length,
-      "utilisateurs"
-    );
     return result;
   }
 

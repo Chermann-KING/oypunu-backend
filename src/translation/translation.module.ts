@@ -108,11 +108,7 @@ export class TranslationModule {
   /**
    * Constructeur du module de traduction avec initialisation des logs
    */
-  constructor() {
-    console.log(
-      '🌐 Translation Module - Système de traduction intelligente initialisé',
-    );
-    console.log('   ✅ Algorithme de similarité sémantique');
+  constructor() {    console.log('   ✅ Algorithme de similarité sémantique');
     console.log('   ✅ Apprentissage adaptatif');
     console.log('   ✅ Détection automatique de doublons');
     console.log('   ✅ API RESTful complète');

@@ -99,9 +99,7 @@ export class WordCoreService {
     createWordDto: CreateWordDto,
     user: { _id?: string; userId?: string; role: string }
   ): Promise<Word> {
-    return DatabaseErrorHandler.handleCreateOperation(async () => {
-      console.log("📝 === DEBUT CREATION MOT ===");
-      console.log("📋 Données reçues:", JSON.stringify(createWordDto, null, 2));
+    return DatabaseErrorHandler.handleCreateOperation(async () => {      console.log("📋 Données reçues:", JSON.stringify(createWordDto, null, 2));
       console.log("👤 Utilisateur:", user);
 
       // 🔍 DEBUG: Log détaillé pour pronunciation dans word-core.service
@@ -149,11 +147,7 @@ export class WordCoreService {
       const status =
         user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN
           ? "approved"
-          : "pending";
-
-      console.log(`📊 Status déterminé: ${status} (rôle: ${user.role})`);
-
-      // Créer le mot
+          : "pending";      // Créer le mot
       const savedWord = await this.wordRepository.create(
         createWordDto,
         userIdLocal,

@@ -52,10 +52,7 @@ export class WordRevisionService {
     user: User,
   ): Promise<Word> {
     return DatabaseErrorHandler.handleCreateOperation(
-      async () => {
-        console.log('📝 Création révision pour mot:', wordId, 'par utilisateur:', user._id);
-
-        if (!Types.ObjectId.isValid(wordId)) {
+      async () => {        if (!Types.ObjectId.isValid(wordId)) {
           throw new BadRequestException('ID de mot invalide');
         }
 
@@ -317,11 +314,7 @@ export class WordRevisionService {
           this.revisionHistoryModel.countDocuments({ status: 'pending' }),
         ]);
 
-        const totalPages = Math.ceil(total / limit);
-
-        console.log(`📋 ${revisions.length}/${total} révisions en attente (page ${page}/${totalPages})`);
-
-        return {
+        const totalPages = Math.ceil(total / limit);        return {
           revisions,
           total,
           page,

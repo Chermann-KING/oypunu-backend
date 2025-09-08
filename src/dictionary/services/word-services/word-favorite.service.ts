@@ -151,16 +151,7 @@ export class WordFavoriteService {
 
         // Convertir les IDs en ObjectIds
         const wordObjectId = new Types.ObjectId(wordId);
-        const userObjectId = new Types.ObjectId(userId);
-
-        console.log(
-          '🔥 ObjectIds convertis - wordObjectId:',
-          wordObjectId,
-          'userObjectId:',
-          userObjectId,
-        );
-
-        // Vérifier si le favori existe avant suppression
+        const userObjectId = new Types.ObjectId(userId);        // Vérifier si le favori existe avant suppression
         console.log('🔥 Vérification existence du favori...');
         const existingFavorite = await this.favoriteWordModel.findOne({
           wordId: wordObjectId,
@@ -232,17 +223,7 @@ export class WordFavoriteService {
     totalPages: number;
   }> {
     return DatabaseErrorHandler.handleSearchOperation(
-      async () => {
-        console.log(
-          '🔥 getFavoriteWords - userId:',
-          userId,
-          'page:',
-          page,
-          'limit:',
-          limit,
-        );
-
-        if (!userId || !Types.ObjectId.isValid(userId)) {
+      async () => {        if (!userId || !Types.ObjectId.isValid(userId)) {
           throw new BadRequestException('ID utilisateur invalide');
         }
 
@@ -316,15 +297,7 @@ export class WordFavoriteService {
    */
   async checkIfFavorite(wordId: string, userId: string): Promise<boolean> {
     return DatabaseErrorHandler.handleFindOperation(
-      async () => {
-        console.log(
-          '🔥 Backend: checkIfFavorite - wordId:',
-          wordId,
-          'userId:',
-          userId,
-        );
-
-        if (!Types.ObjectId.isValid(wordId)) {
+      async () => {        if (!Types.ObjectId.isValid(wordId)) {
           throw new BadRequestException('ID de mot invalide');
         }
 
@@ -334,16 +307,7 @@ export class WordFavoriteService {
 
         // Convertir les IDs en ObjectIds
         const wordObjectId = new Types.ObjectId(wordId);
-        const userObjectId = new Types.ObjectId(userId);
-
-        console.log(
-          '🔥 ObjectIds convertis - wordObjectId:',
-          wordObjectId,
-          'userObjectId:',
-          userObjectId,
-        );
-
-        const favorite = await this.favoriteWordModel.findOne({
+        const userObjectId = new Types.ObjectId(userId);        const favorite = await this.favoriteWordModel.findOne({
           wordId: wordObjectId,
           userId: userObjectId,
         });

@@ -92,13 +92,7 @@ export class WordTranslationService {
     userId: string,
   ): Promise<void> {
     return DatabaseErrorHandler.handleCreateOperation(
-      async () => {
-        console.log(
-          '🔄 Création de traductions bidirectionnelles pour:',
-          sourceWord.word,
-        );
-
-        for (const translation of sourceWord.translations) {
+      async () => {        for (const translation of sourceWord.translations) {
           try {
             // Chercher le mot cible par nom dans la langue de traduction
             const targetWordFilter = translation.languageId
@@ -113,12 +107,7 @@ export class WordTranslationService {
 
             const targetWord = await this.wordModel.findOne(targetWordFilter);
 
-            if (targetWord) {
-              console.log(
-                `✅ Mot cible trouvé: ${targetWord.word} (${translation.language || translation.languageId})`,
-              );
-
-              // Vérifier si la traduction inverse existe déjà
+            if (targetWord) {              // Vérifier si la traduction inverse existe déjà
               const sourceLanguageId = sourceWord.languageId || null;
               const sourceLanguage = sourceWord.language || null;
 
@@ -131,12 +120,7 @@ export class WordTranslationService {
                 return languageMatches && t.translatedWord === sourceWord.word;
               });
 
-              if (!reverseTranslationExists) {
-                console.log(
-                  `➕ Ajout de la traduction inverse: ${targetWord.word} -> ${sourceWord.word}`,
-                );
-
-                // Créer la traduction inverse
+              if (!reverseTranslationExists) {                // Créer la traduction inverse
                 const reverseTranslation = {
                   languageId: sourceLanguageId,
                   language: sourceLanguage,
@@ -172,11 +156,7 @@ export class WordTranslationService {
                 await sourceWord.save();
                 console.log(`🔗 Lien targetWordId mis à jour`);
               }
-            } else {
-              console.log(
-                `⚠️ Mot cible non trouvé: ${translation.translatedWord} en ${translation.language || translation.languageId}`,
-              );
-            }
+            } else {            }
           } catch (error) {
             console.error(
               `❌ Erreur lors de la création de la traduction bidirectionnelle:`,
@@ -202,13 +182,7 @@ export class WordTranslationService {
     allTranslations: Translation[];
   }> {
     return DatabaseErrorHandler.handleFindOperation(
-      async () => {
-        console.log(
-          '🔍 Récupération de toutes les traductions pour le mot:',
-          wordId,
-        );
-
-        const word = await this.wordModel.findById(wordId);
+      async () => {        const word = await this.wordModel.findById(wordId);
         if (!word) {
           throw new NotFoundException('Mot non trouvé');
         }
@@ -278,13 +252,7 @@ export class WordTranslationService {
         }
 
         // 3. Combiner toutes les traductions
-        const allTranslations = [...directTranslations, ...reverseTranslations];
-
-        console.log(
-          `📊 Trouvé ${directTranslations.length} traductions directes et ${reverseTranslations.length} traductions inverses`,
-        );
-
-        return {
+        const allTranslations = [...directTranslations, ...reverseTranslations];        return {
           directTranslations,
           reverseTranslations,
           allTranslations,

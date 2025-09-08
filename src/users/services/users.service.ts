@@ -1,18 +1,17 @@
 /**
  * @fileoverview Service de gestion des utilisateurs O'Ypunu
- * 
+ *
  * Ce service implémente toute la logique métier pour la gestion des utilisateurs :
  * profils complets, authentification, gestion des favoris, préférences linguistiques
  * et tracking d'activité pour l'expérience personnalisée.
- * 
- * @author Équipe O'Ypunu
- * @version 1.0.0
+ *
+ * @author Équipe O'Y    return count; 1.0.0
  * @since 2025-01-01
  */
 
 import { Injectable, Inject } from "@nestjs/common";
 import { User } from "../schemas/user.schema";
-import { DatabaseErrorHandler } from "../../common/errors"
+import { DatabaseErrorHandler } from "../../common/errors";
 import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
 import { IActivityFeedRepository } from "../../repositories/interfaces/activity-feed.repository.interface";
 import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
@@ -20,39 +19,39 @@ import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-
 
 /**
  * Service de gestion des utilisateurs O'Ypunu
- * 
+ *
  * Implémente la logique métier complète pour la gestion des utilisateurs
  * avec profils enrichis, gestion des préférences linguistiques, système
  * de favoris et tracking d'activité pour personnalisation avancée.
- * 
+ *
  * ## 🎯 Fonctionnalités principales :
- * 
+ *
  * ### 👤 Gestion des profils utilisateur
  * - **CRUD complet** : Création, lecture, mise à jour, suppression
  * - **Authentification** : Recherche par email, nom d'utilisateur, ID
  * - **Profils enrichis** : Informations personnelles et préférences
  * - **Validation des données** : Contrôles de cohérence et sécurité
- * 
+ *
  * ### 🌍 Préférences linguistiques
  * - **Langues natives** : Gestion de la langue maternelle
  * - **Apprentissage** : Liste des langues en cours d'étude
  * - **Personnalisation** : Adaptation de l'interface utilisateur
- * 
+ *
  * ### ⭐ Système de favoris
  * - **Mots favoris** : Gestion de la liste personnalisée
  * - **Ajout/suppression** : Opérations atomiques sécurisées
  * - **Synchronisation** : Cohérence avec les données du dictionnaire
- * 
+ *
  * ### 📊 Tracking d'activité
  * - **Historique complet** : Actions utilisateur pour analytics
  * - **Métriques d'engagement** : Statistiques d'usage personnel
  * - **Recommandations** : Base pour suggestions personnalisées
- * 
+ *
  * ## 🔄 Pattern Repository
  * - **Abstraction des données** : Interface découplée de la DB
  * - **Gestion d'erreurs** : Handling centralisé avec DatabaseErrorHandler
  * - **Performance optimisée** : Requêtes optimisées et mise en cache
- * 
+ *
  * @class UsersService
  * @version 1.0.0
  */
@@ -60,7 +59,7 @@ import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-
 export class UsersService {
   /**
    * Constructeur avec injection des repositories
-   * 
+   *
    * @param {IUserRepository} userRepository - Repository des utilisateurs
    * @param {IActivityFeedRepository} activityFeedRepository - Repository d'activité
    * @param {IWordRepository} wordRepository - Repository des mots
@@ -70,18 +69,19 @@ export class UsersService {
     @Inject("IActivityFeedRepository")
     private activityFeedRepository: IActivityFeedRepository,
     @Inject("IWordRepository") private wordRepository: IWordRepository,
-    @Inject("IFavoriteWordRepository") private favoriteWordRepository: IFavoriteWordRepository
+    @Inject("IFavoriteWordRepository")
+    private favoriteWordRepository: IFavoriteWordRepository
   ) {}
 
   /**
    * Recherche un utilisateur par son identifiant unique
-   * 
+   *
    * @method findById
    * @param {string} id - Identifiant unique de l'utilisateur
    * @returns {Promise<User | null>} Utilisateur trouvé ou null si inexistant
    * @throws {NotFoundException} Si utilisateur non trouvé
    * @throws {DatabaseException} Si erreur de base de données
-   * 
+   *
    * @example
    * const user = await usersService.findById('60a1b2c3d4e5f6a7b8c9d0e1');
    * if (user) { console.log(`Utilisateur: ${user.username}`); }
@@ -98,13 +98,13 @@ export class UsersService {
 
   /**
    * Recherche un utilisateur avec ses préférences linguistiques populées
-   * 
+   *
    * @method findByIdWithLanguages
    * @param {string} id - Identifiant unique de l'utilisateur
    * @returns {Promise<User | null>} Utilisateur avec langues populées ou null
    * @throws {NotFoundException} Si utilisateur non trouvé
    * @throws {DatabaseException} Si erreur de base de données
-   * 
+   *
    * @example
    * const user = await usersService.findByIdWithLanguages('60a1b2c3d4e5f6a7b8c9d0e1');
    * console.log(`Langue native: ${user?.nativeLanguageId?.name}`);
@@ -122,15 +122,15 @@ export class UsersService {
 
   /**
    * Recherche un utilisateur par son adresse email
-   * 
+   *
    * Méthode principalement utilisée pour l'authentification et la
    * vérification d'unicité lors de l'inscription.
-   * 
+   *
    * @method findByEmail
    * @param {string} email - Adresse email de l'utilisateur
    * @returns {Promise<User | null>} Utilisateur trouvé ou null si inexistant
    * @throws {DatabaseException} Si erreur de base de données
-   * 
+   *
    * @example
    * const user = await usersService.findByEmail('user@example.com');
    * if (user && user.isEmailVerified) { // Authentification... }
@@ -170,12 +170,7 @@ export class UsersService {
 
   async searchUsers(query: string, excludeUserId?: string): Promise<User[]> {
     return DatabaseErrorHandler.handleSearchOperation(async () => {
-      console.log("[UsersService] Recherche d'utilisateurs");
-      console.log("[UsersService] Requête:", query);
-      console.log("[UsersService] Utilisateur à exclure:", excludeUserId);
-
       const searchRegex = new RegExp(query, "i"); // Recherche insensible à la casse
-      console.log("[UsersService] Regex de recherche:", searchRegex);
 
       const filter: any = {
         $or: [
@@ -190,11 +185,6 @@ export class UsersService {
         filter._id = { $ne: excludeUserId };
       }
 
-      console.log(
-        "[UsersService] Filtre de recherche:",
-        JSON.stringify(filter, null, 2)
-      );
-
       const users = await this.userRepository.search(query, {
         limit: 10,
         offset: excludeUserId ? 0 : undefined,
@@ -204,18 +194,6 @@ export class UsersService {
       const filteredUsers = excludeUserId
         ? users.filter((user) => (user as any)._id.toString() !== excludeUserId)
         : users;
-
-      console.log("[UsersService] Utilisateurs trouvés en base:", users.length);
-      console.log(
-        "[UsersService] Premier utilisateur (si existe):",
-        users[0]
-          ? {
-              id: users[0]._id,
-              username: users[0].username,
-              email: users[0].email,
-            }
-          : "Aucun"
-      );
 
       return filteredUsers;
     }, "User");
@@ -243,7 +221,8 @@ export class UsersService {
       const personalStats = await this.getUserPersonalStats(userId);
 
       // Compter les vrais favoris de l'utilisateur
-      const actualFavoritesCount = await this.favoriteWordRepository.countUserFavorites(userId);
+      const actualFavoritesCount =
+        await this.favoriteWordRepository.countUserFavorites(userId);
 
       return {
         totalWordsAdded: personalStats.wordsAdded, // Utiliser le comptage réel
@@ -312,13 +291,7 @@ export class UsersService {
       }
     }
 
-    const result = { modifiedCount };
-
-    console.log(
-      "🔧 Activation des utilisateurs avec rôles élevés:",
-      result.modifiedCount
-    );
-    return modifiedCount;
+    const result = { modifiedCount };    return modifiedCount;
   }
 
   async getActiveUsersCount(): Promise<number> {
@@ -337,9 +310,6 @@ export class UsersService {
     // 2. Ont un rôle contributor, admin ou superadmin
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    console.log("🔍 Recherche des contributeurs en ligne...");
-    console.log("⏰ Seuil de temps (5 min ago):", fiveMinutesAgo.toISOString());
-
     // Note: Complex query should be in UserRepository
     // For now, getting active users and filtering
     const activeUsers = await this.userRepository.findActiveUsers(0.003);
@@ -349,8 +319,6 @@ export class UsersService {
         ["contributor", "admin", "superadmin"].includes(user.role)
     );
     const count = onlineContributors.length;
-
-    console.log("📊 Contributeurs en ligne trouvés:", count);
 
     // Debug: afficher les utilisateurs qui matchent
     const users = onlineContributors;
@@ -415,12 +383,7 @@ export class UsersService {
           // La séquence est rompue
           break;
         }
-      }
-
-      console.log(
-        `📊 Streak calculé pour ${userId}: ${streakCount} jours consécutifs`
-      );
-      return streakCount;
+      }      return streakCount;
     } catch (error) {
       console.error("❌ Erreur lors du calcul du streak:", error);
       return 0;
@@ -452,10 +415,6 @@ export class UsersService {
       // Compter les mots RÉELLEMENT présents en base de données créés par cet utilisateur et approuvés
       const actualWordsAdded =
         await this.wordRepository.countByCreatorAndStatus(userId, "approved");
-
-      console.log(
-        `📊 Mots réels pour ${userId}: ${actualWordsAdded} (vs compteur: ${user.totalWordsAdded})`
-      );
 
       // Compter les activités de cette semaine
       const oneWeekAgo = new Date();
@@ -519,7 +478,6 @@ export class UsersService {
         activitiesThisWeek,
       };
 
-      console.log(`📈 Stats personnelles pour ${user.username}:`, stats);
       return stats;
     } catch (error) {
       console.error("❌ Erreur lors du calcul des stats personnelles:", error);
@@ -575,32 +533,23 @@ export class UsersService {
     limit: number = 5
   ): Promise<any[]> {
     try {
-      console.log("🔍 Recherche consultations pour utilisateur:", userId);
-
       // Note: WordView should also be moved to repository pattern
       // For now, returning empty array as placeholder
       // TODO: Implement WordViewRepository
       const recentConsultations: any[] = [];
 
-      console.log("📊 Consultations trouvées:", recentConsultations.length);
-      console.log(
-        "📋 Détails consultations:",
-        recentConsultations.map((c) => ({
-          wordId: c.wordId ? (c.wordId as any)._id : "null",
-          word: c.wordId ? (c.wordId as any).word : "null",
-          status: c.wordId ? (c.wordId as any).status : "null",
-          lastViewedAt: c.lastViewedAt,
-        }))
-      );
+      // Trier et limiter les résultats
+      const sortedConsultations = recentConsultations
+        .sort(
+          (a, b) =>
+            new Date(b.lastViewedAt).getTime() -
+            new Date(a.lastViewedAt).getTime()
+        )
+        .slice(0, limit);
 
       const filteredConsultations = recentConsultations.filter(
         (consultation) =>
           consultation.wordId && consultation.wordId.status === "approved"
-      );
-
-      console.log(
-        "✅ Consultations après filtrage (approved seulement):",
-        filteredConsultations.length
       );
 
       return filteredConsultations.map((consultation) => {
