@@ -51,10 +51,24 @@ export class MessagingEnhancedService {
         // Enrichir avec les détails des participants
         const enrichedConversations = await Promise.all(
           conversationsResult.conversations.map(async (conversation) => {
-            const participants =
+            const participantIds =
               await this.conversationRepository.getParticipants(
                 (conversation as any).id || (conversation as any)._id
               );
+            
+            // Enrichir les participants avec leurs détails
+            const participants = await Promise.all(
+              participantIds.map(async (participantId) => {
+                const user = await this.userRepository.findById(participantId);
+                return {
+                  userId: participantId,
+                  username: user?.username || 'Utilisateur inconnu',
+                  email: user?.email,
+                  avatar: user?.profilePicture,
+                  isOnline: false, // TODO: Implement WebSocket presence
+                };
+              })
+            );
             // Récupérer le dernier message de la conversation
             const messages = await this.messageRepository.findByConversation(
               (conversation as any).id || (conversation as any)._id,
@@ -86,6 +100,71 @@ export class MessagingEnhancedService {
   }
 
   /**
+   * 🔄 Récupérer une conversation spécifique (compatible)
+   */
+  async getConversationById(userId: string, conversationId: string) {
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        // Vérifier que l'utilisateur a accès à cette conversation
+        const conversation =
+          await this.conversationRepository.findById(conversationId);
+        if (!conversation) {
+          throw new NotFoundException("Conversation not found");
+        }
+
+        const participantIds =
+          await this.conversationRepository.getParticipants(conversationId);
+        
+        if (!participantIds.includes(userId.toString())) {
+          throw new BadRequestException("Access denied to this conversation");
+        }
+
+        // Enrichir les participants avec leurs détails
+        const participants = await Promise.all(
+          participantIds.map(async (participantId) => {
+            const user = await this.userRepository.findById(participantId);
+            return {
+              userId: participantId,
+              username: user?.username || 'Utilisateur inconnu',
+              email: user?.email,
+              avatar: user?.profilePicture,
+              isOnline: false, // TODO: Implement WebSocket presence
+            };
+          })
+        );
+
+        // Récupérer le dernier message de la conversation
+        const messages = await this.messageRepository.findByConversation(
+          conversationId,
+          { page: 1, limit: 1, sortOrder: "desc" }
+        );
+        const lastMessage = messages.messages[0] || null;
+        
+        // Récupérer le nombre de messages non lus
+        const unreadCount = await this.messageRepository.countUnreadInConversation(
+          userId.toString(),
+          conversationId
+        );
+
+        return {
+          id: (conversation as any).id || (conversation as any)._id,
+          type: (conversation as any).type || 'direct',
+          name: (conversation as any).name,
+          participants,
+          lastMessage,
+          unreadCount,
+          createdAt: (conversation as any).createdAt || new Date(),
+          updatedAt: (conversation as any).updatedAt || new Date(),
+          isArchived: (conversation as any).isArchived || false,
+          isMuted: (conversation as any).isMuted || false,
+        };
+      },
+      "MessagingEnhanced",
+      conversationId
+    );
+  }
+
+  /**
    * 🔄 Récupérer messages d'une conversation (compatible)
    */
   async getConversationMessages(
@@ -106,21 +185,7 @@ export class MessagingEnhancedService {
         const participants =
           await this.conversationRepository.getParticipants(conversationId);
         
-        // 🔍 Debug logging
-        console.log('🔍 [DEBUG] Access check for conversation:', {
-          conversationId,
-          userId,
-          participants,
-          isParticipant: participants.includes(userId)
-        });
-        
         if (!participants.includes(userId)) {
-          console.error('❌ [ERROR] Access denied:', {
-            conversationId,
-            userId,
-            participants,
-            message: "User is not in participants list"
-          });
           throw new BadRequestException("Access denied to this conversation");
         }
 
@@ -156,21 +221,7 @@ export class MessagingEnhancedService {
         const participants =
           await this.conversationRepository.getParticipants(conversationId);
         
-        // 🔍 Debug logging
-        console.log('🔍 [DEBUG] Access check for conversation:', {
-          conversationId,
-          userId,
-          participants,
-          isParticipant: participants.includes(userId)
-        });
-        
         if (!participants.includes(userId)) {
-          console.error('❌ [ERROR] Access denied:', {
-            conversationId,
-            userId,
-            participants,
-            message: "User is not in participants list"
-          });
           throw new BadRequestException("Access denied to this conversation");
         }
 
@@ -861,21 +912,7 @@ export class MessagingEnhancedService {
         const participants =
           await this.conversationRepository.getParticipants(conversationId);
         
-        // 🔍 Debug logging
-        console.log('🔍 [DEBUG] Access check for conversation:', {
-          conversationId,
-          userId,
-          participants,
-          isParticipant: participants.includes(userId)
-        });
-        
         if (!participants.includes(userId)) {
-          console.error('❌ [ERROR] Access denied:', {
-            conversationId,
-            userId,
-            participants,
-            message: "User is not in participants list"
-          });
           throw new BadRequestException("Access denied to this conversation");
         }
 
@@ -932,10 +969,6 @@ export class MessagingEnhancedService {
           }
         });
 
-        console.log(
-          `User ${userId} reacted with ${reaction} to message ${messageId}`,
-          addedReaction
-        );
 
         return {
           success: true,
@@ -1005,10 +1038,6 @@ export class MessagingEnhancedService {
           });
         }
 
-        console.log(
-          `User ${userId} removed reaction from message ${messageId}`,
-          removedReaction
-        );
 
         return {
           success: true,
@@ -1324,9 +1353,6 @@ export class MessagingEnhancedService {
           }
         });
 
-        console.log(
-          `Message ${messageId} pinned by user ${userId} in conversation ${messageConversationId}`
-        );
 
         return {
           success: true,
@@ -1394,9 +1420,6 @@ export class MessagingEnhancedService {
           }
         });
 
-        console.log(
-          `Message ${messageId} unpinned by user ${userId} in conversation ${messageConversationId}`
-        );
 
         return {
           success: true,

@@ -11,14 +11,7 @@ export class ActivityTrackingMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     try {
       // Vérifier si l'utilisateur est authentifié
-      const user = req.user as any;
-
-      console.log(
-        '🔄 ActivityTrackingMiddleware - Route:',
-        req.method,
-        req.url,
-      );
-      console.log(
+      const user = req.user as any;      console.log(
         '👤 User dans request:',
         user
           ? `${user.userId || user._id} (${user.username || 'unknown'})`
@@ -58,14 +51,7 @@ export class ActivityTrackingMiddleware implements NestMiddleware {
         { new: true },
       );
 
-      if (result) {
-        console.log(
-          '✅ lastActive mis à jour pour:',
-          result.username,
-          'à',
-          result.lastActive,
-        );
-      } else {
+      if (result) {      } else {
         console.log('⚠️ Utilisateur non trouvé pour la mise à jour:', userId);
       }
     } catch (error) {

@@ -1,11 +1,11 @@
 /**
  * @fileoverview Module NestJS pour l'administration et la gestion système
- * 
+ *
  * Ce module centralise toutes les fonctionnalités d'administration de O'Ypunu,
  * incluant la gestion des utilisateurs, modération de contenu, analytics avancées,
  * migrations de base de données et sécurité JWT. Il fournit des outils complets
  * pour les administrateurs et super-administrateurs.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
@@ -43,40 +43,45 @@ import {
   ActivityFeed,
   ActivityFeedSchema,
 } from "../common/schemas/activity-feed.schema";
+import {
+  UserPermission,
+  UserPermissionSchema,
+} from "./schemas/user-permission.schema";
+import { UserPermissionRepository } from "../repositories/implementations/user-permission.repository";
 
 /**
  * Module d'administration centrale pour O'Ypunu
- * 
+ *
  * Ce module fournit une interface d'administration complète avec des outils
  * avancés pour la gestion de la plateforme, la modération de contenu,
  * l'analytics en temps réel et la maintenance système.
- * 
+ *
  * ## Fonctionnalités d'administration :
- * 
+ *
  * ### 👥 Gestion des utilisateurs
  * - Modération et suspension de comptes
  * - Gestion des rôles et permissions
  * - Analytics utilisateur détaillées
  * - Audit des activités suspectes
- * 
+ *
  * ### 📚 Modération de contenu
  * - Approbation/rejet de mots
  * - Modération des communautés
  * - Gestion des signalements
  * - Filtrage automatique de contenu
- * 
+ *
  * ### 🔧 Outils système
  * - Migrations de base de données
  * - Gestion de la sécurité JWT
  * - Monitoring des performances
  * - Configuration système
- * 
+ *
  * ### 📊 Analytics avancées
  * - Métriques en temps réel
  * - Rapports personnalisés
  * - Tendances d'usage
  * - KPIs et tableaux de bord
- * 
+ *
  * @module AdminModule
  * @version 1.0.0
  */
@@ -91,28 +96,35 @@ import {
       { name: CommunityPost.name, schema: CommunityPostSchema },
       { name: Message.name, schema: MessageSchema },
       { name: ActivityFeed.name, schema: ActivityFeedSchema },
+      { name: UserPermission.name, schema: UserPermissionSchema }, // Nouveau schéma permissions
     ]),
-    
+
     // Modules fonctionnels
-    DatabaseModule,     // Outils de base de données et migrations
-    UsersModule,        // Gestion des utilisateurs
-    DictionaryModule,   // Modération du dictionnaire
+    DatabaseModule, // Outils de base de données et migrations
+    UsersModule, // Gestion des utilisateurs
+    DictionaryModule, // Modération du dictionnaire
     RepositoriesModule, // Repositories pour accès aux données
   ],
   controllers: [
-    AdminController,              // API principale d'administration
+    AdminController, // API principale d'administration
     DatabaseMigrationController, // Gestion des migrations DB
-    JwtSecurityController,        // Sécurité et rotation JWT
-    AdminPermissionsController,   // Gestion des permissions contextuelles
+    JwtSecurityController, // Sécurité et rotation JWT
+    AdminPermissionsController, // Gestion des permissions contextuelles
   ],
   providers: [
-    AdminService,          // Logique métier d'administration
-    AnalyticsService,      // Analytics et rapports avancés
+    AdminService, // Logique métier d'administration
+    AnalyticsService, // Analytics et rapports avancés
     AdminPermissionsService, // Service de gestion des permissions
+    // Repository pour les permissions utilisateur
+    {
+      provide: "IUserPermissionRepository",
+      useClass: UserPermissionRepository,
+    },
   ],
   exports: [
-    AdminService,     // Service disponible pour d'autres modules
+    AdminService, // Service disponible pour d'autres modules
     AnalyticsService, // Analytics réutilisables
+    AdminPermissionsService, // Service de permissions disponible pour d'autres modules
   ],
 })
 export class AdminModule {}

@@ -55,9 +55,7 @@ export class WordAnalyticsService {
       async () => {
         const count = await this.wordModel.countDocuments({
           status: "approved",
-        });
-        console.log("📊 Nombre de mots approuvés:", count);
-        return count;
+        });        return count;
       },
       "WordAnalytics",
       "approved-count"
@@ -81,10 +79,7 @@ export class WordAnalyticsService {
             $gte: today,
             $lt: tomorrow,
           },
-        });
-
-        console.log("📊 Mots ajoutés aujourd'hui:", count);
-        return count;
+        });        return count;
       },
       "WordAnalytics",
       "today-count"
@@ -146,16 +141,7 @@ export class WordAnalyticsService {
               createdAt: { $gte: monthStart },
             })
             .exec(),
-        ]);
-
-        console.log("📊 Statistiques des mots:", {
-          totalApprovedWords,
-          wordsAddedToday,
-          wordsAddedThisWeek,
-          wordsAddedThisMonth,
-        });
-
-        return {
+        ]);        return {
           totalApprovedWords,
           wordsAddedToday,
           wordsAddedThisWeek,
@@ -177,12 +163,7 @@ export class WordAnalyticsService {
     viewType: "search" | "detail" | "favorite" = "detail"
   ): Promise<void> {
     return DatabaseErrorHandler.handleCreateOperation(
-      async () => {
-        console.log(
-          `📊 trackWordView - wordId: ${wordId}, userId: ${userId}, type: ${viewType}`
-        );
-
-        // Récupérer les informations du mot
+      async () => {        // Récupérer les informations du mot
         const word = await this.wordModel
           .findById(wordId)
           .select("word language");
@@ -210,9 +191,7 @@ export class WordAnalyticsService {
           existingView.viewCount += 1;
           existingView.lastViewedAt = new Date();
           existingView.viewType = viewType;
-          await existingView.save();
-          console.log("📊 Vue mise à jour pour:", word.word);
-        } else {
+          await existingView.save();        } else {
           // Créer une nouvelle vue
           const newView = new this.wordViewModel({
             wordId,
@@ -225,9 +204,7 @@ export class WordAnalyticsService {
             lastViewedAt: new Date(),
           });
 
-          await newView.save();
-          console.log("📊 Nouvelle vue enregistrée pour:", word.word);
-        }
+          await newView.save();        }
       },
       "WordAnalytics",
       wordId

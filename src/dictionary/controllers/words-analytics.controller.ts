@@ -134,9 +134,7 @@ export class WordsAnalyticsController {
       rank: number;
     }>;
     languageGrowth: Record<string, number>;
-  }> {
-    console.log("=== DEBUG GET WORDS STATISTICS ===");
-    console.log("Paramètres:", { period, language });
+  }> {    console.log("Paramètres:", { period, language });
     console.log("Utilisateur:", req?.user?.username, "Role:", req?.user?.role);
 
     // Validation de la période
@@ -276,9 +274,7 @@ export class WordsAnalyticsController {
     }>;
     period: string;
     generatedAt: Date;
-  }> {
-    console.log("=== DEBUG GET TRENDING WORDS ===");
-    console.log("Paramètres:", { period, limit, language });
+  }> {    console.log("Paramètres:", { period, limit, language });
     console.log("Utilisateur:", req?.user?.username || "Anonyme");
 
     // Validation des paramètres
@@ -290,13 +286,7 @@ export class WordsAnalyticsController {
       period: validatedPeriod,
       limit: validatedLimit,
       language: language?.trim(),
-    });
-
-    console.log(
-      `${result.trending.length} mots tendance récupérés pour la période: ${validatedPeriod}`
-    );
-
-    return result;
+    });    return result;
   }
 
   /**
@@ -356,9 +346,7 @@ export class WordsAnalyticsController {
     totalLanguages: number;
     mostActive: string;
     fastestGrowing: string;
-  }> {
-    console.log("=== DEBUG GET LANGUAGE USAGE STATS ===");
-    console.log("Période:", period);
+  }> {    console.log("Période:", period);
     console.log("Utilisateur:", req?.user?.username || "Anonyme");
 
     // Validation de la période
@@ -463,9 +451,7 @@ export class WordsAnalyticsController {
       averageWordsPerUser: number;
       retentionRate: number;
     };
-  }> {
-    console.log("=== DEBUG GET USER ACTIVITY REPORT (Admin) ===");
-    console.log("Paramètres:", { period, limit });
+  }> {    console.log("Paramètres:", { period, limit });
     console.log("Admin:", req.user?.username, "Role:", req.user?.role);
 
     // Validation des paramètres
@@ -551,9 +537,7 @@ export class WordsAnalyticsController {
       averageSearchTime: number;
       popularSearchTerms: string[];
     };
-  }> {
-    console.log("=== DEBUG GET SYSTEM METRICS (Admin) ===");
-    console.log("Admin:", req.user?.username, "Role:", req.user?.role);
+  }> {    console.log("Admin:", req.user?.username, "Role:", req.user?.role);
 
     const result = await this.wordsService.getSystemMetrics();
 

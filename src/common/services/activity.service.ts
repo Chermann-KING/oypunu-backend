@@ -223,16 +223,7 @@ export class ActivityService {
       const activity = await this.activityFeedRepository.create({
         ...enrichedData,
         isPublic: data.isPublic !== false, // Par défaut public
-      });
-
-      console.log("📊 Nouvelle activité créée:", {
-        type: data.activityType,
-        user: data.username,
-        language: enrichedData.metadata?.languageName,
-        region: enrichedData.languageRegion,
-      });
-
-      // Émettre l'événement pour diffusion temps réel
+      });      // Émettre l'événement pour diffusion temps réel
       this.eventEmitter.emit("activity.created", {
         activity,
         userId: data.userId,

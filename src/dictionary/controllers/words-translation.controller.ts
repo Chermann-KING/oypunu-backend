@@ -142,9 +142,7 @@ export class WordsTranslationController {
       verifiedTranslations: number;
       completionRate: number;
     };
-  }> {
-    console.log('=== DEBUG GET ALL TRANSLATIONS ===');
-    console.log('ID du mot:', id);
+  }> {    console.log('ID du mot:', id);
     console.log('Paramètres:', { includeUnverified, targetLanguages });
     console.log('Utilisateur:', req?.user?.username || 'Anonyme');
 
@@ -259,9 +257,7 @@ export class WordsTranslationController {
     targetLanguage: string;
     status: string;
     message: string;
-  }> {
-    console.log('=== DEBUG ADD TRANSLATION ===');
-    console.log('ID du mot source:', id);
+  }> {    console.log('ID du mot source:', id);
     console.log('Traduction:', translationData.targetWord, '(' + translationData.targetLanguage + ')');
     console.log('Significations:', translationData.meanings.length);
     console.log('Utilisateur:', req.user?.username);
@@ -320,9 +316,7 @@ export class WordsTranslationController {
     message: string;
     deletedTranslationId: string;
     sourceWordId: string;
-  }> {
-    console.log('=== DEBUG REMOVE TRANSLATION ===');
-    console.log('ID du mot source:', id);
+  }> {    console.log('ID du mot source:', id);
     console.log('ID de la traduction:', translationId);
     console.log('Utilisateur:', req.user?.username);
 
@@ -398,9 +392,7 @@ export class WordsTranslationController {
     verifiedBy: string;
     verifiedAt: Date;
     message: string;
-  }> {
-    console.log('=== DEBUG VERIFY TRANSLATION ===');
-    console.log('ID du mot source:', id);
+  }> {    console.log('ID du mot source:', id);
     console.log('ID de la traduction:', translationId);
     console.log('Commentaire:', verificationData?.comment);
     console.log('Vérificateur:', req?.user?.username);
@@ -523,9 +515,7 @@ export class WordsTranslationController {
     page: number;
     limit: number;
     totalPages: number;
-  }> {
-    console.log('=== DEBUG SEARCH TRANSLATIONS ===');
-    console.log('Requête:', query);
+  }> {    console.log('Requête:', query);
     console.log('Paramètres:', { sourceLanguage, targetLanguage, verified, page, limit });
     console.log('Utilisateur:', req?.user?.username || 'Anonyme');
 
@@ -630,9 +620,7 @@ export class WordsTranslationController {
       thisWeek: number;
       thisMonth: number;
     };
-  }> {
-    console.log('=== DEBUG GET TRANSLATION STATISTICS ===');
-    console.log('Période:', period);
+  }> {    console.log('Période:', period);
     console.log('Utilisateur:', req?.user?.username || 'Anonyme');
 
     // Validation de la période

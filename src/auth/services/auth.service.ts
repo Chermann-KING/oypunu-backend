@@ -477,14 +477,7 @@ export class AuthService {
     }
 
     // ✅ Mettre à jour lastActive à chaque validation JWT (requête authentifiée)
-    await this.userRepository.updateLastActive(userId);
-
-    console.log(
-      "🔄 JWT validation - lastActive mis à jour pour:",
-      user.username
-    );
-
-    return user;
+    await this.userRepository.updateLastActive(userId);    return user;
   }
 
   /**

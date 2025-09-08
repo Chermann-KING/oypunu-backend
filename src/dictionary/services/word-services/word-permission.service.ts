@@ -132,9 +132,7 @@ export class WordPermissionService implements IWordPermissionService {
     };
     restrictions: string[];
     reason?: string;
-  }> {
-    console.log("=== DEBUG WordPermissionService.canUserEditWord ===");
-    console.log("Word:", {
+  }> {    console.log("Word:", {
       id: word._id,
       word: word.word,
       createdBy: word.createdBy,
@@ -153,23 +151,11 @@ export class WordPermissionService implements IWordPermissionService {
     // Gérer le cas où createdBy est un ObjectId (string) ou un objet User peuplé
     let createdByIdToCompare: string;
     if (typeof word.createdBy === "object" && "_id" in word.createdBy) {
-      createdByIdToCompare = String(word.createdBy._id);
-      console.log("🔍 createdBy is User object, ID:", createdByIdToCompare);
-    } else {
-      createdByIdToCompare = String(word.createdBy);
-      console.log("🔍 createdBy is ObjectId string, ID:", createdByIdToCompare);
-    }
+      createdByIdToCompare = String(word.createdBy._id);    } else {
+      createdByIdToCompare = String(word.createdBy);    }
 
     const userIdToCompare = String(user._id);
-    const isOwner = createdByIdToCompare === userIdToCompare;
-    
-    console.log("🔍 Comparing IDs:", {
-      createdByIdToCompare,
-      userIdToCompare,
-      isOwner,
-    });
-
-    // Calculer les permissions
+    const isOwner = createdByIdToCompare === userIdToCompare;    // Calculer les permissions
     const restrictions: string[] = [];
     let canEdit = false;
     let reason: string | undefined;
@@ -205,10 +191,7 @@ export class WordPermissionService implements IWordPermissionService {
       reason = "Seuls les administrateurs, le créateur ou les contributeurs (pour les mots en attente) peuvent éditer ce mot";
     }
 
-    console.log("✅ Can edit result:", canEdit);
-    console.log("=== END DEBUG WordPermissionService.canUserEditWord ===");
-
-    if (detailed === true) {
+    console.log("✅ Can edit result:", canEdit);    if (detailed === true) {
       return {
         canEdit,
         permissions: {
@@ -330,9 +313,7 @@ export class WordPermissionService implements IWordPermissionService {
   /**
    * Vérifie si un utilisateur peut ajouter des fichiers audio
    */
-  async canUserAddAudio(word: Word, user: User): Promise<boolean> {
-    console.log('🔍 === DEBUG canUserAddAudio ===');
-    console.log('User:', {
+  async canUserAddAudio(word: Word, user: User): Promise<boolean> {    console.log('User:', {
       _id: user._id,
       isActive: user.isActive,
       role: user.role
@@ -373,15 +354,7 @@ export class WordPermissionService implements IWordPermissionService {
       const createdById = typeof wordRaw.createdBy === 'object' 
         ? String(wordRaw.createdBy._id) 
         : String(wordRaw.createdBy);
-      const userId = String(user._id);
-      
-      console.log('🔍 Pending word ownership check:', {
-        createdById,
-        userId,
-        isOwner: createdById === userId
-      });
-      
-      const result = createdById === userId;
+      const userId = String(user._id);      const result = createdById === userId;
       console.log(result ? '✅ User is owner - allowing audio' : '❌ User is not owner - denying audio');
       return result;
     }

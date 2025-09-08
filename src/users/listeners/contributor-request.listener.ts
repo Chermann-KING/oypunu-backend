@@ -192,12 +192,7 @@ export class ContributorRequestListener {
       // Si priorité élevée, notification urgente
       if (event.priority === "high" || event.priority === "urgent") {
         await this.notifyAdminsUrgent(event);
-      }
-
-      console.log(
-        `✅ Notifications envoyées pour la nouvelle demande ${event.requestId}`
-      );
-    } catch (error) {
+      }    } catch (error) {
       console.error(
         "❌ Erreur lors de l'envoi des notifications de création:",
         error
@@ -264,12 +259,7 @@ export class ContributorRequestListener {
       await this.contributorRequestModel.findByIdAndUpdate(event.requestId, {
         applicantNotified: true,
         lastNotificationSent: new Date(),
-      });
-
-      console.log(
-        `✅ Notification de révision envoyée pour ${event.requestId} (${event.newStatus})`
-      );
-    } catch (error) {
+      });    } catch (error) {
       console.error(
         "❌ Erreur lors de l'envoi des notifications de révision:",
         error
@@ -294,12 +284,7 @@ export class ContributorRequestListener {
         username: user.username,
         newRole: event.newRole,
         promotedAt: event.promotedAt,
-      });
-
-      console.log(
-        `✅ Email de bienvenue envoyé au nouveau contributeur ${user.username}`
-      );
-    } catch (error) {
+      });    } catch (error) {
       console.error(
         "❌ Erreur lors de l'envoi de l'email de promotion:",
         error
@@ -328,11 +313,7 @@ export class ContributorRequestListener {
         })
       );
 
-      await Promise.allSettled(notifications);
-      console.log(
-        `✅ ${admins.length} administrateurs notifiés de la nouvelle demande`
-      );
-    } catch (error) {
+      await Promise.allSettled(notifications);    } catch (error) {
       console.error("❌ Erreur lors de la notification des admins:", error);
     }
   }
@@ -491,11 +472,7 @@ export class ContributorRequestListener {
           })
         );
 
-        await Promise.allSettled(reports);
-        console.log(
-          `📊 Rapport hebdomadaire envoyé à ${superAdmins.length} super admins`
-        );
-      }
+        await Promise.allSettled(reports);      }
     } catch (error) {
       console.error(
         "❌ Erreur lors de l'envoi du rapport hebdomadaire:",

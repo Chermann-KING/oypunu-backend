@@ -102,36 +102,6 @@ export class ConversationRepository implements IConversationRepository {
 
   // ========== RECHERCHE ET GESTION ==========
 
-  async findByParticipants(
-    participantIds: string[]
-  ): Promise<Conversation | null> {
-    return DatabaseErrorHandler.handleFindOperation(async () => {
-      // Valider les IDs
-      const validIds = participantIds.filter((id) =>
-        Types.ObjectId.isValid(id)
-      );
-      if (validIds.length !== participantIds.length || validIds.length === 0) {
-        return null;
-      }
-
-      // Pour une conversation privée entre 2 participants
-      if (participantIds.length === 2) {
-        return this.conversationModel
-          .findOne({
-            type: "private",
-            participants: { $all: participantIds, $size: 2 },
-          })
-          .exec();
-      }
-
-      // Pour les conversations de groupe
-      return this.conversationModel
-        .findOne({
-          participants: { $all: participantIds },
-        })
-        .exec();
-    }, "Conversation");
-  }
 
   async findByUser(
     userId: string,
@@ -254,6 +224,31 @@ export class ConversationRepository implements IConversationRepository {
         .exec();
 
       return conversation !== null;
+    }, "Conversation");
+  }
+
+  /**
+   * Trouver une conversation existante entre des participants spécifiques
+   * Prévient la création de doublons
+   */
+  async findByParticipants(participantIds: string[]): Promise<Conversation | null> {
+    return DatabaseErrorHandler.handleFindOperation(async () => {
+      // Valider que tous les IDs sont valides
+      if (!participantIds.every(id => Types.ObjectId.isValid(id))) {
+        return null;
+      }
+
+      // Trier les participants pour une comparaison cohérente
+      const sortedParticipants = participantIds.sort();
+
+      // Chercher une conversation contenant exactement ces participants
+      return this.conversationModel.findOne({
+        participants: { 
+          $size: sortedParticipants.length,
+          $all: sortedParticipants
+        },
+        isActive: true
+      }).exec();
     }, "Conversation");
   }
 

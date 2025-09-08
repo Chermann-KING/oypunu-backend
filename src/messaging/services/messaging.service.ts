@@ -339,7 +339,7 @@ export class MessagingService {
   /**
    * Trouver ou créer une conversation entre deux utilisateurs
    */
-  private async findOrCreateConversation(
+  async findOrCreateConversation(
     userId1: string,
     userId2: string
   ): Promise<Conversation> {

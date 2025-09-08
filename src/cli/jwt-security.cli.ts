@@ -123,9 +123,7 @@ async function validateSecret(
   console.log('═'.repeat(50));
   
   console.log(`✨ Statut: ${result.isValid ? '✅ VALIDE' : '❌ INVALIDE'}`);
-  console.log(`💪 Force: ${getStrengthEmoji(result.strength)} ${result.strength.toUpperCase()}`);
-  console.log(`📈 Score: ${result.score}/100`);
-  console.log(`🎲 Entropie: ${result.entropy.toFixed(2)} bits/caractère`);
+  console.log(`💪 Force: ${getStrengthEmoji(result.strength)} ${result.strength.toUpperCase()}`);  console.log(`🎲 Entropie: ${result.entropy.toFixed(2)} bits/caractère`);
 
   if (result.errors.length > 0) {
     console.log('\n🚨 ERREURS:');
@@ -182,9 +180,7 @@ async function generateSecret(
   console.log('═'.repeat(80));
 
   console.log('\n📊 VALIDATION DU SECRET GÉNÉRÉ:');
-  console.log(`✨ Force: ${getStrengthEmoji(validation.strength)} ${validation.strength.toUpperCase()}`);
-  console.log(`📈 Score: ${validation.score}/100`);
-  console.log(`🎲 Entropie: ${validation.entropy.toFixed(2)} bits/caractère`);
+  console.log(`✨ Force: ${getStrengthEmoji(validation.strength)} ${validation.strength.toUpperCase()}`);  console.log(`🎲 Entropie: ${validation.entropy.toFixed(2)} bits/caractère`);
 
   console.log('\n🛠️  CONFIGURATION:');
   console.log('Environmental variable:');
@@ -240,9 +236,7 @@ async function auditCurrentSecret(
   console.log('\n🔍 AUDIT DU SECRET JWT ACTUEL:');
   console.log('═'.repeat(50));
   console.log(`✨ Statut: ${validation.isValid ? '✅ VALIDE' : '❌ INVALIDE'}`);
-  console.log(`💪 Force: ${getStrengthEmoji(validation.strength)} ${validation.strength.toUpperCase()}`);
-  console.log(`📈 Score: ${validation.score}/100`);
-  console.log(`🎲 Entropie: ${validation.entropy.toFixed(2)} bits/caractère`);
+  console.log(`💪 Force: ${getStrengthEmoji(validation.strength)} ${validation.strength.toUpperCase()}`);  console.log(`🎲 Entropie: ${validation.entropy.toFixed(2)} bits/caractère`);
   console.log(`📏 Longueur: ${jwtSecret.length} caractères`);
 
   if (validation.errors.length > 0) {
@@ -312,9 +306,7 @@ function showUsage(logger: Logger): void {
   console.log('  npm run jwt:generate [length]  - Générer un secret sécurisé');
   console.log('  npm run jwt:audit              - Auditer le secret actuel');
   console.log('  npm run jwt:check              - Vérifier la configuration');
-  console.log('');
-  console.log('📋 EXEMPLES:');
-  console.log('  npm run jwt:validate "MySecretKey123"');
+  console.log('');  console.log('  npm run jwt:validate "MySecretKey123"');
   console.log('  npm run jwt:generate 64');
   console.log('  npm run jwt:audit');
   console.log('');

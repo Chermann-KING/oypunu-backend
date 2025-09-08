@@ -874,25 +874,11 @@ export class ModerationService {
         const moderators = []; // Temporaire jusqu'à implémentation complète
 
         // Pour les urgences, notifier immédiatement
-        if (severity === "high" || severity === "critical") {
-          console.log(
-            `🚨 URGENT: ${severity.toUpperCase()} report ${reportId}`,
-            {
-              contentType,
-              reason,
-              moderators: moderators.length,
-            }
-          );
-
-          // TODO: Intégrer avec un service de notification réel (email, SMS, Slack, etc.)
+        if (severity === "high" || severity === "critical") {          // TODO: Intégrer avec un service de notification réel (email, SMS, Slack, etc.)
           // await this.notificationService.sendUrgentAlert(moderators, {
           //   reportId, severity, contentType, reason
           // });
-        } else {
-          console.log(
-            `📋 New ${severity} report ${reportId} for moderation queue`
-          );
-        }
+        } else {        }
       },
       "Moderation",
       `notify-${reportId}`
@@ -917,11 +903,7 @@ export class ModerationService {
           reason,
           metadata,
           timestamp: new Date(),
-        };
-
-        console.log("📝 Moderation action logged:", logEntry);
-
-        // TODO: Sauvegarder dans une vraie base de données de logs
+        };        // TODO: Sauvegarder dans une vraie base de données de logs
         // await this.moderationLogRepository.create(logEntry);
       },
       "Moderation",

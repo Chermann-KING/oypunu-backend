@@ -10,9 +10,15 @@
  * @since 2025-01-01
  */
 
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { IUserPermissionRepository } from "../../repositories/interfaces/user-permission.repository.interface";
 
 /**
  * Interface pour une permission contextuelle
@@ -31,7 +37,7 @@ interface ContextualPermission {
  */
 interface PermissionHistory {
   readonly permission: string;
-  readonly action: 'granted' | 'revoked';
+  readonly action: "granted" | "revoked";
   readonly context?: string;
   readonly contextId?: string;
   readonly timestamp: Date;
@@ -63,7 +69,10 @@ interface UserPermissionDocument {
 export class AdminPermissionsService {
   constructor(
     // En attendant le vrai schéma, on simule avec le modèle User existant
-    @InjectModel('User') private readonly userModel: Model<any>
+    @InjectModel("User") private readonly userModel: Model<any>,
+    // Repository pour la persistance des permissions
+    @Inject("IUserPermissionRepository")
+    private readonly userPermissionRepository: IUserPermissionRepository
   ) {}
 
   /**
@@ -71,46 +80,46 @@ export class AdminPermissionsService {
    */
   private readonly availablePermissions = [
     // Gestion des utilisateurs
-    'VIEW_USERS',
-    'EDIT_USERS', 
-    'DELETE_USERS',
-    'MANAGE_USER_ROLES',
-    'SUSPEND_USERS',
-    'VIEW_USER_DETAILS',
-    'EXPORT_USER_DATA',
+    "VIEW_USERS",
+    "EDIT_USERS",
+    "DELETE_USERS",
+    "MANAGE_USER_ROLES",
+    "SUSPEND_USERS",
+    "VIEW_USER_DETAILS",
+    "EXPORT_USER_DATA",
 
     // Modération de contenu
-    'MODERATE_CONTENT',
-    'APPROVE_WORDS',
-    'REJECT_WORDS',
-    'EDIT_WORDS',
-    'DELETE_WORDS',
-    'MANAGE_CATEGORIES',
+    "MODERATE_CONTENT",
+    "APPROVE_WORDS",
+    "REJECT_WORDS",
+    "EDIT_WORDS",
+    "DELETE_WORDS",
+    "MANAGE_CATEGORIES",
 
     // Gestion des communautés
-    'MANAGE_COMMUNITIES',
-    'CREATE_COMMUNITIES',
-    'DELETE_COMMUNITIES',
-    'MODERATE_COMMUNITIES',
-    'ASSIGN_COMMUNITY_MODERATORS',
+    "MANAGE_COMMUNITIES",
+    "CREATE_COMMUNITIES",
+    "DELETE_COMMUNITIES",
+    "MODERATE_COMMUNITIES",
+    "ASSIGN_COMMUNITY_MODERATORS",
 
     // Analytics et rapports
-    'VIEW_ANALYTICS',
-    'VIEW_DETAILED_ANALYTICS',
-    'EXPORT_ANALYTICS',
-    'VIEW_SYSTEM_METRICS',
-    'VIEW_USER_ANALYTICS',
-    'VIEW_CONTENT_ANALYTICS',
+    "VIEW_ANALYTICS",
+    "VIEW_DETAILED_ANALYTICS",
+    "EXPORT_ANALYTICS",
+    "VIEW_SYSTEM_METRICS",
+    "VIEW_USER_ANALYTICS",
+    "VIEW_CONTENT_ANALYTICS",
 
     // Administration système
-    'MANAGE_SYSTEM',
-    'VIEW_SYSTEM_LOGS',
-    'MANAGE_SYSTEM_CONFIG',
-    'PERFORM_MAINTENANCE',
-    'MANAGE_BACKUPS',
-    'VIEW_ERROR_LOGS',
-    'RESTART_SERVICES',
-    'MANAGE_CACHE',
+    "MANAGE_SYSTEM",
+    "VIEW_SYSTEM_LOGS",
+    "MANAGE_SYSTEM_CONFIG",
+    "PERFORM_MAINTENANCE",
+    "MANAGE_BACKUPS",
+    "VIEW_ERROR_LOGS",
+    "RESTART_SERVICES",
+    "MANAGE_CACHE",
   ];
 
   /**
@@ -119,36 +128,44 @@ export class AdminPermissionsService {
    * @param {string} userId - ID de l'utilisateur
    * @returns {Promise<ContextualPermission[]>} Permissions contextuelles
    */
-  async getUserContextualPermissions(userId: string): Promise<ContextualPermission[]> {
+  async getUserContextualPermissions(
+    userId: string
+  ): Promise<ContextualPermission[]> {
     // Vérifier que l'utilisateur existe
     const user = await this.userModel.findById(userId).exec();
     if (!user) {
       throw new NotFoundException(`Utilisateur ${userId} non trouvé`);
     }
 
-    // Pour l'instant, simuler des permissions contextuelles basées sur le rôle
-    // En production, ceci devrait récupérer depuis une collection dédiée
-    const roleBasedPermissions = this.getRoleBasedPermissions(user.role);
-    
-    // Simuler quelques permissions contextuelles spécifiques
-    const contextualPermissions: ContextualPermission[] = roleBasedPermissions.map(permission => ({
-      permission,
-      context: 'global',
-      granted: true,
-      grantedAt: user.createdAt || new Date(),
-      grantedBy: 'system'
-    }));
+    // Récupérer les permissions stockées en base
+    const storedPermissions = await this.userPermissionRepository.findByUserId(
+      userId,
+      { includeRevoked: false }
+    );
 
-    // Ajouter des permissions contextuelles spécifiques selon le rôle
-    if (user.role === 'admin' || user.role === 'superadmin') {
-      contextualPermissions.push({
-        permission: 'MODERATE_CONTENT',
-        context: 'community',
-        contextId: 'all',
-        granted: true,
-        grantedAt: user.createdAt || new Date(),
-        grantedBy: 'system'
-      });
+    // Convertir vers le format ContextualPermission
+    const contextualPermissions: ContextualPermission[] =
+      storedPermissions.permissions.map((perm) => ({
+        permission: perm.permission,
+        context: perm.context,
+        contextId: perm.contextId,
+        granted: perm.granted,
+        grantedAt: perm.grantedAt,
+        grantedBy: perm.grantedBy?.toString(),
+      }));
+
+    // Ajouter les permissions basées sur le rôle si aucune permission spécifique n'est stockée
+    if (contextualPermissions.length === 0) {
+      const roleBasedPermissions = this.getRoleBasedPermissions(user.role);
+      contextualPermissions.push(
+        ...roleBasedPermissions.map((permission) => ({
+          permission,
+          context: "global",
+          granted: true,
+          grantedAt: user.createdAt || new Date(),
+          grantedBy: "system",
+        }))
+      );
     }
 
     return contextualPermissions;
@@ -191,16 +208,31 @@ export class AdminPermissionsService {
       throw new BadRequestException(`Permission ${permission} non reconnue`);
     }
 
-    // En production, ceci devrait être stocké dans une collection dédiée
-    console.log(`[AdminPermissionsService] Permission ${permission} accordée à ${userId} par ${adminId}`);
-    
-    return {
-      permission,
-      context,
-      contextId,
-      granted: true,
-      grantedAt: new Date(),
-      grantedBy: adminId
+    // Vérifier que l'admin existe
+    const admin = await this.userModel.findById(adminId).exec();
+    if (!admin) {
+      throw new NotFoundException(`Admin ${adminId} non trouvé`);
+    }
+
+    // Accorder la permission via le repository
+    const grantedPermission =
+      await this.userPermissionRepository.grantPermission(
+        userId,
+        permission,
+        adminId,
+        context,
+        contextId,
+        {
+          grantedAt: new Date(),
+          grantedByRole: admin.role,
+        }
+      );    return {
+      permission: grantedPermission.permission,
+      context: grantedPermission.context,
+      contextId: grantedPermission.contextId,
+      granted: grantedPermission.granted,
+      grantedAt: grantedPermission.grantedAt,
+      grantedBy: grantedPermission.grantedBy?.toString(),
     };
   }
 
@@ -209,12 +241,14 @@ export class AdminPermissionsService {
    *
    * @param {string} userId - ID de l'utilisateur
    * @param {string} permission - Permission à révoquer
+   * @param {string} adminId - ID de l'admin qui révoque
    * @param {string} context - Contexte optionnel
    * @param {string} contextId - ID du contexte
    */
   async revokeUserPermission(
     userId: string,
     permission: string,
+    adminId: string,
     context?: string,
     contextId?: string
   ): Promise<void> {
@@ -224,8 +258,22 @@ export class AdminPermissionsService {
       throw new NotFoundException(`Utilisateur ${userId} non trouvé`);
     }
 
-    // En production, ceci devrait mettre à jour la collection dédiée
-    console.log(`[AdminPermissionsService] Permission ${permission} révoquée pour ${userId}`);
+    // Vérifier que l'admin existe
+    const admin = await this.userModel.findById(adminId).exec();
+    if (!admin) {
+      throw new NotFoundException(`Admin ${adminId} non trouvé`);
+    }
+
+    // Révoquer la permission via le repository
+    const revoked = await this.userPermissionRepository.revokePermission(
+      userId,
+      permission,
+      adminId,
+      context,
+      contextId
+    );
+
+    if (revoked) {    } else {    }
   }
 
   /**
@@ -248,7 +296,20 @@ export class AdminPermissionsService {
       return false;
     }
 
-    // Vérification basée sur le rôle pour l'instant
+    // Vérifier d'abord les permissions stockées en base
+    const hasStoredPermission =
+      await this.userPermissionRepository.hasPermission(
+        userId,
+        permission,
+        context,
+        contextId
+      );
+
+    if (hasStoredPermission) {
+      return true;
+    }
+
+    // Fallback vers les permissions basées sur le rôle
     const rolePermissions = this.getRoleBasedPermissions(user.role);
     return rolePermissions.includes(permission);
   }
@@ -260,16 +321,44 @@ export class AdminPermissionsService {
    * @returns {Promise<PermissionHistory[]>} Historique des permissions
    */
   async getUserPermissionHistory(userId: string): Promise<PermissionHistory[]> {
-    // En production, récupérer depuis une collection d'audit
-    return [
-      {
-        permission: 'VIEW_USERS',
-        action: 'granted',
-        context: 'global',
-        timestamp: new Date(),
-        adminId: 'system'
+    // Récupérer l'historique complet depuis la base de données
+    const historyResult =
+      await this.userPermissionRepository.getUserPermissionHistory(userId, {
+        sortBy: "grantedAt",
+        sortOrder: "desc",
+      });
+
+    // Convertir vers le format PermissionHistory
+    const history: PermissionHistory[] = [];
+
+    for (const perm of historyResult.permissions) {
+      // Ajout de l'événement d'octroi
+      history.push({
+        permission: perm.permission,
+        action: "granted",
+        context: perm.context,
+        contextId: perm.contextId,
+        timestamp: perm.grantedAt,
+        adminId: perm.grantedBy?.toString() || "system",
+      });
+
+      // Ajout de l'événement de révocation si applicable
+      if (!perm.granted && perm.revokedAt && perm.revokedBy) {
+        history.push({
+          permission: perm.permission,
+          action: "revoked",
+          context: perm.context,
+          contextId: perm.contextId,
+          timestamp: perm.revokedAt,
+          adminId: perm.revokedBy.toString(),
+        });
       }
-    ];
+    }
+
+    // Trier par timestamp décroissant
+    return history.sort(
+      (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+    );
   }
 
   /**
@@ -280,36 +369,36 @@ export class AdminPermissionsService {
    */
   private getRoleBasedPermissions(role: string): string[] {
     switch (role) {
-      case 'superadmin':
+      case "superadmin":
         return this.availablePermissions; // Toutes les permissions
-      
-      case 'admin':
+
+      case "admin":
         return [
-          'VIEW_USERS',
-          'EDIT_USERS',
-          'SUSPEND_USERS',
-          'VIEW_USER_DETAILS',
-          'MODERATE_CONTENT',
-          'APPROVE_WORDS',
-          'REJECT_WORDS',
-          'EDIT_WORDS',
-          'MANAGE_CATEGORIES',
-          'MANAGE_COMMUNITIES',
-          'MODERATE_COMMUNITIES',
-          'VIEW_ANALYTICS',
-          'VIEW_DETAILED_ANALYTICS',
-          'VIEW_SYSTEM_METRICS',
+          "VIEW_USERS",
+          "EDIT_USERS",
+          "SUSPEND_USERS",
+          "VIEW_USER_DETAILS",
+          "MODERATE_CONTENT",
+          "APPROVE_WORDS",
+          "REJECT_WORDS",
+          "EDIT_WORDS",
+          "MANAGE_CATEGORIES",
+          "MANAGE_COMMUNITIES",
+          "MODERATE_COMMUNITIES",
+          "VIEW_ANALYTICS",
+          "VIEW_DETAILED_ANALYTICS",
+          "VIEW_SYSTEM_METRICS",
         ];
-      
-      case 'contributor':
+
+      case "contributor":
         return [
-          'VIEW_USERS',
-          'MODERATE_CONTENT',
-          'APPROVE_WORDS',
-          'REJECT_WORDS',
-          'VIEW_ANALYTICS',
+          "VIEW_USERS",
+          "MODERATE_CONTENT",
+          "APPROVE_WORDS",
+          "REJECT_WORDS",
+          "VIEW_ANALYTICS",
         ];
-      
+
       default:
         return [];
     }

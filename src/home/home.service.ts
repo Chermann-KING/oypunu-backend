@@ -178,13 +178,7 @@ export class HomeService {
 
       // Compter uniquement les langues approuvées
       const activeLanguagesCount =
-        await this.languageRepository.countApproved();
-
-      console.log(
-        `Statistiques: ${activeUsers} utilisateurs, ${definedWords} mots définis, ${activeLanguagesCount} langues actives`
-      );
-
-      return {
+        await this.languageRepository.countApproved();      return {
         activeUsers,
         definedWords,
         languages: activeLanguagesCount,

@@ -129,9 +129,6 @@ export class WordsService {
     const userIdLocal: string = user._id || user.userId || "";
 
     // PHASE 5 - DÉLÉGATION: Vérifier si le mot existe déjà (délégation vers WordCoreService)
-    console.log(
-      "🔍 WordsService.create - Vérification existence via WordCoreService"
-    );
     return this.wordCoreService.create(createWordDto, user);
   }
 
@@ -143,9 +140,6 @@ export class WordsService {
     sourceWord: WordDocument,
     userId: string
   ): Promise<void> {
-    console.log(
-      "🔄 WordsService.createBidirectionalTranslations - Délégation vers WordTranslationService"
-    );
     return this.wordTranslationService.createBidirectionalTranslations(
       sourceWord,
       userId
@@ -179,7 +173,6 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    console.log("🎭 WordsService.findAll - Délégation vers WordCoreService");
     return this.wordCoreService.findAll(
       page,
       limit,
@@ -202,7 +195,6 @@ export class WordsService {
    * const word = await wordsService.findOne('60f7b3b3b3b3b3b3b3b3b3b3');
    */
   async findOne(id: string): Promise<Word> {
-    console.log("🎭 WordsService.findOne - Délégation vers WordCoreService");
     return this.wordCoreService.findOne(id);
   }
 
@@ -212,9 +204,6 @@ export class WordsService {
     userId: string,
     viewType: "search" | "detail" | "favorite" = "detail"
   ): Promise<void> {
-    console.log(
-      "📊 WordsService.trackWordView - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.trackWordView(wordId, userId, viewType);
   }
 
@@ -227,7 +216,6 @@ export class WordsService {
     updateWordDto: UpdateWordDto,
     user: User
   ): Promise<Word> {
-    console.log("🎭 WordsService.update - Délégation vers WordCoreService");
     return this.wordCoreService.update(id, updateWordDto, user);
   }
 
@@ -241,14 +229,8 @@ export class WordsService {
     audioFile: Express.Multer.File,
     user: User
   ): Promise<Word> {
-    console.log("🎵 WordsService.updateWithAudio - Début");
-
     // PHASE 5 - DÉLÉGATION: Vérification mot via WordCoreService
-    const word = await this.wordCoreService.findOne(id);
-
-    console.log("📝 Étape 1: Mise à jour des données textuelles du mot");
-
-    // Étape 1: Mettre à jour les données textuelles du mot
+    const word = await this.wordCoreService.findOne(id); // Étape 1: Mettre à jour les données textuelles du mot
     const updatedWord = await this.update(id, updateWordDto, user);
 
     // Étape 2: Ajouter le fichier audio si présent
@@ -284,9 +266,6 @@ export class WordsService {
         );
       }
     } else {
-      console.log(
-        "📝 Pas de fichier audio fourni, mise à jour textuelle uniquement"
-      );
       return updatedWord;
     }
   }
@@ -306,9 +285,6 @@ export class WordsService {
     adminUser: User,
     notes?: string
   ): Promise<Word> {
-    console.log(
-      "📝 WordsService.approveRevision - Délégation vers WordRevisionService"
-    );
     return this.wordRevisionService.approveRevision(
       wordId,
       revisionId,
@@ -324,9 +300,6 @@ export class WordsService {
     adminUser: User,
     reason: string
   ): Promise<void> {
-    console.log(
-      "📝 WordsService.rejectRevision - Délégation vers WordRevisionService"
-    );
     return this.wordRevisionService.rejectRevision(
       wordId,
       revisionId,
@@ -345,9 +318,6 @@ export class WordsService {
     fileBuffer: Buffer,
     user: User
   ): Promise<Word> {
-    console.log(
-      "🎵 WordsService.addAudioFile - Délégation vers WordAudioService"
-    );
     return this.wordAudioService.addAudioFile(wordId, accent, fileBuffer, user);
   }
 
@@ -367,10 +337,6 @@ export class WordsService {
     };
     restrictions: string[];
   }> {
-    console.log(
-      "🔄 WordsService.canUserEditWord - Délégation vers WordPermissionService"
-    );
-
     const word = await this.wordCoreService.findOne(wordId);
     if (!word) {
       return {
@@ -499,9 +465,6 @@ export class WordsService {
     };
     availableActions: string[];
   }> {
-    console.log(
-      "🔄 WordsService.canUserModerateWord - Délégation vers WordPermissionService"
-    );
     const word = await this.wordRepository.findById(wordId);
     if (!word) {
       throw new NotFoundException("Mot introuvable");
@@ -549,9 +512,6 @@ export class WordsService {
       cooldownRemaining: number;
     };
   }> {
-    console.log(
-      "🔄 WordsService.canUserReviseWord - Délégation vers WordPermissionService"
-    );
     const word = await this.wordRepository.findById(wordId);
     if (!word) {
       throw new NotFoundException("Mot introuvable");
@@ -620,9 +580,6 @@ export class WordsService {
       viewCount: number;
     };
   }> {
-    console.log(
-      "🔄 WordsService.getWordPermissionSummary - Délégation vers WordPermissionService"
-    );
     const word = await this.wordRepository.findById(wordId);
     if (!word) {
       throw new NotFoundException("Mot introuvable");
@@ -685,10 +642,6 @@ export class WordsService {
       canModerateCount: number;
     };
   }> {
-    console.log(
-      "🔄 WordsService.batchCheckUserPermissions - Délégation vers WordPermissionService"
-    );
-
     const batchResult =
       await this.wordPermissionService.batchCheckUserPermissions(
         wordIds,
@@ -777,7 +730,6 @@ export class WordsService {
    * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
    */
   async remove(id: string, user: User): Promise<{ success: boolean }> {
-    console.log("🎭 WordsService.remove - Délégation vers WordCoreService");
     return this.wordCoreService.remove(id, user);
   }
 
@@ -796,13 +748,15 @@ export class WordsService {
    *   limit: 10
    * });
    */
-  async search(searchDto: SearchWordsDto, userId?: string): Promise<{
+  async search(
+    searchDto: SearchWordsDto,
+    userId?: string
+  ): Promise<{
     words: Word[];
     total: number;
     page: number;
     limit: number;
   }> {
-    console.log("🎭 WordsService.search - Délégation vers WordCoreService");
     return this.wordCoreService.search(searchDto, userId);
   }
 
@@ -811,9 +765,6 @@ export class WordsService {
    * PHASE 7B - DÉLÉGATION: Délégation vers WordCoreService
    */
   async getFeaturedWords(limit = 3, userId?: string): Promise<Word[]> {
-    console.log(
-      "🎭 WordsService.getFeaturedWords - Délégation vers WordCoreService"
-    );
     return this.wordCoreService.getFeaturedWords(limit, userId);
   }
 
@@ -824,9 +775,6 @@ export class WordsService {
   async getAvailableLanguages(): Promise<
     Array<{ language: string; count: number; languageId?: string }>
   > {
-    console.log(
-      "🎭 WordsService.getAvailableLanguages - Délégation vers WordCoreService"
-    );
     return this.wordCoreService.getAvailableLanguages();
   }
 
@@ -835,9 +783,6 @@ export class WordsService {
     wordId: string,
     userId: string
   ): Promise<{ success: boolean }> {
-    console.log(
-      "⭐ WordsService.addToFavorites - Délégation vers WordFavoriteService"
-    );
     return this.wordFavoriteService.addToFavorites(wordId, userId);
   }
 
@@ -846,9 +791,6 @@ export class WordsService {
     wordId: string,
     userId: string
   ): Promise<{ success: boolean }> {
-    console.log(
-      "⭐ WordsService.removeFromFavorites - Délégation vers WordFavoriteService"
-    );
     return this.wordFavoriteService.removeFromFavorites(wordId, userId);
   }
 
@@ -864,17 +806,11 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    console.log(
-      "⭐ WordsService.getFavoriteWords - Délégation vers WordFavoriteService"
-    );
     return this.wordFavoriteService.getFavoriteWords(userId, page, limit);
   }
 
   // PHASE 3 - DÉLÉGATION: Vérifier si un mot est dans les favoris
   async checkIfFavorite(wordId: string, userId: string): Promise<boolean> {
-    console.log(
-      "⭐ WordsService.checkIfFavorite - Délégation vers WordFavoriteService"
-    );
     return this.wordFavoriteService.checkIfFavorite(wordId, userId);
   }
 
@@ -884,9 +820,6 @@ export class WordsService {
     fromUserId: string,
     toUsername: string
   ): Promise<{ success: boolean; message: string }> {
-    console.log(
-      "⭐ WordsService.shareWordWithUser - Délégation vers WordFavoriteService"
-    );
     return this.wordFavoriteService.shareWordWithUser(
       wordId,
       fromUserId,
@@ -910,9 +843,6 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    console.log(
-      "🎭 WordsService.getAdminPendingWords - Délégation vers WordCoreService"
-    );
     return this.wordCoreService.findAll(page, limit, "pending", language);
   }
 
@@ -926,10 +856,6 @@ export class WordsService {
     admin: User,
     reason?: string
   ): Promise<Word> {
-    console.log(
-      "🎭 WordsService.updateWordStatus - Délégation vers WordCoreService"
-    );
-
     // Si c'est un rejet et qu'aucune raison n'est fournie, lancer une erreur
     if (status === "rejected" && !reason?.trim()) {
       throw new BadRequestException(
@@ -979,10 +905,6 @@ export class WordsService {
       timestamp: Date;
     }>;
   }> {
-    console.log(
-      "📊 WordsService.getModerationReport - Génération du rapport de modération"
-    );
-
     try {
       // Dates pour les statistiques du jour
       const today = new Date();
@@ -1078,15 +1000,6 @@ export class WordsService {
         },
         recentActivity,
       };
-
-      console.log("📊 Rapport de modération généré:", {
-        pendingWords,
-        pendingRevisions,
-        approvedToday,
-        rejectedToday,
-        recentActivityCount: recentActivity.length,
-      });
-
       return report;
     } catch (error) {
       console.error(
@@ -1126,9 +1039,6 @@ export class WordsService {
     accent: string,
     user: User
   ): Promise<Word> {
-    console.log(
-      "🎵 WordsService.deleteAudioFile - Délégation vers WordAudioService"
-    );
     return this.wordAudioService.deleteAudioFile(wordId, accent, user);
   }
 
@@ -1145,9 +1055,6 @@ export class WordsService {
     }>;
     totalCount: number;
   }> {
-    console.log(
-      "🎵 WordsService.getWordAudioFiles - Délégation vers WordAudioService"
-    );
     return this.wordAudioService.getWordAudioFiles(wordId);
   }
 
@@ -1165,9 +1072,6 @@ export class WordsService {
     }>,
     user: User
   ): Promise<Word> {
-    console.log(
-      "🎵 WordsService.bulkUpdateAudioFiles - Délégation vers WordAudioService"
-    );
     return this.wordAudioService.bulkUpdateAudioFiles(
       wordId,
       audioUpdates,
@@ -1189,9 +1093,6 @@ export class WordsService {
     format: string;
     quality: string;
   }> {
-    console.log(
-      "🎵 WordsService.getOptimizedAudioUrl - Délégation vers WordAudioService"
-    );
     return this.wordAudioService.getOptimizedAudioUrl(wordId, accent, options);
   }
 
@@ -1210,9 +1111,6 @@ export class WordsService {
     }>;
     recommendations: string[];
   }> {
-    console.log(
-      "🎵 WordsService.validateWordAudioFiles - Délégation vers WordAudioService"
-    );
     return this.wordAudioService.validateWordAudioFiles(wordId);
   }
 
@@ -1276,9 +1174,6 @@ export class WordsService {
       completionRate: number;
     };
   }> {
-    console.log(
-      "🔍 WordsService.getAllTranslations - Délégation vers WordTranslationService"
-    );
     if (options) {
       return this.wordTranslationService.getAllTranslationsForController(
         wordId,
@@ -1327,9 +1222,6 @@ export class WordsService {
     status: string;
     message: string;
   }> {
-    console.log(
-      "🔍 WordsService.addTranslation - Délégation vers WordTranslationService"
-    );
     return this.wordTranslationService.addTranslation(
       wordId,
       translationData,
@@ -1342,9 +1234,6 @@ export class WordsService {
     translationId: string,
     user: User
   ): Promise<void> {
-    console.log(
-      "🔍 WordsService.removeTranslation - Délégation vers WordTranslationService"
-    );
     return this.wordTranslationService.removeTranslation(
       wordId,
       translationId,
@@ -1364,9 +1253,6 @@ export class WordsService {
     verifiedAt: Date;
     message: string;
   }> {
-    console.log(
-      "🔍 WordsService.verifyTranslation - Délégation vers WordTranslationService"
-    );
     return this.wordTranslationService.verifyTranslation(
       wordId,
       translationId,
@@ -1401,9 +1287,6 @@ export class WordsService {
     limit: number;
     totalPages: number;
   }> {
-    console.log(
-      "🔍 WordsService.searchTranslations - Délégation vers WordTranslationService"
-    );
     return this.wordTranslationService.searchTranslations(options);
   }
 
@@ -1430,25 +1313,16 @@ export class WordsService {
       thisMonth: number;
     };
   }> {
-    console.log(
-      "🔍 WordsService.getTranslationStatistics - Délégation vers WordTranslationService"
-    );
     return this.wordTranslationService.getTranslationStatistics(options);
   }
 
   // PHASE 4 - DÉLÉGATION: Nombre de mots approuvés
   async getApprovedWordsCount(): Promise<number> {
-    console.log(
-      "📊 WordsService.getApprovedWordsCount - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getApprovedWordsCount();
   }
 
   // PHASE 4 - DÉLÉGATION: Mots ajoutés aujourd'hui
   async getWordsAddedToday(): Promise<number> {
-    console.log(
-      "📊 WordsService.getWordsAddedToday - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getWordsAddedToday();
   }
 
@@ -1459,9 +1333,6 @@ export class WordsService {
     wordsAddedThisWeek: number;
     wordsAddedThisMonth: number;
   }> {
-    console.log(
-      "📊 WordsService.getWordsStatistics - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getWordsStatistics();
   }
 
@@ -1485,9 +1356,6 @@ export class WordsService {
     period: string;
     generatedAt: Date;
   }> {
-    console.log(
-      "📈 WordsService.getTrendingWords - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getTrendingWords(options);
   }
 
@@ -1508,9 +1376,6 @@ export class WordsService {
     mostActive: string;
     fastestGrowing: string;
   }> {
-    console.log(
-      "🌍 WordsService.getLanguageUsageStats - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getLanguageUsageStats(options);
   }
 
@@ -1539,9 +1404,6 @@ export class WordsService {
       retentionRate: number;
     };
   }> {
-    console.log(
-      "👥 WordsService.getUserActivityReport - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getUserActivityReport(options);
   }
 
@@ -1565,9 +1427,6 @@ export class WordsService {
       popularSearchTerms: string[];
     };
   }> {
-    console.log(
-      "🔧 WordsService.getSystemMetrics - Délégation vers WordAnalyticsService"
-    );
     return this.wordAnalyticsService.getSystemMetrics();
   }
 

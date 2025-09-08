@@ -112,13 +112,7 @@ export class LanguagesService {
           sortOrder: 0,
           flagEmojis: [], // Sera rempli lors de l'approbation
           sources: [],
-        };
-
-        console.log(
-          "💾 Tentative de sauvegarde de la langue:",
-          languageData.name
-        );
-        const savedLanguage = await this.languageRepository.create(
+        };        const savedLanguage = await this.languageRepository.create(
           languageData,
           user._id.toString(),
           "pending"

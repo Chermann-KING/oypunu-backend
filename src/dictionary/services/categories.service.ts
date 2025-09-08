@@ -70,20 +70,11 @@ export class CategoriesService {
     return this.categoryRepository.create(createCategoryDto, "system");
   }
 
-  async findAll(language?: string): Promise<Category[]> {
-    console.log("🔍 CategoriesService.findAll appelé avec language:", language);
-
-    const result = await this.categoryRepository.findAll({
+  async findAll(language?: string): Promise<Category[]> {    const result = await this.categoryRepository.findAll({
       includeInactive: false,
       sortBy: "name",
       sortOrder: "asc",
-    });
-
-    console.log(
-      "📦 Nombre total de catégories trouvées:",
-      result.categories.length
-    );
-    console.log(
+    });    console.log(
       "📦 Catégories brutes:",
       result.categories.map((cat) => ({
         id: (cat as any)._id,
@@ -144,14 +135,7 @@ export class CategoriesService {
         }
 
         return false;
-      });
-
-      console.log(
-        "📦 Catégories filtrées pour",
-        language + ":",
-        filteredCategories.length
-      );
-      return filteredCategories;
+      });      return filteredCategories;
     }
 
     return result.categories;
@@ -278,22 +262,13 @@ export class CategoriesService {
   }
 
   async getPendingCategories(user: User): Promise<Category[]> {
-    try {
-      console.log("📋 Récupération des catégories en attente par:", user);
-
-      // Vérifier que l'utilisateur a les permissions admin
+    try {      // Vérifier que l'utilisateur a les permissions admin
       if (!["admin", "superadmin"].includes(user.role)) {
         throw new BadRequestException("Permissions insuffisantes");
       }
 
       const pendingCategories =
-        await this.categoryRepository.findByStatus("pending");
-
-      console.log(
-        `✅ ${pendingCategories.length} catégories en attente récupérées`
-      );
-
-      return pendingCategories;
+        await this.categoryRepository.findByStatus("pending");      return pendingCategories;
     } catch (error) {
       console.error(
         "❌ Erreur lors de la récupération des catégories en attente:",
@@ -308,13 +283,7 @@ export class CategoriesService {
     moderateDto: ModerateCategoryDto,
     moderator: User
   ): Promise<Category> {
-    try {
-      console.log("🔍 Modération de catégorie:", {
-        categoryId,
-        action: moderateDto.action,
-      });
-
-      if (!Types.ObjectId.isValid(categoryId)) {
+    try {      if (!Types.ObjectId.isValid(categoryId)) {
         throw new BadRequestException("ID de catégorie invalide");
       }
 
@@ -380,10 +349,7 @@ export class CategoriesService {
    * Récupérer les statistiques des catégories
    */
   async getCategoryStats(): Promise<any> {
-    try {
-      console.log("📊 Récupération des statistiques des catégories");
-
-      // Compter les catégories par statut
+    try {      // Compter les catégories par statut
       const [totalActive, totalPending] = await Promise.all([
         this.categoryRepository.findByStatus("active"),
         this.categoryRepository.findByStatus("pending"),

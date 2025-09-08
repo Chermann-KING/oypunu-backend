@@ -40,15 +40,7 @@ export class WordAudioService {
   ): Promise<Word> {
     return DatabaseErrorHandler.handleCreateOperation(
       async () => {
-        console.log('🎵 === DEBUT addAudioFile ===');
-        console.log('📋 Paramètres:', {
-          wordId: wordId,
-          accent: accent,
-          bufferSize: fileBuffer.length,
-          userId: user._id,
-        });
-
-        if (!Types.ObjectId.isValid(wordId)) {
+        console.log('🎵 === DEBUT addAudioFile ===');        if (!Types.ObjectId.isValid(wordId)) {
           throw new BadRequestException('ID de mot invalide');
         }
 
@@ -87,11 +79,7 @@ export class WordAudioService {
             detectedMimeType = 'audio/wav';
           } else if (signature.startsWith('664c6143')) {
             detectedMimeType = 'audio/flac';
-          }
-
-          console.log('🔍 Type MIME détecté:', detectedMimeType);
-
-          const audioResult = await this.audioService.uploadPhoneticAudio(
+          }          const audioResult = await this.audioService.uploadPhoneticAudio(
             word.word,
             word.language || 'unknown',
             fileBuffer,

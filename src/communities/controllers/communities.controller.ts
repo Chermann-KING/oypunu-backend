@@ -178,12 +178,7 @@ export class CommunitiesController {
   })
   @UseGuards(JwtAuthGuard)
   getMemberRole(@Param('id') id: string, @Request() req: { user: JwtUser }) {
-    const userId = this._getUserId(req.user);
-    console.log(
-      `Controller - récupération du rôle pour communauté ${id}, utilisateur ${userId}`,
-      req.user,
-    );
-    return this._communitiesService.getMemberRole(id, userId);
+    const userId = this._getUserId(req.user);    return this._communitiesService.getMemberRole(id, userId);
   }
 
   @Get(':id/all-members-debug')
