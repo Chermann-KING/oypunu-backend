@@ -118,29 +118,9 @@ export class WordsController {
     @Body() createWordDto: CreateWordDto,
     @Request() req: RequestWithUser
   ) {
-    // Debug logs pour identifier le problème
-    console.log("=== DEBUG CREATE WORD ===");
-    console.log("Raw body:", (req as unknown as ExpressRequest).body);
+    // Debug logs pour identifier le problème    console.log("Raw body:", (req as unknown as ExpressRequest).body);
     console.log("DTO received:", createWordDto);
     console.log("DTO type:", typeof createWordDto);
-    console.log(
-      "Word field:",
-      createWordDto.word,
-      "type:",
-      typeof createWordDto.word
-    );
-    console.log(
-      "Language field:",
-      createWordDto.language,
-      "type:",
-      typeof createWordDto.language
-    );
-    console.log(
-      "Meanings field:",
-      createWordDto.meanings,
-      "type:",
-      typeof createWordDto.meanings
-    );
     console.log("=========================");
 
     try {
@@ -174,8 +154,13 @@ export class WordsController {
         throw new BadRequestException('Le champ "word" est requis');
       }
 
-      if (!createWordDto.languageId && (!createWordDto.language || createWordDto.language.trim() === "")) {
-        throw new BadRequestException('Le champ "languageId" ou "language" est requis');
+      if (
+        !createWordDto.languageId &&
+        (!createWordDto.language || createWordDto.language.trim() === "")
+      ) {
+        throw new BadRequestException(
+          'Le champ "languageId" ou "language" est requis'
+        );
       }
 
       // Forcer les types string pour FormData
@@ -269,10 +254,6 @@ export class WordsController {
       if (typeof createWordDto.meanings === "string") {
         try {
           parsedMeanings = JSON.parse(createWordDto.meanings) as MeaningDto[];
-          console.log(
-            "✅ Meanings parsed successfully, count:",
-            parsedMeanings.length
-          );
         } catch (error: unknown) {
           console.error("❌ Error parsing meanings:", error);
           throw new BadRequestException(
@@ -282,10 +263,6 @@ export class WordsController {
         }
       } else {
         parsedMeanings = createWordDto.meanings;
-        console.log(
-          "✅ Meanings already object, count:",
-          parsedMeanings?.length || 0
-        );
       }
 
       if (!Array.isArray(parsedMeanings)) {
@@ -293,16 +270,7 @@ export class WordsController {
       }
 
       // 🔍 DEBUG: Avant construction standardDto
-      const pronunciationTrimmed = createWordDto.pronunciation?.trim();
-      console.log("🎯 DEBUG pronunciation - transformation:", {
-        originalValue: createWordDto.pronunciation,
-        afterTrim: pronunciationTrimmed,
-        afterTrimOrUndefined: pronunciationTrimmed || undefined,
-        isEmpty: pronunciationTrimmed === "",
-        isUndefined: pronunciationTrimmed === undefined,
-      });
-
-      // Construction du DTO standard
+      const pronunciationTrimmed = createWordDto.pronunciation?.trim(); // Construction du DTO standard
       const standardDto: CreateWordDto = {
         word: createWordDto.word?.trim(),
         languageId: createWordDto.languageId?.trim() || undefined,
@@ -326,16 +294,7 @@ export class WordsController {
 
       if (!standardDto.meanings || standardDto.meanings.length === 0) {
         throw new BadRequestException("Au moins une signification est requise");
-      }
-
-      console.log("📝 Création du mot avec DTO:", {
-        word: standardDto.word,
-        languageId: standardDto.languageId,
-        language: standardDto.language,
-        meaningsCount: standardDto.meanings.length,
-      });
-
-      // 🔍 DEBUG: Log détaillé pour pronunciation dans standardDto
+      } // 🔍 DEBUG: Log détaillé pour pronunciation dans standardDto
       console.log("🎯 DEBUG pronunciation - standardDto final:", {
         pronunciationValue: standardDto.pronunciation,
         pronunciationType: typeof standardDto.pronunciation,
@@ -356,8 +315,6 @@ export class WordsController {
           const accent = this.getDefaultAccent(
             standardDto.language || "standard"
           );
-          console.log("🎯 Accent déterminé:", accent);
-
           const raw = createdWord as unknown as { id?: any; _id?: any };
           const wordId = raw._id
             ? String(raw._id)
@@ -366,8 +323,6 @@ export class WordsController {
               : "";
 
           console.log("🔑 ID du mot pour audio:", wordId);
-          console.log("🎵 Début upload audio...");
-
           const wordWithAudio = await this.wordsService.addAudioFile(
             wordId,
             accent,
@@ -377,7 +332,6 @@ export class WordsController {
 
           // 🎯 AUTO-APPROBATION : Les mots avec audio sont automatiquement approuvés
           // car cela indique un effort supplémentaire de qualité de l'utilisateur
-          console.log("🔄 Mise à jour du statut pour auto-approbation...");
           const wordToUpdate = await this.wordsService.findOne(wordId);
           if (wordToUpdate.status === "pending") {
             await this.wordsService.updateWordStatus(
@@ -385,9 +339,6 @@ export class WordsController {
               "approved",
               req.user,
               "Auto-approuvé avec audio"
-            );
-            console.log(
-              "✅ Mot auto-approuvé car il contient un fichier audio"
             );
           }
 
@@ -548,7 +499,10 @@ export class WordsController {
     description: "Nombre de mots à récupérer",
     example: 6,
   })
-  getFeaturedWords(@Query("limit") limit = 6, @Request() req?: RequestWithUser) {
+  getFeaturedWords(
+    @Query("limit") limit = 6,
+    @Request() req?: RequestWithUser
+  ) {
     const userId = req?.user?._id ? String(req.user._id) : undefined;
     return this.wordsService.getFeaturedWords(+limit, userId);
   }
@@ -1067,7 +1021,6 @@ export class WordsController {
 
       if (updateWordDto.meanings) {
         if (typeof updateWordDto.meanings === "string") {
-          console.log("📝 Parsing meanings from string for update...");
           try {
             const parsed: unknown = JSON.parse(updateWordDto.meanings);
             if (!Array.isArray(parsed)) {

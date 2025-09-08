@@ -1,14 +1,14 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { IWordRepository } from '../../repositories/interfaces/word.repository.interface';
-import { IUserRepository } from '../../repositories/interfaces/user.repository.interface';
-import { IWordViewRepository } from '../../repositories/interfaces/word-view.repository.interface';
-import { IWordVoteRepository } from '../../repositories/interfaces/word-vote.repository.interface';
-import { IFavoriteWordRepository } from '../../repositories/interfaces/favorite-word.repository.interface';
+import { Injectable, Inject } from "@nestjs/common";
+import { IWordRepository } from "../../repositories/interfaces/word.repository.interface";
+import { IUserRepository } from "../../repositories/interfaces/user.repository.interface";
+import { IWordViewRepository } from "../../repositories/interfaces/word-view.repository.interface";
+import { IWordVoteRepository } from "../../repositories/interfaces/word-vote.repository.interface";
+import { IFavoriteWordRepository } from "../../repositories/interfaces/favorite-word.repository.interface";
 import { DatabaseErrorHandler } from "../../common/errors";
 
 export interface RecommendationItem {
   id: string;
-  type: 'word' | 'user' | 'community' | 'discussion';
+  type: "word" | "user" | "community" | "discussion";
   title: string;
   description: string;
   imageUrl?: string;
@@ -30,27 +30,27 @@ export interface RecommendationItem {
 
 export interface UserPreferences {
   preferredLanguages: string[];
-  difficultyLevel: 'beginner' | 'intermediate' | 'advanced' | 'mixed';
+  difficultyLevel: "beginner" | "intermediate" | "advanced" | "mixed";
   interests: string[];
   learningGoals: string[];
   timeOfDayActive: string[];
-  socialInteractionLevel: 'low' | 'medium' | 'high';
+  socialInteractionLevel: "low" | "medium" | "high";
 }
 
 export interface RecommendationFilters {
-  type?: 'word' | 'user' | 'community' | 'discussion';
+  type?: "word" | "user" | "community" | "discussion";
   language?: string;
   difficulty?: string;
   category?: string;
   minRelevanceScore?: number;
   limit?: number;
   excludeViewed?: boolean;
-  timeframe?: 'day' | 'week' | 'month' | 'all';
+  timeframe?: "day" | "week" | "month" | "all";
 }
 
 /**
  * 🤖 SERVICE DE RECOMMANDATIONS SOCIALES INTELLIGENTES
- * 
+ *
  * Génère des recommandations personnalisées basées sur :
  * - Historique d'activité utilisateur
  * - Préférences et comportements
@@ -62,15 +62,24 @@ export interface RecommendationFilters {
 @Injectable()
 export class SocialRecommendationsService {
   // Cache des recommandations pour optimiser les performances
-  private userRecommendationsCache = new Map<string, { recommendations: RecommendationItem[], expiry: Date }>();
-  private trendingCache = new Map<string, { items: RecommendationItem[], expiry: Date }>();
-  
+  private userRecommendationsCache = new Map<
+    string,
+    { recommendations: RecommendationItem[]; expiry: Date }
+  >();
+  private trendingCache = new Map<
+    string,
+    { items: RecommendationItem[]; expiry: Date }
+  >();
+
   constructor(
-    @Inject('IWordRepository') private wordRepository: IWordRepository,
-    @Inject('IUserRepository') private userRepository: IUserRepository,
-    @Inject('IWordViewRepository') private wordViewRepository: IWordViewRepository,
-    @Inject('IWordVoteRepository') private wordVoteRepository: IWordVoteRepository,
-    @Inject('IFavoriteWordRepository') private favoriteWordRepository: IFavoriteWordRepository
+    @Inject("IWordRepository") private wordRepository: IWordRepository,
+    @Inject("IUserRepository") private userRepository: IUserRepository,
+    @Inject("IWordViewRepository")
+    private wordViewRepository: IWordViewRepository,
+    @Inject("IWordVoteRepository")
+    private wordVoteRepository: IWordVoteRepository,
+    @Inject("IFavoriteWordRepository")
+    private favoriteWordRepository: IFavoriteWordRepository
   ) {
     // Nettoyage périodique du cache
     setInterval(() => this.cleanupExpiredCache(), 15 * 60 * 1000); // Toutes les 15 minutes
@@ -94,30 +103,36 @@ export class SocialRecommendationsService {
         // Vérifier le cache
         const cached = this.userRecommendationsCache.get(userId);
         if (cached && cached.expiry > new Date()) {
-          const filteredRecs = this.applyFilters(cached.recommendations, filters);
+          const filteredRecs = this.applyFilters(
+            cached.recommendations,
+            filters
+          );
           return {
             recommendations: filteredRecs,
             preferences: await this.getUserPreferences(userId),
-            totalScore: filteredRecs.reduce((sum, r) => sum + r.relevanceScore, 0),
-            refreshRate: 'cached',
-            generatedAt: new Date()
+            totalScore: filteredRecs.reduce(
+              (sum, r) => sum + r.relevanceScore,
+              0
+            ),
+            refreshRate: "cached",
+            generatedAt: new Date(),
           };
         }
 
         // Analyser les préférences utilisateur
         const preferences = await this.getUserPreferences(userId);
-        
+
         // Générer différents types de recommandations
         const [
           wordRecommendations,
           userRecommendations,
           trendingRecommendations,
-          discoveryRecommendations
+          discoveryRecommendations,
         ] = await Promise.all([
           this.generateWordRecommendations(userId, preferences),
           this.generateUserRecommendations(userId, preferences),
           this.generateTrendingRecommendations(userId, preferences),
-          this.generateDiscoveryRecommendations(userId, preferences)
+          this.generateDiscoveryRecommendations(userId, preferences),
         ]);
 
         // Combiner et scorer les recommandations
@@ -125,7 +140,7 @@ export class SocialRecommendationsService {
           ...wordRecommendations,
           ...userRecommendations,
           ...trendingRecommendations,
-          ...discoveryRecommendations
+          ...discoveryRecommendations,
         ];
 
         // Appliquer l'algorithme de scoring personnalisé
@@ -144,7 +159,7 @@ export class SocialRecommendationsService {
         // Mettre en cache
         this.userRecommendationsCache.set(userId, {
           recommendations: finalRecommendations,
-          expiry: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+          expiry: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
         });
 
         const filteredRecs = this.applyFilters(finalRecommendations, filters);
@@ -152,12 +167,15 @@ export class SocialRecommendationsService {
         return {
           recommendations: filteredRecs,
           preferences,
-          totalScore: filteredRecs.reduce((sum, r) => sum + r.relevanceScore, 0),
-          refreshRate: 'fresh',
-          generatedAt: new Date()
+          totalScore: filteredRecs.reduce(
+            (sum, r) => sum + r.relevanceScore,
+            0
+          ),
+          refreshRate: "fresh",
+          generatedAt: new Date(),
         };
       },
-      'SocialRecommendations',
+      "SocialRecommendations",
       userId
     );
   }
@@ -176,24 +194,28 @@ export class SocialRecommendationsService {
   }> {
     return DatabaseErrorHandler.handleAggregationOperation(
       async () => {
-        const cacheKey = `trending-${userId || 'global'}-${JSON.stringify(filters)}`;
+        const cacheKey = `trending-${userId || "global"}-${JSON.stringify(filters)}`;
         const cached = this.trendingCache.get(cacheKey);
-        
+
         if (cached && cached.expiry > new Date()) {
           return {
             trending: cached.items,
-            timeframe: filters.timeframe || 'week',
-            algorithm: 'hybrid-social-ml',
-            generatedAt: new Date()
+            timeframe: filters.timeframe || "week",
+            algorithm: "hybrid-social-ml",
+            generatedAt: new Date(),
           };
         }
 
         // Obtenir les mots avec le plus d'engagement récent
-        const trendingWords = await this.getTrendingWords(filters.timeframe || 'week');
-        
+        const trendingWords = await this.getTrendingWords(
+          filters.timeframe || "week"
+        );
+
         // Convertir en format de recommandation
         const recommendations = await Promise.all(
-          trendingWords.map(async (word) => this.wordToRecommendation(word, 'trending'))
+          trendingWords.map(async (word) =>
+            this.wordToRecommendation(word, "trending")
+          )
         );
 
         // Personnaliser selon l'utilisateur si fourni
@@ -216,18 +238,18 @@ export class SocialRecommendationsService {
         // Mettre en cache
         this.trendingCache.set(cacheKey, {
           items: finalTrending,
-          expiry: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+          expiry: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
         });
 
         return {
           trending: finalTrending,
-          timeframe: filters.timeframe || 'week',
-          algorithm: 'hybrid-social-ml',
-          generatedAt: new Date()
+          timeframe: filters.timeframe || "week",
+          algorithm: "hybrid-social-ml",
+          generatedAt: new Date(),
         };
       },
-      'SocialRecommendations',
-      'trending'
+      "SocialRecommendations",
+      "trending"
     );
   }
 
@@ -257,53 +279,67 @@ export class SocialRecommendationsService {
         const [user, userFavorites, userActivity] = await Promise.all([
           this.userRepository.findById(userId),
           this.favoriteWordRepository.findByUser(userId, { limit: 100 }),
-          this.wordViewRepository.getUserActivityStats(userId)
+          this.wordViewRepository.getUserActivityStats(userId),
         ]);
 
         if (!user) {
-          throw new Error('Utilisateur non trouvé');
+          throw new Error("Utilisateur non trouvé");
         }
 
         // Trouver des utilisateurs avec des intérêts similaires
-        const potentialSimilarUsers = await this.userRepository.findActiveUsers(7); // Actifs dans les 7 derniers jours
-        
+        const potentialSimilarUsers =
+          await this.userRepository.findActiveUsers(7); // Actifs dans les 7 derniers jours
+
         // Calculer les scores de similarité
         const similarityScores = await Promise.all(
           potentialSimilarUsers
-            .filter(u => u._id.toString() !== userId)
+            .filter((u) => u._id.toString() !== userId)
             .map(async (otherUser) => {
               const [otherFavorites, otherActivity] = await Promise.all([
-                this.favoriteWordRepository.findByUser(otherUser._id.toString(), { limit: 100 }),
-                this.wordViewRepository.getUserActivityStats(otherUser._id.toString())
+                this.favoriteWordRepository.findByUser(
+                  otherUser._id.toString(),
+                  { limit: 100 }
+                ),
+                this.wordViewRepository.getUserActivityStats(
+                  otherUser._id.toString()
+                ),
               ]);
 
               const similarity = this.calculateUserSimilarity(
-                { user, favorites: userFavorites.favorites, activity: userActivity },
-                { user: otherUser, favorites: otherFavorites.favorites, activity: otherActivity }
+                {
+                  user,
+                  favorites: userFavorites.favorites,
+                  activity: userActivity,
+                },
+                {
+                  user: otherUser,
+                  favorites: otherFavorites.favorites,
+                  activity: otherActivity,
+                }
               );
 
               return {
                 user: otherUser,
                 similarityScore: similarity.score,
                 commonInterests: similarity.commonInterests,
-                sharedActivity: similarity.sharedActivity
+                sharedActivity: similarity.sharedActivity,
               };
             })
         );
 
         // Trier par score de similarité et limiter
         const topSimilar = similarityScores
-          .filter(s => s.similarityScore > 0.1) // Seuil minimum
+          .filter((s) => s.similarityScore > 0.1) // Seuil minimum
           .sort((a, b) => b.similarityScore - a.similarityScore)
           .slice(0, limit);
 
         return {
           similarUsers: topSimilar,
-          algorithm: 'collaborative-filtering-v2',
-          generatedAt: new Date()
+          algorithm: "collaborative-filtering-v2",
+          generatedAt: new Date(),
         };
       },
-      'SocialRecommendations',
+      "SocialRecommendations",
       userId
     );
   }
@@ -314,8 +350,8 @@ export class SocialRecommendationsService {
   async updateUserPreferencesFromBehavior(
     userId: string,
     behavior: {
-      action: 'view' | 'like' | 'share' | 'favorite' | 'comment';
-      targetType: 'word' | 'user' | 'discussion';
+      action: "view" | "like" | "share" | "favorite" | "comment";
+      targetType: "word" | "user" | "discussion";
       targetId: string;
       context?: any;
       timestamp: Date;
@@ -325,20 +361,17 @@ export class SocialRecommendationsService {
       async () => {
         // Analyse comportementale en temps réel
         const currentPrefs = await this.getUserPreferences(userId);
-        
+
         // Extraire les signaux d'intérêt
         const signals = await this.extractInterestSignals(behavior);
-        
+
         // Mettre à jour les préférences implicites
         await this.updateImplicitPreferences(userId, signals, currentPrefs);
-        
+
         // Invalider le cache des recommandations
         this.userRecommendationsCache.delete(userId);
-        
-        // Log pour analyse future
-        console.log(`📊 Preferences updated for user ${userId} based on ${behavior.action} on ${behavior.targetType}`);
       },
-      'SocialRecommendations',
+      "SocialRecommendations",
       userId
     );
   }
@@ -354,13 +387,13 @@ export class SocialRecommendationsService {
         this.userRepository.findById(userId),
         this.favoriteWordRepository.findByUser(userId, { limit: 50 }),
         this.wordViewRepository.findByUser(userId, { limit: 100 }),
-        this.wordVoteRepository.findByUser(userId, { limit: 100 })
+        this.wordVoteRepository.findByUser(userId, { limit: 100 }),
       ]);
 
       // Analyser les langues préférées
       const languageStats = new Map<string, number>();
-      favorites.favorites.forEach(fav => {
-        const lang = fav.wordDetails?.language || 'unknown';
+      favorites.favorites.forEach((fav) => {
+        const lang = fav.wordDetails?.language || "unknown";
         languageStats.set(lang, (languageStats.get(lang) || 0) + 1);
       });
 
@@ -373,28 +406,33 @@ export class SocialRecommendationsService {
       const difficultyLevel = this.inferDifficultyLevel(views.views);
 
       // Extraire les intérêts des catégories
-      const interests = this.extractInterestsFromActivity(favorites.favorites, views.views);
+      const interests = this.extractInterestsFromActivity(
+        favorites.favorites,
+        views.views
+      );
 
       // Analyser le niveau d'interaction sociale
-      const socialInteractionLevel = this.calculateSocialInteractionLevel(votes.votes);
+      const socialInteractionLevel = this.calculateSocialInteractionLevel(
+        votes.votes
+      );
 
       return {
         preferredLanguages,
         difficultyLevel,
         interests,
-        learningGoals: ['vocabulary_expansion', 'cultural_understanding'],
-        timeOfDayActive: ['morning', 'evening'],
-        socialInteractionLevel
+        learningGoals: ["vocabulary_expansion", "cultural_understanding"],
+        timeOfDayActive: ["morning", "evening"],
+        socialInteractionLevel,
       };
     } catch (error) {
       // Retourner des préférences par défaut en cas d'erreur
       return {
-        preferredLanguages: ['fr'],
-        difficultyLevel: 'mixed',
-        interests: ['general'],
-        learningGoals: ['vocabulary_expansion'],
-        timeOfDayActive: ['evening'],
-        socialInteractionLevel: 'medium'
+        preferredLanguages: ["fr"],
+        difficultyLevel: "mixed",
+        interests: ["general"],
+        learningGoals: ["vocabulary_expansion"],
+        timeOfDayActive: ["evening"],
+        socialInteractionLevel: "medium",
       };
     }
   }
@@ -411,16 +449,20 @@ export class SocialRecommendationsService {
     // Recommandations basées sur les langues préférées
     for (const language of preferences.preferredLanguages.slice(0, 2)) {
       const words = await this.wordRepository.findFeatured(10);
-      
+
       for (const word of words) {
-        recommendations.push(await this.wordToRecommendation(word, 'language_preference'));
+        recommendations.push(
+          await this.wordToRecommendation(word, "language_preference")
+        );
       }
     }
 
     // Recommandations basées sur les favoris similaires
     const similarWords = await this.findSimilarWords(userId, 10);
     for (const word of similarWords) {
-      recommendations.push(await this.wordToRecommendation(word, 'similar_content'));
+      recommendations.push(
+        await this.wordToRecommendation(word, "similar_content")
+      );
     }
 
     return recommendations;
@@ -434,26 +476,26 @@ export class SocialRecommendationsService {
     preferences: UserPreferences
   ): Promise<RecommendationItem[]> {
     const recommendations: RecommendationItem[] = [];
-    
-    if (preferences.socialInteractionLevel !== 'low') {
+
+    if (preferences.socialInteractionLevel !== "low") {
       const similarUsers = await this.getSimilarUsers(userId, 5);
-      
+
       for (const similar of similarUsers.similarUsers) {
         recommendations.push({
           id: similar.user._id.toString(),
-          type: 'user',
+          type: "user",
           title: `@${similar.user.username}`,
           description: `Utilisateur avec ${similar.sharedActivity.commonFavorites} intérêts en commun`,
           relevanceScore: similar.similarityScore,
-          reasons: [`Intérêts communs: ${similar.commonInterests.join(', ')}`],
+          reasons: [`Intérêts communs: ${similar.commonInterests.join(", ")}`],
           metadata: {
             author: similar.user.username,
             socialStats: {
               likes: 0,
               views: 0,
-              comments: 0
-            }
-          }
+              comments: 0,
+            },
+          },
         });
       }
     }
@@ -468,11 +510,11 @@ export class SocialRecommendationsService {
     userId: string,
     preferences: UserPreferences
   ): Promise<RecommendationItem[]> {
-    const trendingWords = await this.getTrendingWords('day');
+    const trendingWords = await this.getTrendingWords("day");
     const recommendations: RecommendationItem[] = [];
 
     for (const word of trendingWords.slice(0, 5)) {
-      recommendations.push(await this.wordToRecommendation(word, 'trending'));
+      recommendations.push(await this.wordToRecommendation(word, "trending"));
     }
 
     return recommendations;
@@ -486,18 +528,20 @@ export class SocialRecommendationsService {
     preferences: UserPreferences
   ): Promise<RecommendationItem[]> {
     const recommendations: RecommendationItem[] = [];
-    
+
     // Explorer de nouvelles langues
     const allLanguages = await this.wordRepository.getAvailableLanguages();
     const unexploredLanguages = allLanguages.filter(
-      lang => !preferences.preferredLanguages.includes(lang.language)
+      (lang) => !preferences.preferredLanguages.includes(lang.language)
     );
 
     for (const lang of unexploredLanguages.slice(0, 2)) {
       const words = await this.wordRepository.findFeatured(3);
-      
+
       for (const word of words) {
-        recommendations.push(await this.wordToRecommendation(word, 'discovery'));
+        recommendations.push(
+          await this.wordToRecommendation(word, "discovery")
+        );
       }
     }
 
@@ -507,18 +551,22 @@ export class SocialRecommendationsService {
   /**
    * Convertit un mot en recommandation
    */
-  private async wordToRecommendation(word: any, reason: string): Promise<RecommendationItem> {
+  private async wordToRecommendation(
+    word: any,
+    reason: string
+  ): Promise<RecommendationItem> {
     // Obtenir les statistiques sociales
     const [viewCount, voteStats] = await Promise.all([
       this.wordViewRepository.countByWord(word._id.toString()),
-      this.wordVoteRepository.getWordScore(word._id.toString())
+      this.wordVoteRepository.getWordScore(word._id.toString()),
     ]);
 
     return {
       id: word._id.toString(),
-      type: 'word',
+      type: "word",
       title: word.word,
-      description: word.meanings?.[0]?.definition || 'Aucune définition disponible',
+      description:
+        word.meanings?.[0]?.definition || "Aucune définition disponible",
       relevanceScore: this.calculateBaseRelevanceScore(word, reason),
       reasons: [this.getReasonDescription(reason)],
       metadata: {
@@ -528,48 +576,63 @@ export class SocialRecommendationsService {
         author: word.createdBy?.username,
         createdAt: word.createdAt,
         socialStats: {
-          likes: typeof voteStats.reactions?.like === 'number' ? voteStats.reactions.like : (voteStats.reactions?.like?.count || 0),
+          likes:
+            typeof voteStats.reactions?.like === "number"
+              ? voteStats.reactions.like
+              : voteStats.reactions?.like?.count || 0,
           views: viewCount,
-          comments: 0 // TODO: Implémenter compteur commentaires
-        }
-      }
+          comments: 0, // TODO: Implémenter compteur commentaires
+        },
+      },
     };
   }
 
   /**
    * Calcule la similarité entre deux utilisateurs
    */
-  private calculateUserSimilarity(user1: any, user2: any): {
+  private calculateUserSimilarity(
+    user1: any,
+    user2: any
+  ): {
     score: number;
     commonInterests: string[];
     sharedActivity: any;
   } {
     const user1FavIds = new Set(user1.favorites.map((f: any) => f.wordId));
     const user2FavIds = new Set(user2.favorites.map((f: any) => f.wordId));
-    
+
     // Intersection des favoris
-    const commonFavorites = Array.from(user1FavIds).filter(id => user2FavIds.has(id));
-    
+    const commonFavorites = Array.from(user1FavIds).filter((id) =>
+      user2FavIds.has(id)
+    );
+
     // Calcul du score de Jaccard
     const union = new Set([...user1FavIds, ...user2FavIds]);
     const jaccardScore = commonFavorites.length / union.size;
-    
+
     // Langues communes
-    const user1Languages = new Set([user1.user.preferredLanguages || []].flat());
-    const user2Languages = new Set([user2.user.preferredLanguages || []].flat());
-    const commonLanguages = Array.from(user1Languages).filter(lang => user2Languages.has(lang));
-    
+    const user1Languages = new Set(
+      [user1.user.preferredLanguages || []].flat()
+    );
+    const user2Languages = new Set(
+      [user2.user.preferredLanguages || []].flat()
+    );
+    const commonLanguages = Array.from(user1Languages).filter((lang) =>
+      user2Languages.has(lang)
+    );
+
     // Score final
-    const finalScore = (jaccardScore * 0.6) + (commonLanguages.length * 0.1) + (Math.random() * 0.3);
-    
+    const finalScore =
+      jaccardScore * 0.6 + commonLanguages.length * 0.1 + Math.random() * 0.3;
+
     return {
       score: Math.min(1, finalScore),
       commonInterests: commonLanguages,
       sharedActivity: {
         commonFavorites: commonFavorites.length,
         commonLanguages,
-        interactionLevel: Math.random() * 10
-      }
+        interactionLevel: Math.random() * 10,
+      },
     };
   }
 
@@ -585,23 +648,34 @@ export class SocialRecommendationsService {
   /**
    * Trouve des mots similaires aux favoris de l'utilisateur
    */
-  private async findSimilarWords(userId: string, limit: number): Promise<any[]> {
-    const favorites = await this.favoriteWordRepository.findByUser(userId, { limit: 10 });
-    
+  private async findSimilarWords(
+    userId: string,
+    limit: number
+  ): Promise<any[]> {
+    const favorites = await this.favoriteWordRepository.findByUser(userId, {
+      limit: 10,
+    });
+
     if (favorites.favorites.length === 0) {
       return this.wordRepository.findFeatured(limit);
     }
 
     // Utiliser les catégories et langues des favoris pour trouver des mots similaires
-    const categories = [...new Set(favorites.favorites.map(f => 'general').filter(Boolean))];
-    const languages = [...new Set(favorites.favorites.map(f => f.wordDetails?.language).filter(Boolean))];
-    
+    const categories = [
+      ...new Set(favorites.favorites.map((f) => "general").filter(Boolean)),
+    ];
+    const languages = [
+      ...new Set(
+        favorites.favorites.map((f) => f.wordDetails?.language).filter(Boolean)
+      ),
+    ];
+
     if (categories.length > 0 && languages.length > 0) {
       return this.wordRepository.findByCategoryAndLanguage(
         categories[0] as string,
         languages[0],
-        'approved',
-        favorites.favorites.map(f => f.wordId),
+        "approved",
+        favorites.favorites.map((f) => f.wordId),
         limit
       );
     }
@@ -610,19 +684,26 @@ export class SocialRecommendationsService {
   }
 
   // Méthodes utilitaires privées
-  private applyFilters(recommendations: RecommendationItem[], filters: RecommendationFilters): RecommendationItem[] {
+  private applyFilters(
+    recommendations: RecommendationItem[],
+    filters: RecommendationFilters
+  ): RecommendationItem[] {
     let filtered = recommendations;
 
     if (filters.type) {
-      filtered = filtered.filter(r => r.type === filters.type);
+      filtered = filtered.filter((r) => r.type === filters.type);
     }
 
     if (filters.language) {
-      filtered = filtered.filter(r => r.metadata.language === filters.language);
+      filtered = filtered.filter(
+        (r) => r.metadata.language === filters.language
+      );
     }
 
     if (filters.minRelevanceScore) {
-      filtered = filtered.filter(r => r.relevanceScore >= filters.minRelevanceScore);
+      filtered = filtered.filter(
+        (r) => r.relevanceScore >= filters.minRelevanceScore
+      );
     }
 
     if (filters.limit) {
@@ -637,46 +718,58 @@ export class SocialRecommendationsService {
     userId: string,
     preferences: UserPreferences
   ): Promise<RecommendationItem[]> {
-    return recommendations.map(rec => ({
+    return recommendations.map((rec) => ({
       ...rec,
-      relevanceScore: this.calculatePersonalizedScore(rec, preferences)
+      relevanceScore: this.calculatePersonalizedScore(rec, preferences),
     }));
   }
 
-  private calculatePersonalizedScore(rec: RecommendationItem, preferences: UserPreferences): number {
+  private calculatePersonalizedScore(
+    rec: RecommendationItem,
+    preferences: UserPreferences
+  ): number {
     let score = rec.relevanceScore;
 
     // Bonus pour les langues préférées
-    if (rec.metadata.language && preferences.preferredLanguages.includes(rec.metadata.language)) {
+    if (
+      rec.metadata.language &&
+      preferences.preferredLanguages.includes(rec.metadata.language)
+    ) {
       score *= 1.5;
     }
 
     // Bonus selon l'engagement social
     if (rec.metadata.socialStats) {
-      const socialBonus = (rec.metadata.socialStats.likes * 0.1) + 
-                         (rec.metadata.socialStats.views * 0.01) + 
-                         (rec.metadata.socialStats.comments * 0.2);
+      const socialBonus =
+        rec.metadata.socialStats.likes * 0.1 +
+        rec.metadata.socialStats.views * 0.01 +
+        rec.metadata.socialStats.comments * 0.2;
       score += Math.min(socialBonus, 0.5);
     }
 
     return Math.min(score, 1);
   }
 
-  private diversifyRecommendations(recommendations: RecommendationItem[], limit: number): RecommendationItem[] {
+  private diversifyRecommendations(
+    recommendations: RecommendationItem[],
+    limit: number
+  ): RecommendationItem[] {
     // Algorithme de diversification pour éviter les recommandations trop similaires
     const diversified: RecommendationItem[] = [];
     const types = new Map<string, number>();
     const languages = new Map<string, number>();
 
-    for (const rec of recommendations.sort((a, b) => b.relevanceScore - a.relevanceScore)) {
+    for (const rec of recommendations.sort(
+      (a, b) => b.relevanceScore - a.relevanceScore
+    )) {
       const typeCount = types.get(rec.type) || 0;
-      const langCount = languages.get(rec.metadata.language || 'unknown') || 0;
+      const langCount = languages.get(rec.metadata.language || "unknown") || 0;
 
       // Limiter à 3 éléments par type et 5 par langue
       if (typeCount < 3 && langCount < 5 && diversified.length < limit) {
         diversified.push(rec);
         types.set(rec.type, typeCount + 1);
-        languages.set(rec.metadata.language || 'unknown', langCount + 1);
+        languages.set(rec.metadata.language || "unknown", langCount + 1);
       }
     }
 
@@ -695,16 +788,16 @@ export class SocialRecommendationsService {
     let score = 0.5; // Score de base
 
     switch (reason) {
-      case 'trending':
+      case "trending":
         score = 0.8;
         break;
-      case 'language_preference':
+      case "language_preference":
         score = 0.7;
         break;
-      case 'similar_content':
+      case "similar_content":
         score = 0.6;
         break;
-      case 'discovery':
+      case "discovery":
         score = 0.4;
         break;
       default:
@@ -716,22 +809,24 @@ export class SocialRecommendationsService {
 
   private getReasonDescription(reason: string): string {
     const descriptions = {
-      'trending': 'Populaire en ce moment',
-      'language_preference': 'Correspond à vos langues préférées',
-      'similar_content': 'Similaire à vos favoris',
-      'discovery': 'Découverte suggérée',
-      'user_similarity': 'Utilisateurs similaires'
+      trending: "Populaire en ce moment",
+      language_preference: "Correspond à vos langues préférées",
+      similar_content: "Similaire à vos favoris",
+      discovery: "Découverte suggérée",
+      user_similarity: "Utilisateurs similaires",
     };
 
-    return descriptions[reason] || 'Recommandé pour vous';
+    return descriptions[reason] || "Recommandé pour vous";
   }
 
-  private inferDifficultyLevel(views: any[]): 'beginner' | 'intermediate' | 'advanced' | 'mixed' {
+  private inferDifficultyLevel(
+    views: any[]
+  ): "beginner" | "intermediate" | "advanced" | "mixed" {
     // Logique simple basée sur la diversité des vues
-    if (views.length > 100) return 'advanced';
-    if (views.length > 50) return 'intermediate';
-    if (views.length > 10) return 'beginner';
-    return 'mixed';
+    if (views.length > 100) return "advanced";
+    if (views.length > 50) return "intermediate";
+    if (views.length > 10) return "beginner";
+    return "mixed";
   }
 
   private inferWordDifficulty(word: any): string {
@@ -739,17 +834,20 @@ export class SocialRecommendationsService {
     const wordLength = word.word?.length || 0;
     const definitionsCount = word.meanings?.length || 0;
 
-    if (wordLength > 10 || definitionsCount > 3) return 'advanced';
-    if (wordLength > 6 || definitionsCount > 1) return 'intermediate';
-    return 'beginner';
+    if (wordLength > 10 || definitionsCount > 3) return "advanced";
+    if (wordLength > 6 || definitionsCount > 1) return "intermediate";
+    return "beginner";
   }
 
-  private extractInterestsFromActivity(favorites: any[], views: any[]): string[] {
+  private extractInterestsFromActivity(
+    favorites: any[],
+    views: any[]
+  ): string[] {
     // Analyser les catégories les plus fréquentes
     const categoryStats = new Map<string, number>();
-    
-    favorites.forEach(fav => {
-      const category = fav.word?.categoryName || 'general';
+
+    favorites.forEach((fav) => {
+      const category = fav.word?.categoryName || "general";
       categoryStats.set(category, (categoryStats.get(category) || 0) + 1);
     });
 
@@ -759,33 +857,43 @@ export class SocialRecommendationsService {
       .map(([category]) => category);
   }
 
-  private calculateSocialInteractionLevel(votes: any[]): 'low' | 'medium' | 'high' {
+  private calculateSocialInteractionLevel(
+    votes: any[]
+  ): "low" | "medium" | "high" {
     const voteCount = votes.length;
-    
-    if (voteCount > 50) return 'high';
-    if (voteCount > 20) return 'medium';
-    return 'low';
+
+    if (voteCount > 50) return "high";
+    if (voteCount > 20) return "medium";
+    return "low";
   }
 
   private async extractInterestSignals(behavior: any): Promise<any> {
     // Extraire des signaux d'intérêt depuis le comportement
     return {
-      interestLevel: behavior.action === 'favorite' ? 1.0 : 
-                    behavior.action === 'like' ? 0.8 : 0.5,
+      interestLevel:
+        behavior.action === "favorite"
+          ? 1.0
+          : behavior.action === "like"
+            ? 0.8
+            : 0.5,
       category: behavior.context?.category,
       language: behavior.context?.language,
-      timestamp: behavior.timestamp
+      timestamp: behavior.timestamp,
     };
   }
 
-  private async updateImplicitPreferences(userId: string, signals: any, currentPrefs: UserPreferences): Promise<void> {
+  private async updateImplicitPreferences(
+    userId: string,
+    signals: any,
+    currentPrefs: UserPreferences
+  ): Promise<void> {
     // Mise à jour des préférences implicites
     console.log(`Updating implicit preferences for user ${userId}`, signals);
   }
 
   private cleanupExpiredCache(): void {
     const now = new Date();
-    
+
     // Nettoyer le cache des recommandations utilisateur
     for (const [userId, cache] of this.userRecommendationsCache.entries()) {
       if (cache.expiry < now) {
