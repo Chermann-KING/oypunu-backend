@@ -100,9 +100,7 @@ export class WordsAdminController {
     page: number;
     limit: number;
     totalPages: number;
-  }> {
-    console.log('=== DEBUG GET PENDING WORDS (Admin) ===');
-    console.log('Paramètres:', { page, limit, language });
+  }> {    console.log('Paramètres:', { page, limit, language });
     console.log('Admin:', req?.user?.username, 'Role:', req?.user?.role);
 
     // Validation des paramètres
@@ -169,9 +167,7 @@ export class WordsAdminController {
       reason?: string 
     },
     @NestRequest() req: RequestWithUser,
-  ): Promise<Word> {
-    console.log('=== DEBUG UPDATE WORD STATUS (Admin) ===');
-    console.log('ID du mot:', id);
+  ): Promise<Word> {    console.log('ID du mot:', id);
     console.log('Nouveau statut:', updateData.status);
     console.log('Raison:', updateData.reason);
     console.log('Admin:', req.user?.username, 'Role:', req.user?.role);
@@ -249,9 +245,7 @@ export class WordsAdminController {
     page: number;
     limit: number;
     totalPages: number;
-  }> {
-    console.log('=== DEBUG GET PENDING REVISIONS (Admin) ===');
-    console.log('Paramètres:', { page, limit });
+  }> {    console.log('Paramètres:', { page, limit });
     console.log('Admin:', req.user?.username, 'Role:', req.user?.role);
 
     // Validation des paramètres
@@ -315,9 +309,7 @@ export class WordsAdminController {
     @Param('revisionId') revisionId: string,
     @Body() approvalData?: { comment?: string },
     @NestRequest() req?: RequestWithUser,
-  ): Promise<Word> {
-    console.log('=== DEBUG APPROVE REVISION (Admin) ===');
-    console.log('ID du mot:', id);
+  ): Promise<Word> {    console.log('ID du mot:', id);
     console.log('ID de la révision:', revisionId);
     console.log('Commentaire:', approvalData?.comment);
     console.log('Admin:', req?.user?.username, 'Role:', req?.user?.role);
@@ -388,9 +380,7 @@ export class WordsAdminController {
     @Param('revisionId') revisionId: string,
     @Body() rejectionData: { reason: string },
     @NestRequest() req: RequestWithUser,
-  ): Promise<{ message: string; revisionId: string; reason: string }> {
-    console.log('=== DEBUG REJECT REVISION (Admin) ===');
-    console.log('ID du mot:', id);
+  ): Promise<{ message: string; revisionId: string; reason: string }> {    console.log('ID du mot:', id);
     console.log('ID de la révision:', revisionId);
     console.log('Raison du rejet:', rejectionData.reason);
     console.log('Admin:', req.user?.username, 'Role:', req.user?.role);
@@ -467,9 +457,7 @@ export class WordsAdminController {
       admin: string;
       timestamp: Date;
     }>;
-  }> {
-    console.log('=== DEBUG GET MODERATION REPORT (SuperAdmin) ===');
-    console.log('SuperAdmin:', req.user?.username, 'Role:', req.user?.role);
+  }> {    console.log('SuperAdmin:', req.user?.username, 'Role:', req.user?.role);
 
     const result = await this.wordsService.getModerationReport();
     

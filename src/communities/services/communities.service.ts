@@ -648,12 +648,7 @@ export class CommunitiesService {
     communityId: string,
     userOrId: JwtUser | string
   ): Promise<"admin" | "moderator" | "member" | null> {
-    const userId = this._extractUserId(userOrId);
-    console.log(
-      `Recherche du rôle pour communityId: ${communityId}, userId: ${userId}`
-    );
-
-    const role = await this.communityMemberRepository.getUserRole(
+    const userId = this._extractUserId(userOrId);    const role = await this.communityMemberRepository.getUserRole(
       communityId,
       userId
     );

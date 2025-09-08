@@ -126,9 +126,7 @@ export class WordsRevisionController {
     page: number;
     limit: number;
     totalPages: number;
-  }> {
-    console.log("=== DEBUG GET REVISION HISTORY ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Paramètres:", { page, limit, status });
     console.log("Utilisateur:", req?.user?.username);
 
@@ -236,9 +234,7 @@ export class WordsRevisionController {
     status: string;
     message: string;
     changes: Record<string, any>;
-  }> {
-    console.log("=== DEBUG CREATE REVISION ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Modifications:", revisionData.changes);
     console.log("Commentaire:", revisionData.comment);
     console.log("Auteur:", req.user?.username);
@@ -345,9 +341,7 @@ export class WordsRevisionController {
       submittedAt: Date;
       status: string;
     };
-  }> {
-    console.log("=== DEBUG COMPARE REVISION ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("ID de la révision:", revisionId);
     console.log("Utilisateur:", req?.user?.username);
 
@@ -370,13 +364,7 @@ export class WordsRevisionController {
         submittedAt: new Date(),
         status: "pending",
       },
-    };
-
-    console.log(
-      `Comparaison générée: ${result.comparison.differences.length} différences détectées`
-    );
-
-    return result;
+    };    return result;
   }
 
   /**
@@ -426,9 +414,7 @@ export class WordsRevisionController {
     @Param("revisionId") revisionId: string,
     @Body() restoreData?: { comment?: string },
     @NestRequest() req?: RequestWithUser
-  ): Promise<Word> {
-    console.log("=== DEBUG RESTORE REVISION ===");
-    console.log("ID du mot:", id);
+  ): Promise<Word> {    console.log("ID du mot:", id);
     console.log("ID de la révision à restaurer:", revisionId);
     console.log("Commentaire:", restoreData?.comment);
     console.log("Utilisateur:", req?.user?.username);
@@ -518,9 +504,7 @@ export class WordsRevisionController {
       approvalRate: number;
     }>;
     averageProcessingTime: number;
-  }> {
-    console.log("=== DEBUG GET REVISION STATISTICS ===");
-    console.log("Période:", period);
+  }> {    console.log("Période:", period);
     console.log("Utilisateur:", req?.user?.username);
 
     // Validation de la période
@@ -534,16 +518,6 @@ export class WordsRevisionController {
       byPeriod: { today: 0, thisWeek: 0, thisMonth: 0 },
       topContributors: [],
       averageProcessingTime: 0,
-    };
-
-    console.log(
-      `Statistiques de révisions générées pour la période: ${validatedPeriod}`
-    );
-    console.log(`Total de révisions: ${result.totalRevisions}`);
-    console.log(
-      `En attente: ${result.byStatus.pending}, Approuvées: ${result.byStatus.approved}`
-    );
-
-    return result;
+    };    console.log(`Total de révisions: ${result.totalRevisions}`);    return result;
   }
 }

@@ -79,9 +79,7 @@ async function bootstrap() {
       case 'status':
       case '--status':
         logger.log('🔍 Vérification du statut des migrations...');
-        const status = await migrationService.checkMigrationStatus();
-        console.log('📊 Statut des migrations:');
-        console.log(JSON.stringify(status, null, 2));
+        const status = await migrationService.checkMigrationStatus();        console.log(JSON.stringify(status, null, 2));
         break;
 
       case 'force':

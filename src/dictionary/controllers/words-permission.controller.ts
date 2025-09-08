@@ -85,9 +85,7 @@ export class WordsPermissionController {
       hasEditRole: boolean;
     };
     restrictions: string[];
-  }> {
-    console.log("=== DEBUG CAN EDIT WORD ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Utilisateur:", req?.user?.username || "Anonyme");
 
     const result = await this.wordsService.canUserEditWord(id, req?.user);
@@ -166,9 +164,7 @@ export class WordsPermissionController {
       favorites: number;
       references: number;
     };
-  }> {
-    console.log("=== DEBUG CAN DELETE WORD ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Utilisateur:", req?.user?.username || "Anonyme");
 
     const result = await this.wordsService.canUserDeleteWord(id, req?.user);
@@ -246,9 +242,7 @@ export class WordsPermissionController {
       hasModerateRole: boolean;
     };
     availableActions: string[];
-  }> {
-    console.log("=== DEBUG CAN MODERATE WORD ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Utilisateur:", req.user?.username, "Role:", req.user?.role);
 
     const result = await this.wordsService.canUserModerateWord(id, req.user);
@@ -322,9 +316,7 @@ export class WordsPermissionController {
       currentRevisions: number;
       cooldownRemaining: number;
     };
-  }> {
-    console.log("=== DEBUG CAN REVISE WORD ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Utilisateur:", req?.user?.username || "Anonyme");
 
     const result = await this.wordsService.canUserReviseWord(id, req?.user);
@@ -428,9 +420,7 @@ export class WordsPermissionController {
       lastModified: Date;
       revisionCount: number;
     };
-  }> {
-    console.log("=== DEBUG GET PERMISSION SUMMARY ===");
-    console.log("ID du mot:", id);
+  }> {    console.log("ID du mot:", id);
     console.log("Utilisateur:", req?.user?.username || "Anonyme");
 
     const result = await this.wordsService.getWordPermissionSummary(
@@ -501,9 +491,7 @@ export class WordsPermissionController {
       canDeleteCount: number;
       canModerateCount: number;
     };
-  }> {
-    console.log("=== DEBUG BATCH CHECK PERMISSIONS ===");
-    console.log("Utilisateur:", req.user?.username, "Role:", req.user?.role);
+  }> {    console.log("Utilisateur:", req.user?.username, "Role:", req.user?.role);
 
     // Note: Cette méthode nécessiterait une liste d'IDs de mots à vérifier
     // Pour l'exemple, on va vérifier les mots récents de l'utilisateur
@@ -512,15 +500,6 @@ export class WordsPermissionController {
       wordIds,
       req.user,
       "edit"
-    );
-
-    console.log(
-      `Vérification en lot terminée: ${result.summary.totalChecked} mots vérifiés`
-    );
-    console.log(
-      `Permissions: ${result.summary.canEditCount} éditables, ${result.summary.canDeleteCount} supprimables`
-    );
-
-    return result;
+    );    return result;
   }
 }

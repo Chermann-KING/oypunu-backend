@@ -384,72 +384,71 @@ export class AnalyticsService {
    * @memberof AnalyticsService
    */
   async getContentAnalytics(): Promise<ContentAnalytics> {
-    console.log('🔄 [AnalyticsService] getContentAnalytics - Début');
-    
     try {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
       const thisMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Total des mots
-    const totalWords = await this.wordModel.countDocuments();
+      // Total des mots
+      const totalWords = await this.wordModel.countDocuments();
 
-    // Nouveaux mots
-    const wordsToday = await this.wordModel.countDocuments({
-      createdAt: { $gte: today },
-    });
+      // Nouveaux mots
+      const wordsToday = await this.wordModel.countDocuments({
+        createdAt: { $gte: today },
+      });
 
-    const wordsThisWeek = await this.wordModel.countDocuments({
-      createdAt: { $gte: thisWeek },
-    });
+      const wordsThisWeek = await this.wordModel.countDocuments({
+        createdAt: { $gte: thisWeek },
+      });
 
-    const wordsThisMonth = await this.wordModel.countDocuments({
-      createdAt: { $gte: thisMonth },
-    });
+      const wordsThisMonth = await this.wordModel.countDocuments({
+        createdAt: { $gte: thisMonth },
+      });
 
-    // Répartition par statut
-    const wordsByStatus = await this.wordModel.aggregate([
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
+      // Répartition par statut
+      const wordsByStatus = await this.wordModel.aggregate([
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
         },
-      },
-    ]);
+      ]);
 
-    const statusStats = {
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-    };
+      const statusStats = {
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+      };
 
-    wordsByStatus.forEach((item) => {
-      statusStats[item._id] = item.count;
-    });
+      wordsByStatus.forEach((item) => {
+        statusStats[item._id] = item.count;
+      });
 
-    // Mots par langue
-    const wordsByLanguage = await this.generateWordsByLanguageChart();
+      // Mots par langue
+      const wordsByLanguage = await this.generateWordsByLanguageChart();
 
-    // Top contributeurs
-    const topContributors = await this.generateTopContributors();
+      // Top contributeurs
+      const topContributors = await this.generateTopContributors();
 
-    // Graphique de croissance du contenu
-    const contentGrowthChart = await this.generateContentGrowthChart(30);
+      // Graphique de croissance du contenu
+      const contentGrowthChart = await this.generateContentGrowthChart(30);
 
-    return {
-      totalWords,
-      wordsToday,
-      wordsThisWeek,
-      wordsThisMonth,
-      wordsByStatus: statusStats,
-      wordsByLanguage,
-      topContributors,
-      contentGrowthChart,
-    };
+      return {
+        totalWords,
+        wordsToday,
+        wordsThisWeek,
+        wordsThisMonth,
+        wordsByStatus: statusStats,
+        wordsByLanguage,
+        topContributors,
+        contentGrowthChart,
+      };
     } catch (error) {
-      console.error('❌ [AnalyticsService] Erreur lors du calcul des analytics content:', error);
-      throw new Error('Erreur lors de la récupération des analytics de contenu');
+      throw new Error(
+        "Erreur lors de la récupération des analytics de contenu"
+      );
     }
   }
 
@@ -953,7 +952,7 @@ export class AnalyticsService {
           createdAt: { $gte: dateStart, $lt: dateEnd },
         });
       } catch (error) {
-        console.log("CommunityPost model not available, using demo data");
+        // CommunityPost model not available, using demo data
       }
 
       // Si pas de données réelles, générer des données de démo réalistes

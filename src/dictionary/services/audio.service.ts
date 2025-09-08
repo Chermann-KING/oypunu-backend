@@ -158,11 +158,7 @@ export class AudioService {
       }
 
       // Si toujours pas valide et qu'on a un MIME type audio, on accepte quand même
-      if (mimeType && mimeType.startsWith('audio/')) {
-        console.log(
-          '⚠️ Signature non reconnue mais MIME type audio détecté, acceptation du fichier',
-        );
-        return { isValid: true };
+      if (mimeType && mimeType.startsWith('audio/')) {        return { isValid: true };
       }
 
       const error = 'Le fichier ne semble pas être un fichier audio valide';

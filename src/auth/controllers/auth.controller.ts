@@ -252,18 +252,7 @@ export class AuthController {
   async register(
     @Body() registerDto: RegisterDto,
     @Request() req: ExpressRequest
-  ) {
-    console.log("🔍 DEBUG - Données reçues dans register:", registerDto);
-    console.log(
-      "🔍 DEBUG - Champs hasAcceptedTerms:",
-      registerDto.hasAcceptedTerms
-    );
-    console.log(
-      "🔍 DEBUG - Champs hasAcceptedPrivacyPolicy:",
-      registerDto.hasAcceptedPrivacyPolicy
-    );
-
-    const clientIP = req.ip || req.socket.remoteAddress || "unknown";
+  ) {    const clientIP = req.ip || req.socket.remoteAddress || "unknown";
     const userAgent = req.headers["user-agent"] || "unknown";
 
     return this.authService.register(registerDto, {

@@ -27,15 +27,7 @@ export class ActivityController {
     const activities = await this.activityService.getRecentActivities(
       parseInt(limit),
       prioritizeAfrican === 'true',
-    );
-
-    console.log('🔍 Activités récentes récupérées:', activities.length);
-    activities.forEach((activity, index) => {
-      console.log(
-        `  ${index + 1}. ${activity.activityType} - ${activity.username} - Metadata:`,
-        activity.metadata,
-      );
-    });
+    );    activities.forEach((activity, index) => {    });
 
     return {
       activities,

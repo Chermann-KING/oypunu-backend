@@ -87,12 +87,7 @@ export class CommunityPostsController {
     },
     @Request() req: RequestWithUser,
   ) {
-    const userId = this._getUserId(req.user);
-    console.log(
-      `[Controller createPost] User ID extrait: ${userId} depuis:`,
-      req.user,
-    );
-    return this._postsService.createPost(communityId, userId, postData);
+    const userId = this._getUserId(req.user);    return this._postsService.createPost(communityId, userId, postData);
   }
 
   @Get('communities/:communityId/posts')

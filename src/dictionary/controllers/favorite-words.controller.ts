@@ -68,15 +68,7 @@ export class FavoriteWordsController {
     @Query('page') page = 1,
     @Query('limit') limit = 10,
   ) {
-    const userId = req.user._id || req.user.userId || req.user.sub;
-    console.log(
-      '🔥 Controller getFavoriteWords - userId:',
-      userId,
-      'type:',
-      typeof userId,
-    );
-
-    if (!userId) {
+    const userId = req.user._id || req.user.userId || req.user.sub;    if (!userId) {
       throw new UnauthorizedException(
         'ID utilisateur non trouvé dans le token',
       );
@@ -171,14 +163,7 @@ export class FavoriteWordsController {
     }
 
     // S'assurer que userId est une chaîne
-    const userIdString = userId.toString();
-    console.log(
-      '🔥 Controller - Appel service avec wordId:',
-      wordId,
-      'userId:',
-      userIdString,
-    );
-    return this._wordsService.removeFromFavorites(wordId, userIdString);
+    const userIdString = userId.toString();    return this._wordsService.removeFromFavorites(wordId, userIdString);
   }
 
   @Get('check/:wordId')

@@ -76,9 +76,7 @@ export class WordsCoreController {
   async create(
     @Body() createWordDto: CreateWordDto,
     @Request() req: RequestWithUser
-  ): Promise<Word> {
-    console.log("=== DEBUG CREATE WORD (WordsCoreController) ===");
-    console.log("DTO received:", createWordDto);
+  ): Promise<Word> {    console.log("DTO received:", createWordDto);
     console.log("User:", req.user?.username);
 
     // Validation basique
@@ -138,9 +136,7 @@ export class WordsCoreController {
     @Query("language") language?: string,
     @Query("status") status?: string,
     @Request() req?: RequestWithUser
-  ): Promise<SearchResults> {
-    console.log("=== DEBUG FIND ALL WORDS ===");
-    console.log("Paramètres:", { page, limit, language, status });
+  ): Promise<SearchResults> {    console.log("Paramètres:", { page, limit, language, status });
     console.log("Utilisateur connecté:", req?.user?.username || "Anonyme");
 
     // Validation des paramètres de pagination
@@ -196,9 +192,7 @@ export class WordsCoreController {
   async search(
     @Query() searchDto: SearchWordsDto,
     @Request() req?: RequestWithUser
-  ): Promise<SearchResults> {
-    console.log("=== DEBUG SEARCH WORDS ===");
-    console.log("Paramètres de recherche:", searchDto);
+  ): Promise<SearchResults> {    console.log("Paramètres de recherche:", searchDto);
     console.log("Utilisateur connecté:", req?.user?.username || "Anonyme");
 
     if (!searchDto.query?.trim()) {
@@ -250,10 +244,7 @@ export class WordsCoreController {
   async getAvailableLanguages(): Promise<{
     languages: Array<{ code: string; name: string; wordCount: number }>;
     total: number;
-  }> {
-    console.log("=== DEBUG GET AVAILABLE LANGUAGES ===");
-
-    const languages = await this.wordsService.getAvailableLanguages();
+  }> {    const languages = await this.wordsService.getAvailableLanguages();
     const result = {
       languages: languages.map((lang) => ({
         code: lang.languageId || lang.language,
@@ -294,9 +285,7 @@ export class WordsCoreController {
     @Query("limit") limit = 5,
     @Query("language") language?: string,
     @Request() req?: RequestWithUser
-  ): Promise<Word[]> {
-    console.log("=== DEBUG GET FEATURED WORDS ===");
-    console.log("Paramètres:", { limit, language });
+  ): Promise<Word[]> {    console.log("Paramètres:", { limit, language });
     console.log("Utilisateur connecté:", req?.user?.username || "Anonyme");
 
     // Validation de la limite
@@ -328,9 +317,7 @@ export class WordsCoreController {
   async findOne(
     @Param("id") id: string,
     @Request() req?: RequestWithUser
-  ): Promise<Word> {
-    console.log("=== DEBUG FIND ONE WORD ===");
-    console.log("ID recherché:", id);
+  ): Promise<Word> {    console.log("ID recherché:", id);
     console.log("Utilisateur connecté:", req?.user?.username || "Anonyme");
 
     const result = await this.wordsService.findOne(id);
@@ -364,9 +351,7 @@ export class WordsCoreController {
     @Param("id") id: string,
     @Body() updateWordDto: UpdateWordDto,
     @Request() req: RequestWithUser
-  ): Promise<Word> {
-    console.log("=== DEBUG UPDATE WORD ===");
-    console.log("ID à mettre à jour:", id);
+  ): Promise<Word> {    console.log("ID à mettre à jour:", id);
     console.log("Données de mise à jour:", updateWordDto);
     console.log("Utilisateur:", req.user?.username);
 
@@ -405,9 +390,7 @@ export class WordsCoreController {
   async remove(
     @Param("id") id: string,
     @Request() req: RequestWithUser
-  ): Promise<{ message: string; deletedId: string }> {
-    console.log("=== DEBUG DELETE WORD ===");
-    console.log("ID à supprimer:", id);
+  ): Promise<{ message: string; deletedId: string }> {    console.log("ID à supprimer:", id);
     console.log("Utilisateur:", req.user?.username);
 
     const result = await this.wordsService.remove(id, req.user);

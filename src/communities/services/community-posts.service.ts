@@ -147,37 +147,21 @@ export class CommunityPostsService {
     communityId: string,
     userId: string,
   ): Promise<boolean> {
-    console.log(
-      `[_isCommunityMember] Recherche de membre pour communauté: ${communityId}, utilisateur: ${userId}`,
-    );
-
     // Essayer d'abord sans conversion ObjectId
     let member = await this.memberModel.findOne({
       communityId: communityId,
       userId: userId,
     });
 
-    console.log(
-      `[_isCommunityMember] Première recherche (sans ObjectId):`,
-      member ? `Trouvé: ${member._id}` : 'Aucun résultat',
-    );
-
     // Si pas trouvé, essayer avec conversion ObjectId
     if (!member) {
-      console.log(`[_isCommunityMember] Tentative avec ObjectId...`);
       member = await this.memberModel.findOne({
         communityId: new Types.ObjectId(communityId),
         userId: new Types.ObjectId(userId),
       });
-      console.log(
-        `[_isCommunityMember] Deuxième recherche (avec ObjectId):`,
-        member ? `Trouvé: ${member._id}` : 'Aucun résultat',
-      );
     }
 
-    const result = !!member;
-    console.log(`[_isCommunityMember] Résultat final: ${result}`);
-    return result;
+    return !!member;
   }
 
   private async _getMemberRole(
@@ -297,43 +281,18 @@ export class CommunityPostsService {
       difficulty?: string;
     },
   ): Promise<CommunityPost> {
-    console.log(
-      `[createPost] Tentative de création de post par l'utilisateur ${userId} dans la communauté ${communityId}`,
-    );
-
     // Vérifier si la communauté existe
     const community = await this.communityModel.findById(communityId);
     if (!community) {
-      console.error(`[createPost] Communauté ${communityId} non trouvée`);
       throw new NotFoundException(
         `Communauté non trouvée avec l'ID ${communityId}`,
       );
     }
-    console.log(`[createPost] Communauté trouvée: ${community.name}`);
 
     // Vérifier si l'utilisateur est membre de la communauté
-    console.log(
-      `[createPost] Vérification de l'appartenance de l'utilisateur ${userId} à la communauté ${communityId}`,
-    );
     const isMember = await this._isCommunityMember(communityId, userId);
-    console.log(
-      `[createPost] Résultat de la vérification d'appartenance: ${isMember}`,
-    );
 
     if (!isMember) {
-      console.error(
-        `[createPost] L'utilisateur ${userId} n'est pas membre de la communauté ${communityId}`,
-      );
-
-      // Afficher tous les membres pour le debug
-      const allMembers = await this.memberModel.find({
-        communityId: new Types.ObjectId(communityId),
-      });
-      console.log(
-        `[createPost] Membres actuels de la communauté:`,
-        allMembers.map((m) => ({ userId: m.userId, role: m.role })),
-      );
-
       throw new ForbiddenException(
         `Vous devez être membre de la communauté pour créer une publication`,
       );
@@ -372,7 +331,6 @@ export class CommunityPostsService {
       throw new BadRequestException('Type de publication invalide');
     }
 
-    console.log(`[createPost] Validation réussie, création du post`);
     const newPost = new this.postModel({
       communityId: new Types.ObjectId(communityId),
       authorId: new Types.ObjectId(userId),
@@ -388,7 +346,6 @@ export class CommunityPostsService {
     });
 
     const savedPost = await newPost.save();
-    console.log(`[createPost] Post créé avec succès: ${savedPost._id}`);
     return savedPost;
   }
 
