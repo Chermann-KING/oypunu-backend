@@ -48,9 +48,11 @@ import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
  */
 interface AuthenticatedRequest extends Request {
   user: {
-    userId: string;
+    userId?: string;
+    _id?: string;
     username: string;
     email: string;
+    [key: string]: any; // Pour permettre d'autres propriétés comme 'sub'
   };
 }
 
@@ -137,9 +139,12 @@ export class MessagingController {
     @Request() req: AuthenticatedRequest,
     @Body() sendMessageDto: SendMessageDto
   ) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
     // 🚀 Utilise le nouveau service Enhanced en maintenant la compatibilité
     const result = await this.messagingEnhancedService.sendSimpleMessage(
-      req.user.userId,
+      userId,
       sendMessageDto.receiverId,
       sendMessageDto.content
     );
@@ -157,9 +162,12 @@ export class MessagingController {
     description: "Conversations récupérées avec succès",
   })
   async getUserConversations(@Request() req: AuthenticatedRequest) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
     // 🚀 Utilise le nouveau service Enhanced
     const result = await this.messagingEnhancedService.getUserConversations(
-      req.user.userId
+      userId
     );
     return {
       success: true,
@@ -180,9 +188,12 @@ export class MessagingController {
     @Request() req: AuthenticatedRequest,
     @Query() getMessagesDto: GetMessagesDto
   ) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
     // 🚀 Utilise le nouveau service Enhanced
     const result = await this.messagingEnhancedService.getConversationMessages(
-      req.user.userId,
+      userId,
       getMessagesDto.conversationId,
       getMessagesDto.page,
       getMessagesDto.limit
@@ -208,9 +219,12 @@ export class MessagingController {
     @Request() req: AuthenticatedRequest,
     @Param("conversationId") conversationId: string
   ) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
     // 🚀 Utilise le nouveau service Enhanced
     const result = await this.messagingEnhancedService.markMessagesAsRead(
-      req.user.userId,
+      userId,
       conversationId
     );
     return {
@@ -227,13 +241,74 @@ export class MessagingController {
     description: "Nombre de messages non lus récupéré",
   })
   async getUnreadMessagesCount(@Request() req: AuthenticatedRequest) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
     // 🚀 Utilise le nouveau service Enhanced
     const count = await this.messagingEnhancedService.getUnreadMessagesCount(
-      req.user.userId
+      userId
     );
     return {
       success: true,
       data: { count },
     };
+  }
+
+  @Get("conversations/:conversationId")
+  @ApiOperation({ summary: "Récupérer les détails d'une conversation" })
+  @ApiResponse({ status: 200, description: "Conversation récupérée avec succès" })
+  @ApiResponse({ status: 403, description: "Accès interdit à cette conversation" })
+  @ApiResponse({ status: 404, description: "Conversation introuvable" })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
+  @ApiBearerAuth()
+  async getConversationById(
+    @Param("conversationId") conversationId: string,
+    @Request() req: AuthenticatedRequest
+  ) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
+    // Utilise le service Enhanced pour récupérer une conversation spécifique
+    const conversation = await this.messagingEnhancedService.getConversationById(
+      userId,
+      conversationId
+    );
+    return {
+      success: true,
+      data: conversation
+    };
+  }
+
+  @Post("conversations/direct")
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: "Créer une conversation directe avec un utilisateur" })
+  @ApiResponse({ status: 201, description: "Conversation créée avec succès" })
+  @ApiResponse({ status: 400, description: "Paramètres invalides" })
+  @ApiResponse({ status: 404, description: "Utilisateur destinataire introuvable" })
+  @ApiResponse({ status: 401, description: "Non autorisé" })
+  @ApiBearerAuth()
+  async createDirectConversation(
+    @Body() { participantId }: { participantId: string },
+    @Request() req: AuthenticatedRequest
+  ) {
+    // Utiliser req.user._id ou sub comme fallback et s'assurer que c'est une string
+    const userId = String(req.user.userId || req.user._id || req.user.sub);
+    
+    // Utilise la méthode existante du service basique pour créer/trouver une conversation
+    const conversation = await this.messagingService.findOrCreateConversation(
+      userId,
+      participantId
+    );
+    
+    
+    const result = {
+      success: true,
+      data: {
+        ...conversation,
+        id: (conversation as any)._id?.toString(),
+      }
+    };
+    
+    return result;
   }
 }
