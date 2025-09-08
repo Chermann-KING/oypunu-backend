@@ -1,15 +1,8 @@
-[providers.node]
-version = "20"
-
-[phases.setup]
-dependsOn = ["..."]
-
-[phases.install]
-dependsOn = ["setup"]
-cmd = "npm ci"
+# Use Node.js 20
+[variables]
+NODE_VERSION = "20"
 
 [phases.build]
-dependsOn = ["install"]
 cmd = "npm run build"
 
 [start]
