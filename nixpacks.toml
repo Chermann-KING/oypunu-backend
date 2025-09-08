@@ -2,8 +2,11 @@
 [variables]
 NODE_VERSION = "20"
 
+[phases.install]
+cmd = "npm install --legacy-peer-deps"
+
 [phases.build]
-cmd = "npm run build"
+cmd = "npm run build && ls -la dist/ && ls -la dist/src/"
 
 [start]
-cmd = "npm run start:prod"
+cmd = "node dist/src/main"
