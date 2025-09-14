@@ -77,6 +77,7 @@ export class WordRepository implements IWordRepository {
     }
     return this.wordModel
       .findById(id)
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3") // Ajouter la population de la langue
       .populate("categoryId", "name description")
       .populate("createdBy", "username email")
       .exec();
@@ -115,6 +116,7 @@ export class WordRepository implements IWordRepository {
     const [words, total] = await Promise.all([
       this.wordModel
         .find(filter)
+        .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3") // Population langue
         .populate("categoryId", "name description") // Optimisation N+1: charger category
         .populate("createdBy", "username email") // Optimisation N+1: charger user
         .skip(skip)
@@ -144,6 +146,7 @@ export class WordRepository implements IWordRepository {
 
     return this.wordModel
       .findByIdAndUpdate(id, updatedData, { new: true })
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email")
       .exec();
@@ -234,6 +237,7 @@ export class WordRepository implements IWordRepository {
     const [words, total] = await Promise.all([
       this.wordModel
         .find(filter)
+        .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
         .populate("categoryId", "name description")
         .populate("createdBy", "username email")
         .skip(skip)
@@ -275,6 +279,7 @@ export class WordRepository implements IWordRepository {
   ): Promise<Word[]> {
     let query = this.wordModel
       .find({ status })
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email");
 
@@ -295,6 +300,7 @@ export class WordRepository implements IWordRepository {
         isFeatured: true,
         status: "approved",
       })
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email")
       .limit(limit)
@@ -527,6 +533,7 @@ export class WordRepository implements IWordRepository {
   ): Promise<Word[]> {
     const query = this.wordModel
       .find({ createdBy: creatorId })
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email");
 
@@ -647,6 +654,7 @@ export class WordRepository implements IWordRepository {
 
     let query = this.wordModel
       .find(filter)
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email");
 
@@ -667,6 +675,7 @@ export class WordRepository implements IWordRepository {
   ): Promise<Word[]> {
     let query = this.wordModel
       .find({ categoryId })
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email");
 
@@ -702,6 +711,7 @@ export class WordRepository implements IWordRepository {
 
     return this.wordModel
       .findByIdAndUpdate(id, updateData, { new: true })
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email")
       .exec();
@@ -794,6 +804,7 @@ export class WordRepository implements IWordRepository {
 
     let mongoQuery = this.wordModel
       .find(filter)
+      .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
       .populate("categoryId", "name description")
       .populate("createdBy", "username email");
 
@@ -835,6 +846,7 @@ export class WordRepository implements IWordRepository {
         }
         return this.wordModel
           .findById(wordId)
+          .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
           .populate("categoryId", "name description")
           .populate("createdBy", "username email")
           .populate("translations.createdBy", "username")
@@ -877,6 +889,7 @@ export class WordRepository implements IWordRepository {
 
         return this.wordModel
           .find(query)
+          .populate("languageId", "name nativeName iso639_1 iso639_2 iso639_3")
           .populate("categoryId", "name description")
           .populate("createdBy", "username email")
           .limit(limit)
