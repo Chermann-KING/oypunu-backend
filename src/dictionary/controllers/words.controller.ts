@@ -53,6 +53,7 @@ import {
   CreateWordFormDataDto,
   UpdateWordFormDataDto,
 } from "../dto/create-word-formdata.dto";
+import { LanguagesService } from "../../languages/services/languages.service";
 
 class SearchResults {
   words: Word[];
@@ -83,8 +84,12 @@ export class WordsController {
   /**
    * Constructeur du contrôleur de mots
    * @param {WordsService} wordsService - Service principal de gestion des mots
+   * @param {LanguagesService} languagesService - Service de gestion des langues
    */
-  constructor(private readonly wordsService: WordsService) {}
+  constructor(
+    private readonly wordsService: WordsService,
+    private readonly languagesService: LanguagesService
+  ) {}
 
   /**
    * Crée un nouveau mot dans le dictionnaire
@@ -184,6 +189,13 @@ export class WordsController {
         createWordDto.categoryId = String(createWordDto.categoryId);
       }
 
+      // IMPORTANT: Exclure le champ 'language' pour éviter l'erreur MongoDB text search
+      // avec des codes langues non supportés comme "ypu"
+      if (createWordDto.language) {
+        console.log("⚠️ Suppression du champ language pour éviter l'erreur MongoDB:", createWordDto.language);
+        delete createWordDto.language;
+      }
+
       console.log("Final DTO before service call:", createWordDto);
 
       return this.wordsService.create(createWordDto, req.user);
@@ -269,16 +281,36 @@ export class WordsController {
         throw new BadRequestException("meanings doit être un tableau");
       }
 
+      // Traitement des traductions si présentes
+      let parsedTranslations: any[] = [];
+      if (createWordDto.translations) {
+        try {
+          parsedTranslations = JSON.parse(createWordDto.translations) as any[];
+          console.log("🌐 Traductions parsées:", parsedTranslations);
+        } catch (error: unknown) {
+          console.error("❌ Error parsing translations:", error);
+          throw new BadRequestException(
+            "Données translations invalides: " +
+              (error instanceof Error ? error.message : "")
+          );
+        }
+      }
+
       // 🔍 DEBUG: Avant construction standardDto
-      const pronunciationTrimmed = createWordDto.pronunciation?.trim(); // Construction du DTO standard
+      const pronunciationTrimmed = createWordDto.pronunciation?.trim(); 
+      
+      // Construction du DTO standard - EXCLURE le champ language pour éviter l'erreur MongoDB
       const standardDto: CreateWordDto = {
         word: createWordDto.word?.trim(),
         languageId: createWordDto.languageId?.trim() || undefined,
-        language: createWordDto.language?.trim() || undefined,
+        // NOTE: On exclut délibérément le champ 'language' car MongoDB text search 
+        // ne supporte pas le code langue "ypu" et génère une erreur.
+        // Le champ languageId suffit pour identifier la langue dans la DB.
         pronunciation: pronunciationTrimmed || undefined,
         etymology: createWordDto.etymology?.trim() || undefined,
         categoryId: createWordDto.categoryId?.trim() || undefined,
         meanings: parsedMeanings,
+        ...(parsedTranslations.length > 0 && { translations: parsedTranslations }),
       };
 
       // Validation manuelle supplémentaire
@@ -312,7 +344,7 @@ export class WordsController {
       // Si fichier audio présent, l'ajouter
       if (audioFile && createdWord) {
         try {
-          const accent = this.getDefaultAccent(
+          const accent = await this.getDefaultAccent(
             standardDto.language || "standard"
           );
           const raw = createdWord as unknown as { id?: any; _id?: any };
@@ -330,25 +362,13 @@ export class WordsController {
             req.user
           );
 
-          // 🎯 AUTO-APPROBATION : Les mots avec audio sont automatiquement approuvés
-          // car cela indique un effort supplémentaire de qualité de l'utilisateur
-          const wordToUpdate = await this.wordsService.findOne(wordId);
-          if (wordToUpdate.status === "pending") {
-            await this.wordsService.updateWordStatus(
-              wordId,
-              "approved",
-              req.user,
-              "Auto-approuvé avec audio"
-            );
-          }
-
           console.log("✅ Audio uploadé avec succès!");
           console.log("=== 🎵 FIN createWithAudio (AVEC AUDIO) ===");
           return {
             success: true,
             word: wordWithAudio,
             message:
-              "Mot créé avec succès et automatiquement approuvé grâce au fichier audio !",
+              "Mot créé avec succès avec fichier audio ! En attente d'approbation par un administrateur.",
           };
         } catch (audioError: unknown) {
           console.error("❌ Erreur upload audio:", {
@@ -1106,34 +1126,54 @@ export class WordsController {
   /**
    * Retourne l'accent par défaut pour une langue donnée
    */
-  private getDefaultAccent(lang: string): string {
-    switch ((lang || "").toLowerCase()) {
-      case "fr":
-        return "fr-fr";
-      case "en":
-        return "en-us";
-      case "es":
-        return "es-es";
-      case "de":
-        return "de-de";
-      case "it":
-        return "it-it";
-      case "pt":
-        return "pt-br";
-      case "ru":
-        return "ru-ru";
-      case "ja":
-        return "ja-jp";
-      case "zh":
-        return "zh-cn";
-      case "ar":
-        return "ar-sa";
-      case "ko":
-        return "ko-kr";
-      case "hi":
-        return "hi-in";
-      default:
-        return "standard";
+  /**
+   * Détermine l'accent par défaut d'une langue de manière dynamique
+   * en utilisant les données de la base de données
+   * 
+   * @param {string} langCode - Code langue (ISO ou nom)
+   * @returns {Promise<string>} Accent par défaut pour l'audio
+   */
+  private async getDefaultAccent(langCode: string): Promise<string> {
+    try {
+      // Rechercher la langue par son code ISO ou nom
+      const language = await this.languagesService.findByCodeOrName(langCode);
+      
+      if (language) {
+        // Utiliser le code ISO le plus spécifique disponible
+        const isoCode = language.iso639_1 || language.iso639_2 || language.iso639_3;
+        
+        if (isoCode) {
+          // Créer l'accent basé sur le code ISO et le premier pays
+          const primaryCountry = language.countries?.[0]?.toLowerCase();
+          if (primaryCountry) {
+            return `${isoCode}-${primaryCountry}`;
+          }
+          // Fallback: utiliser le code ISO avec région générique
+          return `${isoCode}-${isoCode}`;
+        }
+      }
+      
+      // Fallback pour les langues connues (compatibilité ascendante)
+      const knownLanguages: Record<string, string> = {
+        "fr": "fr-fr",
+        "en": "en-us", 
+        "es": "es-es",
+        "de": "de-de",
+        "it": "it-it",
+        "pt": "pt-br",
+        "ru": "ru-ru",
+        "ja": "ja-jp",
+        "zh": "zh-cn",
+        "ar": "ar-sa",
+        "ko": "ko-kr",
+        "hi": "hi-in"
+      };
+      
+      return knownLanguages[langCode.toLowerCase()] || "standard";
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de la récupération de l'accent:", error);
+      return "standard";
     }
   }
 

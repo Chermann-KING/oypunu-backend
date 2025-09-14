@@ -29,6 +29,7 @@ import { IUserRepository } from "../../../repositories/interfaces/user.repositor
 import { ILanguageRepository } from "../../../repositories/interfaces/language.repository.interface";
 import { IWordViewRepository } from "../../../repositories/interfaces/word-view.repository.interface";
 import { IFavoriteWordRepository } from "../../../repositories/interfaces/favorite-word.repository.interface";
+import { AudioService } from "../audio.service";
 
 interface WordFilter {
   status: string;
@@ -72,7 +73,8 @@ export class WordCoreService {
     private favoriteWordRepository: IFavoriteWordRepository,
     private categoriesService: CategoriesService,
     private usersService: UsersService,
-    private activityService: ActivityService
+    private activityService: ActivityService,
+    private audioService: AudioService
   ) {}
 
   /**
@@ -229,8 +231,8 @@ export class WordCoreService {
   }
 
   /**
-   * Récupère un mot par ID
-   * Ligne 268-286 dans WordsService original
+   * Récupère un mot par ID avec population des références
+   * Ligne 268-286 dans WordsService original + population languageId
    */
   async findOne(id: string): Promise<Word> {
     return DatabaseErrorHandler.handleFindOperation(async () => {
@@ -477,8 +479,8 @@ export class WordCoreService {
   }
 
   /**
-   * Met à jour le statut d'un mot
-   * Ligne 849-869 dans WordsService original
+   * Met à jour le statut d'un mot avec nettoyage automatique des ressources
+   * Ligne 849-869 dans WordsService original + gestion des fichiers audio
    */
   async updateWordStatus(
     wordId: string,
@@ -491,6 +493,13 @@ export class WordCoreService {
           throw new BadRequestException("ID de mot invalide");
         }
 
+        // 1. Récupérer le mot avant mise à jour pour accéder aux fichiers audio
+        const currentWord = await this.wordRepository.findById(wordId);
+        if (!currentWord) {
+          throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
+        }
+
+        // 2. Mettre à jour le statut
         const updatedWord = await this.wordRepository.updateStatus(
           wordId,
           status,
@@ -498,7 +507,44 @@ export class WordCoreService {
         );
 
         if (!updatedWord) {
-          throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
+          throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé après mise à jour`);
+        }
+
+        // 3. 🧹 NETTOYAGE : Si le mot est rejeté, supprimer les fichiers audio Cloudinary
+        if (status === "rejected" && (currentWord as any).audioFiles) {
+          console.log(`🗑️ Nettoyage des fichiers audio pour le mot rejeté: ${wordId}`);
+          
+          try {
+            const audioFiles = (currentWord as any).audioFiles;
+            
+            if (audioFiles) {
+              // Gérer audioFiles comme une Map ou un objet
+              let audioFilesArray: [string, any][];
+              
+              if (audioFiles instanceof Map) {
+                audioFilesArray = Array.from(audioFiles.entries());
+              } else if (typeof audioFiles === 'object') {
+                audioFilesArray = Object.entries(audioFiles);
+              } else {
+                audioFilesArray = [];
+              }
+              
+              for (const [accent, audioData] of audioFilesArray) {
+                if (audioData?.cloudinaryId) {
+                  console.log(`🗑️ Suppression fichier audio: ${audioData.cloudinaryId}`);
+                  await this.audioService.deletePhoneticAudio(audioData.cloudinaryId);
+                }
+              }
+            }
+            
+            // Vider le champ audioFiles dans la DB
+            await this.wordRepository.update(wordId, { audioFiles: new Map() } as any);
+            console.log(`✅ Nettoyage terminé pour le mot: ${wordId}`);
+            
+          } catch (cleanupError) {
+            console.error(`❌ Erreur lors du nettoyage audio pour ${wordId}:`, cleanupError);
+            // Note: Ne pas faire échouer la mise à jour du statut si le nettoyage échoue
+          }
         }
 
         return updatedWord;

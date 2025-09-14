@@ -452,4 +452,39 @@ export class LanguagesService {
       });
     }, "Language");
   }
+
+  /**
+   * 🔍 TROUVER une langue par code ISO ou nom
+   * Méthode utilitaire pour le mapping dynamique des accents audio
+   * 
+   * @param {string} codeOrName - Code ISO (639-1, 639-2, 639-3) ou nom de langue
+   * @returns {Promise<Language | null>} Langue trouvée ou null
+   */
+  async findByCodeOrName(codeOrName: string): Promise<Language | null> {
+    if (!codeOrName) {
+      return null;
+    }
+
+    return DatabaseErrorHandler.handleFindOperation(
+      async () => {
+        // Recherche par code ISO d'abord (plus précis)
+        const byCode = await this.languageRepository.findByCode(codeOrName);
+        if (byCode) {
+          return byCode;
+        }
+
+        // Fallback: recherche par nom ou code avec la méthode dédiée
+        const byNameOrCode = await this.languageRepository.findByNameOrCode({
+          name: codeOrName,
+          nativeName: codeOrName,
+          iso639_1: codeOrName.toLowerCase(),
+          iso639_2: codeOrName.toLowerCase(),
+          iso639_3: codeOrName.toLowerCase()
+        });
+
+        return byNameOrCode || null;
+      },
+      "Language"
+    );
+  }
 }

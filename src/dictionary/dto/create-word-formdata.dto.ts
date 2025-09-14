@@ -66,6 +66,14 @@ export class CreateWordFormDataDto {
   // meanings: string | MeaningDto[];
   meanings: string;
 
+  @ApiProperty({ 
+    description: 'Traductions du mot (JSON string)', 
+    required: false 
+  })
+  @IsOptional()
+  @IsString()
+  translations?: string;
+
   @ApiProperty({ description: 'Fichier audio', required: false })
   @IsOptional()
   audioFile?: Express.Multer.File;

@@ -11,6 +11,7 @@ import { User } from '../../../users/schemas/user.schema';
 import { AudioService } from '../audio.service';
 import { ActivityService } from '../../../common/services/activity.service';
 import { WordPermissionService } from './word-permission.service';
+import { LanguagesService } from '../../../languages/services/languages.service';
 import { DatabaseErrorHandler } from "../../../common/errors";
 
 /**
@@ -26,6 +27,7 @@ export class WordAudioService {
     private audioService: AudioService,
     private activityService: ActivityService,
     private wordPermissionService: WordPermissionService,
+    private languagesService: LanguagesService,
   ) {}
 
   /**
@@ -49,9 +51,14 @@ export class WordAudioService {
           throw new NotFoundException(`Mot avec l'ID ${wordId} non trouvé`);
         }
 
+        // Récupérer le code langue à partir de languageId
+        const languageCode = await this.getLanguageCodeFromWord(word);
+        console.log('🌍 Code langue récupéré:', languageCode, 'pour languageId:', word.languageId);
+
         console.log('📝 Mot trouvé:', {
           word: word.word,
-          language: word.language,
+          languageId: word.languageId,
+          languageCode: languageCode,
           existingAudioFiles: Object.keys(word.audioFiles || {}).length,
         });
 
@@ -81,7 +88,7 @@ export class WordAudioService {
             detectedMimeType = 'audio/flac';
           }          const audioResult = await this.audioService.uploadPhoneticAudio(
             word.word,
-            word.language || 'unknown',
+            languageCode,
             fileBuffer,
             accent,
             detectedMimeType,
@@ -94,7 +101,7 @@ export class WordAudioService {
           audioFiles.set(accent, {
             url: audioResult.url,
             cloudinaryId: audioResult.cloudinaryId,
-            language: word.language || 'unknown',
+            language: languageCode, // Utiliser le code langue récupéré
             accent: accent,
           });
 
@@ -122,7 +129,7 @@ export class WordAudioService {
               audioResult.url,
               { 
                 wordTitle: word.word,
-                language: word.language,
+                language: languageCode,
                 fileSize: fileBuffer.length,
                 accent: accent,
                 duration: audioResult.duration || 0
@@ -215,7 +222,7 @@ export class WordAudioService {
               audioFile.url,
               { 
                 wordTitle: word.word,
-                language: word.language,
+                language: await this.getLanguageCodeFromWord(word),
                 accent: accent,
                 reason: 'Suppression par utilisateur'
               }
@@ -279,7 +286,7 @@ export class WordAudioService {
         return {
           wordId: word._id.toString(),
           word: word.word,
-          language: word.language || 'unknown',
+          language: await this.getLanguageCodeFromWord(word),
           audioFiles: audioFilesArray,
           totalCount: audioFilesArray.length,
         };
@@ -346,9 +353,10 @@ export class WordAudioService {
                 }
               }
 
+              const languageCode = await this.getLanguageCodeFromWord(word);
               const audioResult = await this.audioService.uploadPhoneticAudio(
                 word.word,
-                word.language || 'unknown',
+                languageCode,
                 update.fileBuffer,
                 update.accent,
               );
@@ -356,7 +364,7 @@ export class WordAudioService {
               audioFiles.set(update.accent, {
                 url: audioResult.url,
                 cloudinaryId: audioResult.cloudinaryId,
-                language: word.language || 'unknown',
+                language: languageCode,
                 accent: update.accent,
               });
 
@@ -399,7 +407,7 @@ export class WordAudioService {
               successCount,
               { 
                 wordTitle: word.word,
-                language: word.language,
+                language: await this.getLanguageCodeFromWord(word),
                 operations: results.map(r => ({ accent: r.accent, status: r.status }))
               }
             );
@@ -539,7 +547,8 @@ export class WordAudioService {
           recommendations.push(`${invalidFiles.length} fichier(s) audio nécessitent une correction.`);
         }
 
-        const defaultAccent = this.getDefaultAccentForLanguage(word.language || 'unknown');
+        const languageCode = await this.getLanguageCodeFromWord(word);
+        const defaultAccent = await this.getDefaultAccentForLanguage(languageCode);
         if (!audioFiles.some(([accent]) => accent === defaultAccent)) {
           recommendations.push(`Accent par défaut '${defaultAccent}' manquant pour cette langue.`);
         }
@@ -710,20 +719,65 @@ export class WordAudioService {
   }
 
   /**
-   * Détermine l'accent par défaut basé sur la langue
-   * Ligne 578-589 dans WordsService original
+   * Récupère le code langue à partir de l'ID de langue d'un mot
    */
-  getDefaultAccentForLanguage(language: string): string {
-    const defaultAccents: Record<string, string> = {
-      fr: 'fr-fr',
-      en: 'en-us',
-      es: 'es-es',
-      de: 'de-de',
-      it: 'it-it',
-      pt: 'pt-br',
-    };
+  private async getLanguageCodeFromWord(word: any): Promise<string> {
+    if (!word.languageId) {
+      return 'unknown';
+    }
 
-    return defaultAccents[language] || 'standard';
+    try {
+      const language = await this.languagesService.getLanguageById(word.languageId.toString());
+      if (language) {
+        // Utiliser le code ISO le plus spécifique disponible
+        return language.iso639_3 || language.iso639_2 || language.iso639_1 || 'unknown';
+      }
+    } catch (error) {
+      console.warn('⚠️ Erreur lors de la récupération du code langue:', error);
+    }
+    return 'unknown';
+  }
+
+  /**
+   * Détermine l'accent par défaut basé sur la langue de manière dynamique
+   * en utilisant les données de la base de données
+   */
+  async getDefaultAccentForLanguage(languageCode: string): Promise<string> {
+    try {
+      // Rechercher la langue par son code ISO ou nom
+      const language = await this.languagesService.findByCodeOrName(languageCode);
+      
+      if (language) {
+        // Utiliser le code ISO le plus spécifique disponible
+        const isoCode = language.iso639_1 || language.iso639_2 || language.iso639_3;
+        
+        if (isoCode) {
+          // Créer l'accent basé sur le code ISO et le premier pays
+          const primaryCountry = language.countries?.[0]?.toLowerCase();
+          if (primaryCountry) {
+            return `${isoCode}-${primaryCountry}`;
+          }
+          // Fallback: utiliser le code ISO avec région générique
+          return `${isoCode}-${isoCode}`;
+        }
+      }
+      
+      // Fallback pour les langues connues (compatibilité ascendante)
+      const knownLanguages: Record<string, string> = {
+        "fr": "fr-fr",
+        "en": "en-us", 
+        "es": "es-es",
+        "de": "de-de",
+        "it": "it-it",
+        "pt": "pt-br"
+      };
+      
+      return knownLanguages[languageCode.toLowerCase()] || "standard";
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de la récupération de l'accent:", error);
+      return "standard";
+    }
   }
 
   /**
@@ -736,7 +790,7 @@ export class WordAudioService {
     language: string,
     user: User,
   ): Promise<Word> {
-    const defaultAccent = this.getDefaultAccentForLanguage(language);
+    const defaultAccent = await this.getDefaultAccentForLanguage(language);
     return this.addAudioFile(wordId, defaultAccent, audioFile, user);
   }
 }

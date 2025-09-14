@@ -274,8 +274,8 @@ export class WordsService {
    * Détermine l'accent par défaut basé sur la langue
    * PHASE 2 - Délégation vers WordAudioService
    */
-  private getDefaultAccentForLanguage(language: string): string {
-    return this.wordAudioService.getDefaultAccentForLanguage(language);
+  private async getDefaultAccentForLanguage(language: string): Promise<string> {
+    return await this.wordAudioService.getDefaultAccentForLanguage(language);
   }
 
   // PHASE 5 - DÉLÉGATION: Approuver une révision

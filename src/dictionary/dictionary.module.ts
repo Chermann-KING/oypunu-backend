@@ -69,6 +69,7 @@ import { UsersModule } from 'src/users/users.module';
 import { TranslationModule } from '../translation/translation.module';
 import { ActivityModule } from '../common/activity.module';
 import { RepositoriesModule } from '../repositories/repositories.module';
+import { LanguagesModule } from '../languages/languages.module';
 
 /**
  * Module du dictionnaire O'Ypunu - Architecture avancée
@@ -124,6 +125,7 @@ import { RepositoriesModule } from '../repositories/repositories.module';
     TranslationModule,
     ActivityModule,
     RepositoriesModule, // Already imported - Repository Pattern support
+    LanguagesModule, // Pour le mapping dynamique des accents audio
   ],
   controllers: [
     // Contrôleurs existants
