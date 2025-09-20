@@ -53,7 +53,8 @@ export class CommunityPostsController {
     _id?: string;
     id?: string;
   }): string {
-    return user?.userId || user?._id || user?.id || '';
+    const id = user?.userId || user?._id || user?.id || '';
+    return id?.toString() || '';
   }
 
   @Post('communities/:communityId/posts')
