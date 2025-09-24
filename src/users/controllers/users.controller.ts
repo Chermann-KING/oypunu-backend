@@ -46,6 +46,10 @@ interface UserResponse {
   email: string;
   /** Nom d'utilisateur unique */
   username: string;
+  /** Prénom de l'utilisateur */
+  firstName?: string;
+  /** Nom de famille de l'utilisateur */
+  lastName?: string;
   /** Statut de vérification de l'email */
   isEmailVerified: boolean;
   /** Rôle utilisateur dans la plateforme */
@@ -60,6 +64,10 @@ interface UserResponse {
   bio?: string;
   /** Localisation géographique */
   location?: string;
+  /** Ville de l'utilisateur */
+  city?: string;
+  /** Pays de l'utilisateur */
+  country?: string;
   /** Site web personnel */
   website?: string;
   /** Visibilité du profil */
@@ -78,6 +86,10 @@ interface PublicUserResponse {
   id: string;
   /** Nom d'utilisateur unique */
   username: string;
+  /** Prénom de l'utilisateur */
+  firstName?: string;
+  /** Nom de famille de l'utilisateur */
+  lastName?: string;
   /** Langue maternelle (code ISO) */
   nativeLanguage: string;
   /** Langues en apprentissage (codes ISO) */
@@ -88,6 +100,10 @@ interface PublicUserResponse {
   bio?: string;
   /** Localisation géographique */
   location?: string;
+  /** Ville de l'utilisateur */
+  city?: string;
+  /** Pays de l'utilisateur */
+  country?: string;
   /** Site web personnel */
   website?: string;
   /** Dernière activité */
@@ -293,6 +309,8 @@ export class UsersController {
       id: updatedUser._id.toString(),
       email: updatedUser.email,
       username: updatedUser.username,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
       isEmailVerified: updatedUser.isEmailVerified,
       role: updatedUser.role,
       nativeLanguage:
@@ -307,6 +325,8 @@ export class UsersController {
       profilePicture: updatedUser.profilePicture,
       bio: updatedUser.bio,
       location: updatedUser.location,
+      city: updatedUser.city,
+      country: updatedUser.country,
       website: updatedUser.website,
       isProfilePublic: updatedUser.isProfilePublic,
       lastActive: updatedUser.lastActive,

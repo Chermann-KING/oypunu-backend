@@ -1,10 +1,10 @@
 /**
  * @fileoverview Schéma Mongoose pour les utilisateurs O'Ypunu
- * 
+ *
  * Ce schéma définit le modèle principal des utilisateurs avec gestion
  * complète des profils, authentification, rôles hiérarchiques,
  * préférences linguistiques et fonctionnalités sociales avancées.
- * 
+ *
  * @author Équipe O'Ypunu
  * @version 1.0.0
  * @since 2025-01-01
@@ -22,7 +22,7 @@ export type UserDocument = User & Document;
 
 /**
  * Énumération des rôles utilisateur avec hiérarchie de permissions
- * 
+ *
  * @enum {string} UserRole
  * @readonly
  */
@@ -30,7 +30,7 @@ export enum UserRole {
   /** Utilisateur standard avec accès de base */
   USER = "user",
   /** Contributeur avec droits d'ajout/modification de contenu */
-  CONTRIBUTOR = "contributor", 
+  CONTRIBUTOR = "contributor",
   /** Administrateur avec droits de modération */
   ADMIN = "admin",
   /** Super-administrateur avec tous les droits */
@@ -49,17 +49,17 @@ export enum UserRole {
  * - **Hashage avancé** : Mots de passe protégés avec bcrypt
  * - **OAuth intégré** : Support des fournisseurs sociaux (Google, Facebook, etc.)
  * - **Sessions persistantes** : Tracking de la dernière activité
- * 
+ *
  * ## 👤 Profil utilisateur enrichi :
  * - **Informations personnelles** : Bio, localisation, site web, date de naissance
  * - **Avatar personnalisé** : Photo de profil avec gestion de fichiers
  * - **Préférences sociales** : Paramètres de visibilité et notifications
- * 
+ *
  * ## 🌍 Préférences linguistiques :
  * - **Langue native** : Référence à la langue maternelle de l'utilisateur
  * - **Langues d'apprentissage** : Collection des langues étudiées
  * - **Mots favoris** : Liste personnalisée de mots préférés
- * 
+ *
  * ## 🎯 Système de rôles :
  * - **USER** : Accès standard au dictionnaire et fonctionnalités de base
  * - **CONTRIBUTOR** : Droits d'ajout et modification de contenu
@@ -80,6 +80,12 @@ export class User {
 
   @Prop({ required: true })
   password: string;
+
+  @Prop({ type: String })
+  firstName?: string;
+
+  @Prop({ type: String })
+  lastName?: string;
 
   @Prop({ default: false })
   isEmailVerified: boolean;
@@ -134,6 +140,12 @@ export class User {
   location: string;
 
   @Prop({ type: String })
+  city?: string;
+
+  @Prop({ type: String })
+  country?: string;
+
+  @Prop({ type: String })
   website: string;
 
   @Prop({ type: Boolean, default: true })
@@ -154,7 +166,7 @@ export class User {
   @Prop({ type: Number, default: 0 })
   globalRank: number;
 
-  @Prop({ type: String, default: 'bronze' })
+  @Prop({ type: String, default: "bronze" })
   currentTier: string;
 
   @Prop({ type: Number, default: 0 })
